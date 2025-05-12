@@ -1,0 +1,159 @@
+<!-- bsky-posts.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Post Processor - aeyu.io</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .output-container {
+            position: relative;
+        }
+
+        .output-actions {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-button {
+            background: #4b5563;
+            color: white;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        .action-button:hover {
+            background: #374151;
+        }
+
+        pre {
+            background-color: #f3f4f6;
+            padding: 1rem;
+            border-radius: 0.25rem;
+            overflow: auto;
+            max-height: 600px;
+            white-space: pre-wrap;
+            margin-top: 0;
+        }
+
+        .copy-feedback {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background: #059669;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            display: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <a href="/" class="inline-block mb-4">
+                <h1 class="text-2xl font-bold bluesky-gradient bg-clip-text text-transparent">
+                    aeyu.io
+                </h1>
+            </a>
+            <h2 class="text-3xl font-bold mb-4">Post Processor</h2>
+            <p class="text-gray-600 max-w-2xl mx-auto">
+                Extract replies or quotes from any public Bluesky post. 
+                Data is anonymized and made available in JSON format for analysis.
+            </p>
+        </header>
+
+        <main class="max-w-2xl mx-auto">
+            <form id="processor-form">
+                <div class="mb-4">
+                    <label for="url-input" class="block text-sm font-medium mb-2">
+                        Bluesky Post URL
+                    </label>
+                    <input 
+                        type="url" 
+                        id="url-input" 
+                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="https://bsky.app/profile/username.bsky.social/post/postid"
+                        required 
+                    />
+                </div>
+                
+                <div class="button-group mb-4">
+                    <button 
+                        type="submit" 
+                        id="process-replies"
+                        class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                    >
+                        Process Replies
+                    </button>
+                    <button 
+                        type="submit" 
+                        id="process-quotes"
+                        class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                    >
+                        Process Quotes
+                    </button>
+                </div>
+            </form>
+
+            <div id="error" class="text-red-600 mb-4 p-4 border border-red-300 rounded bg-red-50" style="display: none;"></div>
+            
+            <div class="output-container">
+                <div class="output-actions" style="display: none">
+                    <button class="action-button" id="copy-button">Copy Output</button>
+                </div>
+                <pre id="output"></pre>
+            </div>
+            
+            <div id="copy-feedback" class="copy-feedback">Copied to clipboard!</div>
+            
+            <div class="mt-8 text-center text-sm text-gray-600">
+                <a href="https://github.com/oaustegard/aeyu.io" class="text-blue-500 hover:underline">View on GitHub</a>
+            </div>
+        </main>
+    </div>
+
+    <script src="bsky-core.js" type="module"></script>
+    <script src="bsky-thread.js" type="module"></script>
+    <script src="bsky-quote.js" type="module"></script>
+    <script type="module">
+        import { initializeBskyCore } from './bsky-core.js';
+        import { initializeThreadProcessing, autoProcessThread } from './bsky-thread.js';
+        
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const coreInitialized = await initializeBskyCore();
+                
+                if (coreInitialized) {
+                    initializeThreadProcessing();
+                    // Auto-process if URL is in query params
+                    autoProcessThread();
+                }
+            } catch (e) {
+                console.error("Initialization failed:", e);
+                document.getElementById('error').textContent = "Failed to initialize: " + e.message;
+                document.getElementById('error').style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
