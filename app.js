@@ -1,4 +1,8 @@
-// app.js - Update the utilities array
+import { h, render } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
+import { html } from 'htm/preact';
+
+// Main App component
 function App() {
     const [loading, setLoading] = useState(false);
     const [utilities, setUtilities] = useState([
@@ -43,3 +47,27 @@ function App() {
         </div>
     `;
 }
+
+// Error boundary component
+function ErrorBoundary({ children }) {
+    const [hasError, setHasError] = useState(false);
+
+    if (hasError) {
+        return html`
+            <div class="container mx-auto px-4 py-8 text-center">
+                <h2 class="text-2xl font-bold text-red-600 mb-4">Something went wrong</h2>
+                <button 
+                    class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                    onClick=${() => setHasError(false)}
+                >
+                    Try again
+                </button>
+            </div>
+        `;
+    }
+
+    return children;
+}
+
+// Mount the app
+render(html`<${ErrorBoundary}><${App} /><//>`, document.getElementById('app'));
