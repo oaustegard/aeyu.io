@@ -7,67 +7,9 @@
     <title>Post Processor - aeyu.io</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/styles.css">
-    <style>
-        .input-group {
-            display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .output-container {
-            position: relative;
-        }
-
-        .output-actions {
-            position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .action-button {
-            background: #4b5563;
-            color: white;
-            border: none;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            font-size: 0.875rem;
-            cursor: pointer;
-        }
-
-        .action-button:hover {
-            background: #374151;
-        }
-
-        pre {
-            background-color: #f3f4f6;
-            padding: 1rem;
-            border-radius: 0.25rem;
-            overflow: auto;
-            max-height: 600px;
-            white-space: pre-wrap;
-            margin-top: 0;
-        }
-
-        .copy-feedback {
-            position: fixed;
-            bottom: 1rem;
-            right: 1rem;
-            background: #059669;
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 0.25rem;
-            display: none;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 0.5rem;
-        }
-    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
     <div class="container mx-auto px-4 py-8">
         <header class="text-center mb-8">
             <a href="/" class="inline-block mb-4">
@@ -145,7 +87,7 @@
                 
                 if (coreInitialized) {
                     initializeThreadProcessing();
-                    // Auto-process if URL is in query params
+                    /* Auto-process if URL is in query params */
                     autoProcessThread();
                 }
             } catch (e) {
