@@ -1,0 +1,140 @@
+<!-- bsky-feeds.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Feed Processor - aeyu.io</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <a href="/" class="inline-block mb-4">
+                <h1 class="text-2xl font-bold bluesky-gradient bg-clip-text text-transparent">
+                    aeyu.io
+                </h1>
+            </a>
+            <h2 class="text-3xl font-bold mb-4">Feed Processor</h2>
+            <p class="text-gray-600 max-w-2xl mx-auto">
+                Extract posts from user profiles, feeds, lists, or starter packs. 
+                Data is anonymized and made available in JSON format for analysis.
+            </p>
+        </header>
+
+        <main class="max-w-2xl mx-auto">
+            <form id="feed-form">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-2">Content Type</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="content-type" value="profile" class="mr-2" checked>
+                            <div>
+                                <div class="font-medium">👤 User Profile</div>
+                                <div class="text-sm text-gray-600">Posts by a specific user</div>
+                            </div>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="content-type" value="feed" class="mr-2">
+                            <div>
+                                <div class="font-medium">📊 Custom Feed</div>
+                                <div class="text-sm text-gray-600">Algorithm-generated feed</div>
+                            </div>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="content-type" value="list" class="mr-2">
+                            <div>
+                                <div class="font-medium">📋 List Feed</div>
+                                <div class="text-sm text-gray-600">Posts from list members</div>
+                            </div>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="content-type" value="starterpack" class="mr-2">
+                            <div>
+                                <div class="font-medium">🚀 Starter Pack</div>
+                                <div class="text-sm text-gray-600">Posts from starter pack users</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="url-input" class="block text-sm font-medium mb-2">
+                        <span id="url-label">Bluesky Profile URL</span>
+                    </label>
+                    <input 
+                        type="url" 
+                        id="url-input" 
+                        class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="https://bsky.app/profile/username.bsky.social"
+                        required 
+                    />
+                    <div id="url-help" class="text-sm text-gray-600 mt-1">
+                        Enter a user profile URL
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label for="limit-select" class="block text-sm font-medium mb-2">
+                        Number of Posts
+                    </label>
+                    <select id="limit-select" class="px-4 py-2 border rounded-lg">
+                        <option value="50">50 posts</option>
+                        <option value="100" selected>100 posts</option>
+                        <option value="250">250 posts</option>
+                        <option value="500">500 posts</option>
+                    </select>
+                </div>
+                
+                <button 
+                    type="submit" 
+                    id="process-feed"
+                    class="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                >
+                    Process Feed
+                </button>
+            </form>
+
+            <div id="error" class="text-red-600 mb-4 p-4 border border-red-300 rounded bg-red-50" style="display: none;"></div>
+            
+            <div class="output-container">
+                <div class="output-actions" style="display: none">
+                    <button class="action-button" id="copy-button">Copy Output</button>
+                </div>
+                <pre id="output"></pre>
+            </div>
+            
+            <div id="copy-feedback" class="copy-feedback">Copied to clipboard!</div>
+            
+            <div class="mt-8 text-center text-sm text-gray-600">
+                <a href="https://github.com/oaustegard/aeyu.io" class="text-blue-500 hover:underline">View on GitHub</a>
+            </div>
+        </main>
+    </div>
+
+    <script src="bsky-core.js" type="module"></script>
+    <script src="bsky-feeds.js" type="module"></script>
+    <script type="module">
+        import { initializeBskyCore } from './bsky-core.js';
+        import { initializeFeedProcessing, autoProcessFeed } from './bsky-feeds.js';
+        
+        window.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const coreInitialized = await initializeBskyCore();
+                
+                if (coreInitialized) {
+                    initializeFeedProcessing();
+                    /* Auto-process if URL is in query params */
+                    autoProcessFeed();
+                }
+            } catch (e) {
+                console.error("Initialization failed:", e);
+                document.getElementById('error').textContent = "Failed to initialize: " + e.message;
+                document.getElementById('error').style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
