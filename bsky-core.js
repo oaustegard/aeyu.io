@@ -5,6 +5,7 @@ let userProfile = null;
 
 /* API endpoints */
 const BSKY_API_BASE = 'https://bsky.social/xrpc';
+const BSKY_PUBLIC_API = 'https://public.api.bsky.app/xrpc';
 
 /* Initialize core functionality */
 export async function initializeBskyCore() {
