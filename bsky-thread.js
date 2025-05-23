@@ -9,7 +9,22 @@ import {
     displayOutput 
 } from './bsky-core.js';
 
-const BSKY_API_BASE = 'https://bsky.social/xrpc';
+const BSKY_PUBLIC_API = 'https://public.api.bsky.app/xrpc';
+
+/* Resolve a handle to a DID using the public API */
+async function resolveHandleToDid(handle) {
+    console.log('Resolving handle to DID:', handle);
+    
+    const response = await fetch(`${BSKY_PUBLIC_API}/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+    
+    if (!response.ok) {
+        throw new Error(`Failed to resolve handle: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('Resolved DID:', data.did);
+    return data.did;
+}
 
 /* Initialize thread processing */
 export function initializeThreadProcessing() {
@@ -53,14 +68,24 @@ async function processReplies() {
         const { handle, postId } = parsePostUrl(url);
         console.log('Parsed URL - Handle:', handle, 'Post ID:', postId);
         
-        /* Get the original post to find its URI */
-        const postUri = `at://${handle}/app.bsky.feed.post/${postId}`;
+        /* Try to resolve the handle to get proper DID */
+        let postUri;
+        try {
+            const did = await resolveHandleToDid(handle);
+            postUri = `at://${did}/app.bsky.feed.post/${postId}`;
+            console.log('Resolved DID:', did, 'Post URI:', postUri);
+        } catch (didError) {
+            console.log('DID resolution failed, using handle directly:', didError.message);
+            postUri = `at://${handle}/app.bsky.feed.post/${postId}`;
+        }
         
-        /* Fetch replies using the Bluesky API */
-        const response = await fetch(`${BSKY_API_BASE}/app.bsky.feed.getPostThread?uri=${encodeURIComponent(postUri)}&depth=10&parentHeight=0`);
+        /* Fetch replies using the public Bluesky API */
+        const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getPostThread?uri=${encodeURIComponent(postUri)}&depth=10&parentHeight=0`);
         
         if (!response.ok) {
-            throw new Error(`Failed to fetch post thread: ${response.status}`);
+            const errorText = await response.text();
+            console.error('API Error Response:', response.status, errorText);
+            throw new Error(`Failed to fetch post thread: ${response.status} - ${errorText}`);
         }
         
         const threadData = await response.json();
@@ -110,23 +135,28 @@ async function processQuotes() {
         const { handle, postId } = parsePostUrl(url);
         console.log('Parsed URL - Handle:', handle, 'Post ID:', postId);
         
-        /* For quotes, we need to search for posts that quote this specific post */
-        const postUri = `at://${handle}/app.bsky.feed.post/${postId}`;
+        /* Try to resolve the handle to get proper DID */
+        let postUri;
+        try {
+            const did = await resolveHandleToDid(handle);
+            postUri = `at://${did}/app.bsky.feed.post/${postId}`;
+        } catch (didError) {
+            console.log('DID resolution failed, using handle directly:', didError.message);
+            postUri = `at://${handle}/app.bsky.feed.post/${postId}`;
+        }
         
-        /* This is a placeholder - the actual Bluesky API for finding quotes may differ */
-        /* For now, we'll simulate the structure */
-        const quotes = await fetchQuotes(postUri);
-        const anonymizedQuotes = anonymizeQuotes(quotes);
-        
-        console.log(`Processed ${anonymizedQuotes.length} quotes`);
+        /* For quotes, we would need to search for posts that quote this specific post */
+        /* This is a more complex operation that may require the search API */
+        console.log('Quote processing not yet fully implemented - this requires search functionality');
         
         const output = {
             metadata: {
                 originalPost: postUri,
-                totalQuotes: anonymizedQuotes.length,
-                processedAt: new Date().toISOString()
+                totalQuotes: 0,
+                processedAt: new Date().toISOString(),
+                note: 'Quote processing requires authenticated search API'
             },
-            quotes: anonymizedQuotes
+            quotes: []
         };
         
         displayOutput(output);
@@ -169,29 +199,6 @@ function anonymizeReplies(replies) {
         repostCount: reply.repostCount || 0,
         hasMedia: !!(reply.record?.embed),
         hasLinks: !!(reply.record?.facets?.some(f => f.features?.some(feat => feat.$type === 'app.bsky.richtext.facet#link')))
-    }));
-}
-
-/* Fetch quotes for a post (placeholder implementation) */
-async function fetchQuotes(postUri) {
-    console.log('Fetching quotes for:', postUri);
-    
-    /* This would require a more complex API call or search */
-    /* For now, return empty array as placeholder */
-    return [];
-}
-
-/* Anonymize quote data */
-function anonymizeQuotes(quotes) {
-    return quotes.map((quote, index) => ({
-        id: `quote_${index + 1}`,
-        text: quote.record?.text || '',
-        createdAt: quote.record?.createdAt || '',
-        likeCount: quote.likeCount || 0,
-        replyCount: quote.replyCount || 0,
-        repostCount: quote.repostCount || 0,
-        hasMedia: !!(quote.record?.embed),
-        hasLinks: !!(quote.record?.facets?.some(f => f.features?.some(feat => feat.$type === 'app.bsky.richtext.facet#link')))
     }));
 }
 
