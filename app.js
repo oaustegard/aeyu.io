@@ -17,6 +17,12 @@ function App() {
             description: 'Search and analyze Bluesky posts',
             icon: '🔍',
             url: '/bsky-search.html'
+        },
+        { 
+            name: 'Feed Processor', 
+            description: 'Extract posts from profiles, feeds, lists, or starter packs',
+            icon: '📊',
+            url: '/bsky-feeds.html'
         }
     ]);
 
