@@ -44,12 +44,6 @@ body {
     animation: loading 1.5s infinite;
 }
 
-@keyframes loading {
-    0% { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-}
-
-/* Add to styles.css */
 .loading {
     display: inline-block;
     width: 1em;
@@ -59,6 +53,11 @@ body {
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-right: 0.5rem;
+}
+
+@keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
 }
 
 @keyframes spin {
@@ -71,12 +70,87 @@ button:disabled {
     cursor: not-allowed;
 }
 
-/* Error styles */
-#error {
+/* Form and input styling */
+.input-group {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.button-group {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Authentication section styling */
+.auth-section {
+    background-color: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.auth-success {
+    background-color: #d1fae5;
+    color: #065f46;
+    padding: 0.75rem;
+    border-radius: 0.25rem;
+    margin-bottom: 1rem;
     display: none;
 }
 
-/* Output container */
+.auth-error {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    padding: 0.75rem;
+    border-radius: 0.25rem;
+    margin-bottom: 1rem;
+    display: none;
+}
+
+.auth-info {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    background-color: #eff6ff;
+    border-radius: 0.25rem;
+}
+
+.auth-avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 9999px;
+    object-fit: cover;
+}
+
+/* Search options styling */
+.search-options {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.search-options label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* Warning and notification styling */
+.pagination-warning {
+    background-color: #fffbeb;
+    border: 1px solid #fcd34d;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    margin-bottom: 1rem;
+    display: none;
+}
+
+/* Output container and actions */
 .output-container {
     position: relative;
     margin-top: 1rem;
@@ -84,4 +158,57 @@ button:disabled {
 
 .output-container pre {
     min-height: 100px;
+}
+
+.output-actions {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.action-button {
+    background: #4b5563;
+    color: white;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.action-button:hover {
+    background: #374151;
+}
+
+/* Code and output display */
+pre {
+    background-color: #f3f4f6;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    overflow: auto;
+    max-height: 600px;
+    white-space: pre-wrap;
+    margin-top: 0;
+    font-family: 'Courier New', Courier, monospace;
+}
+
+/* Copy feedback */
+.copy-feedback {
+    position: fixed;
+    bottom: 1rem;
+    right: 1rem;
+    background: #059669;
+    color: white;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    display: none;
+    z-index: 1000;
+}
+
+/* Error styles */
+#error {
+    display: none;
 }
