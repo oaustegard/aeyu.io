@@ -26,6 +26,141 @@ async function resolveHandleToDid(handle) {
     return data.did;
 }
 
+/* Find quotes using the public search API */
+async function findQuotesUsingPublicAPI(postUri, postId) {
+    console.log('Searching for quotes using public API...');
+    
+    try {
+        /* Search for posts containing the post ID - potential quotes */
+        const searchQuery = postId.substring(0, 12); /* Use partial post ID */
+        
+        const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.searchPosts?q=${encodeURIComponent(searchQuery)}&limit=100`);
+        
+        if (!response.ok) {
+            console.log('Public search failed, trying alternative approach');
+            return await findQuotesAlternative(postUri, postId);
+        }
+        
+        const data = await response.json();
+        const allPosts = data.posts || [];
+        
+        console.log(`Found ${allPosts.length} posts in search, filtering for quotes...`);
+        
+        /* Filter for posts that actually embed/quote the target post */
+        const quotes = allPosts.filter(post => {
+            if (!post.record?.embed) return false;
+            
+            /* Check if embed references our target post */
+            const embed = post.record.embed;
+            if (embed.$type === 'app.bsky.embed.record') {
+                return embed.record?.uri === postUri;
+            }
+            if (embed.$type === 'app.bsky.embed.recordWithMedia') {
+                return embed.record?.record?.uri === postUri;
+            }
+            
+            return false;
+        });
+        
+        console.log(`Found ${quotes.length} actual quotes after filtering`);
+        return quotes;
+        
+    } catch (error) {
+        console.error('Quote search failed:', error);
+        return [];
+    }
+}
+
+/* Alternative method for finding quotes if search fails */
+async function findQuotesAlternative(postUri, postId) {
+    console.log('Trying alternative quote detection method...');
+    
+    /* Try searching with just the post ID suffix */
+    const shortId = postId.slice(-8);
+    
+    try {
+        const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.searchPosts?q=${encodeURIComponent(shortId)}&limit=50`);
+        
+        if (!response.ok) {
+            console.log('Alternative search also failed');
+            return [];
+        }
+        
+        const data = await response.json();
+        const allPosts = data.posts || [];
+        
+        /* Filter for quotes */
+        const quotes = allPosts.filter(post => {
+            if (!post.record?.embed) return false;
+            const embed = post.record.embed;
+            return (embed.$type === 'app.bsky.embed.record' && embed.record?.uri === postUri) ||
+                   (embed.$type === 'app.bsky.embed.recordWithMedia' && embed.record?.record?.uri === postUri);
+        });
+        
+        return quotes;
+        
+    } catch (error) {
+        console.error('Alternative quote search failed:', error);
+        return [];
+    }
+}
+
+/* Anonymize quote data */
+function anonymizeQuotes(quotes) {
+    return quotes.map((quote, index) => ({
+        id: `quote_${index + 1}`,
+        text: quote.record?.text || '',
+        createdAt: quote.record?.createdAt || '',
+        likeCount: quote.likeCount || 0,
+        replyCount: quote.replyCount || 0,
+        repostCount: quote.repostCount || 0,
+        hasMedia: hasNonQuoteMedia(quote.record?.embed),
+        hasLinks: !!(quote.record?.facets?.some(f => 
+            f.features?.some(feat => feat.$type === 'app.bsky.richtext.facet#link')
+        )),
+        language: quote.record?.langs?.[0] || 'unknown',
+        quotedPostSnippet: extractQuotedTextSnippet(quote.record?.embed)
+    }));
+}
+
+/* Check if post has media beyond the quoted post */
+function hasNonQuoteMedia(embed) {
+    if (!embed) return false;
+    
+    /* If it's just a record embed (quote), no additional media */
+    if (embed.$type === 'app.bsky.embed.record') {
+        return false;
+    }
+    
+    /* If it's record with media, then yes it has media */
+    if (embed.$type === 'app.bsky.embed.recordWithMedia') {
+        return true;
+    }
+    
+    /* Other embed types indicate media */
+    return true;
+}
+
+/* Extract a snippet from the quoted post */
+function extractQuotedTextSnippet(embed) {
+    if (!embed) return null;
+    
+    let quotedText = null;
+    
+    if (embed.$type === 'app.bsky.embed.record') {
+        quotedText = embed.record?.value?.text;
+    } else if (embed.$type === 'app.bsky.embed.recordWithMedia') {
+        quotedText = embed.record?.record?.value?.text;
+    }
+    
+    /* Return first 100 characters as snippet */
+    if (quotedText) {
+        return quotedText.length > 100 ? quotedText.substring(0, 100) + '...' : quotedText;
+    }
+    
+    return null;
+}
+
 /* Initialize thread processing */
 export function initializeThreadProcessing() {
     console.log('Initializing thread processing...');
@@ -145,18 +280,21 @@ async function processQuotes() {
             postUri = `at://${handle}/app.bsky.feed.post/${postId}`;
         }
         
-        /* For quotes, we would need to search for posts that quote this specific post */
-        /* This is a more complex operation that may require the search API */
-        console.log('Quote processing not yet fully implemented - this requires search functionality');
+        console.log('Searching for quotes of post:', postUri);
+        
+        /* Search for posts that quote this URI using public API */
+        const quotes = await findQuotesUsingPublicAPI(postUri, postId);
+        const anonymizedQuotes = anonymizeQuotes(quotes);
+        
+        console.log(`Found ${anonymizedQuotes.length} quotes`);
         
         const output = {
             metadata: {
                 originalPost: postUri,
-                totalQuotes: 0,
-                processedAt: new Date().toISOString(),
-                note: 'Quote processing requires authenticated search API'
+                totalQuotes: anonymizedQuotes.length,
+                processedAt: new Date().toISOString()
             },
-            quotes: []
+            quotes: anonymizedQuotes
         };
         
         displayOutput(output);
