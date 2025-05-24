@@ -1,4 +1,5 @@
-/* Feed processing functionality for Bluesky content */
+/* FILE: bsky-feeds.js */
+/* Feed processing functionality for Bluesky content with post type filtering */
 
 import { 
     showError, 
@@ -43,6 +44,7 @@ function updateUIForContentType() {
     const urlLabel = document.getElementById('url-label');
     const urlInput = document.getElementById('url-input');
     const urlHelp = document.getElementById('url-help');
+    const postFilters = document.getElementById('post-filters');
     
     const typeConfig = {
         profile: {
@@ -72,6 +74,11 @@ function updateUIForContentType() {
     if (urlLabel) urlLabel.textContent = config.label;
     if (urlInput) urlInput.placeholder = config.placeholder;
     if (urlHelp) urlHelp.textContent = config.help;
+    
+    /* Show/hide post filters based on content type */
+    if (postFilters) {
+        postFilters.style.display = selectedType === 'profile' ? 'block' : 'none';
+    }
 }
 
 /* Handle feed form submission */
@@ -107,7 +114,12 @@ async function handleFeedSubmission(e) {
         
         switch (contentType) {
             case 'profile':
-                ({ posts, metadata } = await processProfileFeed(url, limit));
+                const filters = {
+                    includePosts: document.getElementById('include-posts')?.checked ?? true,
+                    includeReposts: document.getElementById('include-reposts')?.checked ?? false,
+                    includeQuotes: document.getElementById('include-quotes')?.checked ?? false
+                };
+                ({ posts, metadata } = await processProfileFeed(url, limit, filters));
                 break;
             case 'feed':
                 ({ posts, metadata } = await processCustomFeed(url, limit));
@@ -146,8 +158,26 @@ async function handleFeedSubmission(e) {
     }
 }
 
+/* Filter posts by type based on user selection */
+function filterPostsByType(posts, filters) {
+    return posts.filter(post => {
+        const isRepost = !!(post.reason?.$type === 'app.bsky.feed.defs#reasonRepost');
+        const isQuotePost = !isRepost && !!(
+            post.record?.embed?.$type === 'app.bsky.embed.record' || 
+            post.record?.embed?.$type === 'app.bsky.embed.recordWithMedia'
+        );
+        const isOriginalPost = !isRepost && !isQuotePost;
+        
+        if (isRepost && filters.includeReposts) return true;
+        if (isQuotePost && filters.includeQuotes) return true;
+        if (isOriginalPost && filters.includePosts) return true;
+        
+        return false;
+    });
+}
+
 /* Process user profile feed */
-async function processProfileFeed(url, limit) {
+async function processProfileFeed(url, limit, filters = null) {
     console.log('Processing profile feed...');
     
     const handle = extractHandleFromProfileUrl(url);
@@ -157,13 +187,24 @@ async function processProfileFeed(url, limit) {
     
     console.log('Extracted handle:', handle);
     
+    /* Default filters if not provided */
+    const postFilters = filters || {
+        includePosts: true,
+        includeReposts: false,
+        includeQuotes: false
+    };
+    
+    console.log('Post filters:', postFilters);
+    
     let allPosts = [];
     let cursor = null;
     const batchSize = Math.min(limit, 100);
+    /* Request more than needed since we'll be filtering */
+    const requestMultiplier = 2;
     
     while (allPosts.length < limit) {
         const remainingLimit = limit - allPosts.length;
-        const currentBatchSize = Math.min(batchSize, remainingLimit);
+        const currentBatchSize = Math.min(batchSize * requestMultiplier, 100);
         
         console.log(`Fetching profile batch: ${allPosts.length + 1}-${allPosts.length + currentBatchSize}`);
         
@@ -190,11 +231,22 @@ async function processProfileFeed(url, limit) {
             break;
         }
         
-        allPosts.push(...data.feed.map(item => item.post));
+        /* Filter posts based on type */
+        const batchPosts = data.feed.map(item => item.post);
+        const filteredBatch = filterPostsByType(batchPosts, postFilters);
+        
+        console.log(`Filtered batch: ${filteredBatch.length}/${batchPosts.length} posts matched filters`);
+        
+        allPosts.push(...filteredBatch);
         cursor = data.cursor;
         
         if (!cursor) {
             console.log('No more pages available');
+            break;
+        }
+        
+        /* If we have enough posts after filtering, break */
+        if (allPosts.length >= limit) {
             break;
         }
     }
@@ -204,7 +256,8 @@ async function processProfileFeed(url, limit) {
         metadata: {
             source: url,
             actor: handle,
-            feedType: 'profile'
+            feedType: 'profile',
+            filters: postFilters
         }
     };
 }
@@ -488,24 +541,30 @@ function extractStarterPackUriFromUrl(url) {
 
 /* Anonymize posts data */
 function anonymizePosts(posts) {
-    return posts.map((post, index) => ({
-        id: `post_${index + 1}`,
-        text: post.record?.text || '',
-        createdAt: post.record?.createdAt || '',
-        likeCount: post.likeCount || 0,
-        replyCount: post.replyCount || 0,
-        repostCount: post.repostCount || 0,
-        hasMedia: !!(post.record?.embed && 
-                    post.record.embed.$type !== 'app.bsky.embed.record' && 
-                    post.record.embed.$type !== 'app.bsky.embed.recordWithMedia'),
-        hasLinks: !!(post.record?.facets?.some(f => 
-            f.features?.some(feat => feat.$type === 'app.bsky.richtext.facet#link')
-        )),
-        language: post.record?.langs?.[0] || 'unknown',
-        isRepost: !!(post.reason?.$type === 'app.bsky.feed.defs#reasonRepost'),
-        hasQuote: !!(post.record?.embed?.$type === 'app.bsky.embed.record' || 
-                     post.record?.embed?.$type === 'app.bsky.embed.recordWithMedia')
-    }));
+    return posts.map((post, index) => {
+        const isRepost = !!(post.reason?.$type === 'app.bsky.feed.defs#reasonRepost');
+        const isQuotePost = !isRepost && !!(
+            post.record?.embed?.$type === 'app.bsky.embed.record' || 
+            post.record?.embed?.$type === 'app.bsky.embed.recordWithMedia'
+        );
+        
+        return {
+            id: `post_${index + 1}`,
+            text: post.record?.text || '',
+            createdAt: post.record?.createdAt || '',
+            likeCount: post.likeCount || 0,
+            replyCount: post.replyCount || 0,
+            repostCount: post.repostCount || 0,
+            postType: isRepost ? 'repost' : (isQuotePost ? 'quote' : 'original'),
+            hasMedia: !!(post.record?.embed && 
+                        post.record.embed.$type !== 'app.bsky.embed.record' && 
+                        post.record.embed.$type !== 'app.bsky.embed.recordWithMedia'),
+            hasLinks: !!(post.record?.facets?.some(f => 
+                f.features?.some(feat => feat.$type === 'app.bsky.richtext.facet#link')
+            )),
+            language: post.record?.langs?.[0] || 'unknown'
+        };
+    });
 }
 
 /* Auto-process feed based on URL parameters */
@@ -514,6 +573,9 @@ export function autoProcessFeed() {
     const feedUrl = urlParams.get('url');
     const contentType = urlParams.get('type');
     const limit = urlParams.get('limit');
+    const includePosts = urlParams.get('posts');
+    const includeReposts = urlParams.get('reposts');
+    const includeQuotes = urlParams.get('quotes');
     
     if (feedUrl) {
         console.log('Auto-processing feed from URL params:', feedUrl, contentType);
@@ -535,6 +597,22 @@ export function autoProcessFeed() {
             const limitSelect = document.getElementById('limit-select');
             if (limitSelect) {
                 limitSelect.value = limit;
+            }
+        }
+        
+        /* Set filter checkboxes for profile type */
+        if (contentType === 'profile') {
+            if (includePosts !== null) {
+                const postsCheckbox = document.getElementById('include-posts');
+                if (postsCheckbox) postsCheckbox.checked = includePosts === 'true';
+            }
+            if (includeReposts !== null) {
+                const repostsCheckbox = document.getElementById('include-reposts');
+                if (repostsCheckbox) repostsCheckbox.checked = includeReposts === 'true';
+            }
+            if (includeQuotes !== null) {
+                const quotesCheckbox = document.getElementById('include-quotes');
+                if (quotesCheckbox) quotesCheckbox.checked = includeQuotes === 'true';
             }
         }
         
