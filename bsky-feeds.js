@@ -134,7 +134,7 @@ async function handleFeedSubmission(e) {
                 throw new Error('Invalid content type selected');
         }
         
-        const anonymizedPosts = anonymizePosts(posts);
+        const anonymizedPosts = anonymizeFeedItems(posts);
         
         console.log(`Feed processing completed: ${anonymizedPosts.length} posts`);
         
@@ -158,19 +158,34 @@ async function handleFeedSubmission(e) {
     }
 }
 
-/* Filter posts by type based on user selection */
-function filterPostsByType(posts, filters) {
-    return posts.filter(post => {
-        const isRepost = !!(post.reason?.$type === 'app.bsky.feed.defs#reasonRepost');
+/* Filter feed items by type based on user selection */
+function filterFeedItemsByType(feedItems, filters) {
+    return feedItems.filter(item => {
+        const isRepost = !!(item.reason?.$type === 'app.bsky.feed.defs#reasonRepost');
         const isQuotePost = !isRepost && !!(
-            post.record?.embed?.$type === 'app.bsky.embed.record' || 
-            post.record?.embed?.$type === 'app.bsky.embed.recordWithMedia'
+            item.post?.record?.embed?.$type === 'app.bsky.embed.record' || 
+            item.post?.record?.embed?.$type === 'app.bsky.embed.recordWithMedia'
         );
-        const isOriginalPost = !isRepost && !isQuotePost;
+        
+        /* Check if it's a reply, and if so, whether it's a self-reply (thread continuation) */
+        const hasReplyField = !!(item.post?.record?.reply);
+        let isSelfReply = false;
+        if (hasReplyField) {
+            const authorDID = item.post?.author?.did;
+            const parentURI = item.post?.record?.reply?.parent?.uri;
+            if (authorDID && parentURI) {
+                const parentDID = parentURI.split('/')[2]; /* Extract DID from at://DID/... */
+                isSelfReply = authorDID === parentDID;
+            }
+        }
+        
+        const isReply = hasReplyField && !isSelfReply;
+        const isOriginalPost = !isRepost && !isQuotePost && !isReply;
         
         if (isRepost && filters.includeReposts) return true;
         if (isQuotePost && filters.includeQuotes) return true;
         if (isOriginalPost && filters.includePosts) return true;
+        /* Self-replies (thread continuations) are treated as original posts */
         
         return false;
     });
@@ -231,11 +246,9 @@ async function processProfileFeed(url, limit, filters = null) {
             break;
         }
         
-        /* Filter posts based on type */
-        const batchPosts = data.feed.map(item => item.post);
-        const filteredBatch = filterPostsByType(batchPosts, postFilters);
-        
-        console.log(`Filtered batch: ${filteredBatch.length}/${batchPosts.length} posts matched filters`);
+        /* Filter posts based on type - pass full feed items and preserve type info */
+        const filteredBatch = filterFeedItemsByType(data.feed, postFilters);
+        console.log(`Filtered batch: ${filteredBatch.length}/${data.feed.length} posts matched filters`);
         
         allPosts.push(...filteredBatch);
         cursor = data.cursor;
@@ -539,11 +552,62 @@ function extractStarterPackUriFromUrl(url) {
     return null;
 }
 
-/* Anonymize posts data */
+/* Anonymize feed items (preserves post type information) */
+function anonymizeFeedItems(feedItems) {
+    return feedItems.map((item, index) => {
+        const post = item.post;
+        const isRepost = !!(item.reason?.$type === 'app.bsky.feed.defs#reasonRepost');
+        const isQuotePost = !isRepost && !!(
+            post?.record?.embed?.$type === 'app.bsky.embed.record' || 
+            post?.record?.embed?.$type === 'app.bsky.embed.recordWithMedia'
+        );
+        
+        /* Check if it's a reply, and if so, whether it's a self-reply (thread continuation) */
+        const hasReplyField = !!(post?.record?.reply);
+        let isSelfReply = false;
+        if (hasReplyField) {
+            const authorDID = post?.author?.did;
+            const parentURI = post?.record?.reply?.parent?.uri;
+            if (authorDID && parentURI) {
+                const parentDID = parentURI.split('/')[2]; /* Extract DID from at://DID/... */
+                isSelfReply = authorDID === parentDID;
+            }
+        }
+        
+        const isReply = hasReplyField && !isSelfReply;
+        const isOriginalPost = !isRepost && !isQuotePost && !isReply;
+        
+        /* Determine post type with priority: repost > quote > reply > original/thread */
+        let postType = 'original';
+        if (isRepost) postType = 'repost';
+        else if (isQuotePost) postType = 'quote';  
+        else if (isReply) postType = 'reply';
+        else if (isSelfReply) postType = 'thread'; /* Self-replies are thread continuations */
+        
+        return {
+            id: `post_${index + 1}`,
+            text: post?.record?.text || '',
+            createdAt: post?.record?.createdAt || '',
+            likeCount: post?.likeCount || 0,
+            replyCount: post?.replyCount || 0,
+            repostCount: post?.repostCount || 0,
+            postType: postType,
+            hasMedia: !!(post?.record?.embed && 
+                        post.record.embed.$type !== 'app.bsky.embed.record' && 
+                        post.record.embed.$type !== 'app.bsky.embed.recordWithMedia'),
+            hasLinks: !!(post?.record?.facets?.some(f => 
+                f.features?.some(feat => feat.$type === 'app.bsky.richtext.facet#link')
+            )),
+            language: post?.record?.langs?.[0] || 'unknown'
+        };
+    });
+}
+
+/* Anonymize posts data (fallback for non-profile feeds) */
 function anonymizePosts(posts) {
     return posts.map((post, index) => {
-        const isRepost = !!(post.reason?.$type === 'app.bsky.feed.defs#reasonRepost');
-        const isQuotePost = !isRepost && !!(
+        /* Note: For non-profile feeds, we only have post data, not the full feed item */
+        const isQuotePost = !!(
             post.record?.embed?.$type === 'app.bsky.embed.record' || 
             post.record?.embed?.$type === 'app.bsky.embed.recordWithMedia'
         );
@@ -555,7 +619,7 @@ function anonymizePosts(posts) {
             likeCount: post.likeCount || 0,
             replyCount: post.replyCount || 0,
             repostCount: post.repostCount || 0,
-            postType: isRepost ? 'repost' : (isQuotePost ? 'quote' : 'original'),
+            postType: isQuotePost ? 'quote' : 'original', /* Can't detect reposts without feed item context */
             hasMedia: !!(post.record?.embed && 
                         post.record.embed.$type !== 'app.bsky.embed.record' && 
                         post.record.embed.$type !== 'app.bsky.embed.recordWithMedia'),
