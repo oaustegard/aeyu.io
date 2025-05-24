@@ -1,4 +1,5 @@
-<!-- bsky-feeds.html -->
+<!-- FILE: bsky-feeds.html -->
+<!-- Bluesky Feed Processor with Post Type Filters -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -73,6 +74,27 @@
                     />
                     <div id="url-help" class="text-sm text-gray-600 mt-1">
                         Enter a user profile URL
+                    </div>
+                </div>
+                
+                <div id="post-filters" class="mb-4" style="display: block;">
+                    <label class="block text-sm font-medium mb-2">Post Types to Include</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center">
+                            <input type="checkbox" id="include-posts" class="mr-2" checked>
+                            <span>📝 Original Posts</span>
+                            <span class="text-sm text-gray-600 ml-2">- User's own posts</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="include-reposts" class="mr-2">
+                            <span>🔄 Reposts</span>
+                            <span class="text-sm text-gray-600 ml-2">- Shared posts from others</span>
+                        </label>
+                        <label class="flex items-center">
+                            <input type="checkbox" id="include-quotes" class="mr-2">
+                            <span>💬 Quote Posts</span>
+                            <span class="text-sm text-gray-600 ml-2">- Posts with quoted content</span>
+                        </label>
                     </div>
                 </div>
                 
