@@ -1,21 +1,22 @@
-/* Quote processing functionality for Bluesky posts - FIXED VERSION */
+/* FILE: bsky-quote.js - REFACTORED using separated core modules */
 
 import { 
-    parsePostUrl, 
     showError, 
     hideError, 
     showLoading, 
-    hideLoading, 
-    displayOutput,
-    getAuthToken,
-    anonymizePosts,
-    anonymizePost,
-    resolveHandleToDid,
-    fetchOriginalPost,
-    buildPostUri
-} from './bsky-core.js';
+    hideLoading,
+    displayOutput
+} from './core-html.js';
 
-const BSKY_PUBLIC_API = 'https://public.api.bsky.app/xrpc';
+import { 
+    BSKY_PUBLIC_API,
+    parsePostUrl,
+    buildPostUri,
+    fetchOriginalPost,
+    buildStandardOutput,
+    anonymizePosts,
+    getAuthToken
+} from './core-bsky.js';
 
 /* Process quotes for a specific post using the proper API */
 export async function processQuotes(postUrl) {
@@ -31,16 +32,12 @@ export async function processQuotes(postUrl) {
         const { handle, postId } = parsePostUrl(postUrl);
         console.log('Parsed URL - Handle:', handle, 'Post ID:', postId);
         
-        /* Build the post URI with DID resolution */
         const postUri = await buildPostUri(handle, postId);
-        
-        /* Fetch the original post for context */
         const originalPost = await fetchOriginalPost(postUri);
-        
-        /* Get quotes using the proper getQuotes API */
         const quotes = await findQuotesForPost(postUri);
+        
         const anonymizedQuotes = anonymizePosts(quotes, {
-            sourceType: 'search', /* Quotes are direct post objects */
+            sourceType: 'search',
             includePostType: false,
             includeAltText: true,
             includeQuotedSnippet: true
@@ -48,24 +45,11 @@ export async function processQuotes(postUrl) {
         
         console.log(`Found ${anonymizedQuotes.length} quotes`);
         
-        /* Structure output similar to user's example with root post */
-        const output = {
-            root: originalPost ? anonymizePost(originalPost, {
-                includePostType: false,
-                includeAltText: true,
-                index: 0
-            }) : {
-                id: 1,
-                text: '[Original post could not be fetched]',
-                error: 'Failed to fetch original post'
-            },
-            quotePosts: anonymizedQuotes,
-            metadata: {
-                originalPost: postUri,
-                totalQuotes: anonymizedQuotes.length,
-                processedAt: new Date().toISOString()
-            }
-        };
+        const output = buildStandardOutput(originalPost, anonymizedQuotes, {
+            originalPost: postUri,
+            totalQuotes: anonymizedQuotes.length,
+            childDataKey: 'quotePosts'
+        });
         
         displayOutput(output);
         return output;
@@ -82,7 +66,6 @@ async function findQuotesForPost(postUri) {
     console.log('Finding quotes for post URI using getQuotes API:', postUri);
     
     try {
-        /* Use the proper getQuotes API endpoint */
         const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getQuotes?uri=${encodeURIComponent(postUri)}&limit=100`);
         
         if (response.ok) {
@@ -94,14 +77,12 @@ async function findQuotesForPost(postUri) {
             const errorText = await response.text();
             console.log('getQuotes API failed:', response.status, errorText);
             
-            /* If getQuotes fails, try search fallback */
             console.log('Falling back to search method...');
             return await searchForQuotes(postUri);
         }
         
     } catch (error) {
         console.error('getQuotes API error:', error);
-        /* Fallback to search method */
         console.log('Falling back to search method due to error...');
         return await searchForQuotes(postUri);
     }
@@ -114,16 +95,13 @@ async function searchForQuotes(postUri) {
     const token = getAuthToken();
     
     try {
-        /* Extract the post ID from the URI for search */
         const postIdMatch = postUri.match(/\/app\.bsky\.feed\.post\/(.+)$/);
         if (!postIdMatch) {
             throw new Error('Could not extract post ID from URI');
         }
         
         const postId = postIdMatch[1];
-        
-        /* Search for posts containing the post ID (potential quotes) */
-        const searchQuery = postId.substring(0, 12); /* Use partial ID to find quotes */
+        const searchQuery = postId.substring(0, 12);
         
         const params = new URLSearchParams({
             q: searchQuery,
@@ -147,11 +125,9 @@ async function searchForQuotes(postUri) {
         const data = await response.json();
         const allPosts = data.posts || [];
         
-        /* Filter for posts that actually embed/quote the target post */
         const quotes = allPosts.filter(post => {
             if (!post.record?.embed) return false;
             
-            /* Check if embed references our target post */
             const embed = post.record.embed;
             if (embed.$type === 'app.bsky.embed.record') {
                 return embed.record?.uri === postUri;
