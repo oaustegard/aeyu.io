@@ -1,4 +1,4 @@
-<!-- bsky-posts.html -->
+<!-- FILE: bsky-posts.html - UPDATED for refactored modules -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -74,20 +74,16 @@
         </main>
     </div>
 
-    <script src="bsky-core.js" type="module"></script>
-    <script src="bsky-thread.js" type="module"></script>
+    <!-- UPDATED: Use new main.js for simplified initialization -->
     <script type="module">
-        import { initializeBskyCore } from './bsky-core.js';
-        import { initializeThreadProcessing, autoProcessThread } from './bsky-thread.js';
+        import { initializeApplication } from './main.js';
         
         window.addEventListener('DOMContentLoaded', async () => {
             try {
-                const coreInitialized = await initializeBskyCore();
+                const initialized = await initializeApplication();
                 
-                if (coreInitialized) {
-                    initializeThreadProcessing();
-                    /* Auto-process if URL is in query params */
-                    autoProcessThread();
+                if (!initialized) {
+                    throw new Error('Application initialization failed');
                 }
             } catch (e) {
                 console.error("Initialization failed:", e);
