@@ -1,7 +1,5 @@
 /* Core Bluesky API functionality - separated from generic HTML utilities */
 
-import { fetchPaginatedData, fetchPaginatedDataWithFiltering } from './core-html.js';
-
 /* ===== AUTHENTICATION STATE ===== */
 
 let authToken = null;
@@ -173,28 +171,208 @@ export async function buildPostUri(handle, postId, resolveDid = true) {
     return uri;
 }
 
-/* ===== BLUESKY-SPECIFIC PAGINATION WRAPPERS ===== */
+/* ===== BLUESKY-SPECIFIC PAGINATION FUNCTIONS (FIXED) ===== */
 
 export async function fetchBskyPaginatedData(endpoint, baseParams, options = {}) {
-    const bskyOptions = {
-        headers: getApiHeaders(options.authRequired),
-        dataKey: options.dataKey || 'posts',
-        cursorKey: 'cursor',
-        ...options
-    };
+    console.log('Starting Bluesky paginated fetch:', endpoint);
+    console.log('Base params:', baseParams);
+    console.log('Options:', options);
     
-    return fetchPaginatedData(endpoint, baseParams, bskyOptions);
+    const {
+        limit = 100,
+        dataKey = 'feed',
+        cursorKey = 'cursor',
+        headers = {},
+        authRequired = false,
+        requestMultiplier = 1
+    } = options;
+    
+    /* Get auth headers if needed */
+    const apiHeaders = getApiHeaders(authRequired);
+    const requestHeaders = { ...apiHeaders, ...headers };
+    
+    const allData = [];
+    let cursor = null;
+    let requestCount = 0;
+    let totalFetched = 0;
+    
+    /* Calculate how many items to request per API call */
+    const itemsPerRequest = Math.min(100, Math.max(25, Math.ceil(limit * requestMultiplier / 4)));
+    
+    while (allData.length < limit) {
+        requestCount++;
+        const remainingNeeded = limit - allData.length;
+        const requestLimit = Math.min(itemsPerRequest, remainingNeeded);
+        
+        console.log(`Request ${requestCount}: fetching ${requestLimit} items (${allData.length}/${limit} collected)`);
+        
+        /* Build URL - CRITICAL: only include cursor if we have one */
+        const url = buildBskyApiUrl(endpoint, {
+            ...baseParams,
+            limit: requestLimit
+        }, cursor);
+        
+        console.log('Request URL:', url);
+        
+        try {
+            const response = await fetch(url, { headers: requestHeaders });
+            
+            if (!response.ok) {
+                throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('Response keys:', Object.keys(data));
+            
+            const items = data[dataKey] || [];
+            const newCursor = data[cursorKey] || null;
+            
+            console.log(`Received ${items.length} items, cursor: ${newCursor ? 'present' : 'none'}`);
+            
+            if (items.length === 0) {
+                console.log('No more items available, stopping pagination');
+                break;
+            }
+            
+            allData.push(...items);
+            totalFetched += items.length;
+            cursor = newCursor;
+            
+            /* Stop if we've reached the limit or no cursor for next page */
+            if (allData.length >= limit || !cursor) {
+                break;
+            }
+            
+        } catch (error) {
+            console.error(`Pagination request ${requestCount} failed:`, error);
+            throw error;
+        }
+    }
+    
+    const finalData = allData.slice(0, limit);
+    console.log(`Pagination complete: ${finalData.length} items collected in ${requestCount} requests`);
+    
+    return {
+        data: finalData,
+        totalFetched: totalFetched,
+        requestCount: requestCount
+    };
 }
 
 export async function fetchBskyPaginatedDataWithFiltering(endpoint, baseParams, filter, options = {}) {
-    const bskyOptions = {
-        headers: getApiHeaders(options.authRequired),
-        dataKey: options.dataKey || 'posts',
-        cursorKey: 'cursor',
-        ...options
-    };
+    console.log('Starting filtered Bluesky paginated fetch:', endpoint);
+    console.log('Base params:', baseParams);
+    console.log('Options:', options);
     
-    return fetchPaginatedDataWithFiltering(endpoint, baseParams, filter, bskyOptions);
+    const {
+        limit = 100,
+        dataKey = 'feed',
+        cursorKey = 'cursor',
+        headers = {},
+        authRequired = false,
+        requestMultiplier = 2,
+        maxRequests = 10
+    } = options;
+    
+    /* Get auth headers if needed */
+    const apiHeaders = getApiHeaders(authRequired);
+    const requestHeaders = { ...apiHeaders, ...headers };
+    
+    const allData = [];
+    let cursor = null;
+    let requestCount = 0;
+    let totalFetched = 0;
+    
+    /* For filtering, we need to fetch more per request since some will be filtered out */
+    const itemsPerRequest = Math.min(100, Math.max(50, Math.ceil(limit * requestMultiplier / 3)));
+    
+    while (allData.length < limit && requestCount < maxRequests) {
+        requestCount++;
+        
+        console.log(`Filtered request ${requestCount}: seeking ${limit - allData.length} more items (${allData.length}/${limit} collected)`);
+        
+        /* Build URL - CRITICAL: only include cursor if we have one */
+        const url = buildBskyApiUrl(endpoint, {
+            ...baseParams,
+            limit: itemsPerRequest
+        }, cursor);
+        
+        console.log('Request URL:', url);
+        
+        try {
+            const response = await fetch(url, { headers: requestHeaders });
+            
+            if (!response.ok) {
+                throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            const items = data[dataKey] || [];
+            const newCursor = data[cursorKey] || null;
+            
+            console.log(`Received ${items.length} items to filter, cursor: ${newCursor ? 'present' : 'none'}`);
+            
+            if (items.length === 0) {
+                console.log('No more items available, stopping pagination');
+                break;
+            }
+            
+            /* Apply filter and collect matching items */
+            let matchingItems = 0;
+            for (const item of items) {
+                if (allData.length >= limit) break;
+                
+                if (filter(item)) {
+                    allData.push(item);
+                    matchingItems++;
+                }
+            }
+            
+            totalFetched += items.length;
+            cursor = newCursor;
+            
+            console.log(`Found ${matchingItems} matching items from ${items.length} total`);
+            
+            /* Stop if we've reached the limit or no cursor for next page */
+            if (allData.length >= limit || !cursor) {
+                break;
+            }
+            
+        } catch (error) {
+            console.error(`Filtered pagination request ${requestCount} failed:`, error);
+            throw error;
+        }
+    }
+    
+    const finalData = allData.slice(0, limit);
+    console.log(`Filtered pagination complete: ${finalData.length} items collected in ${requestCount} requests`);
+    
+    return {
+        data: finalData,
+        totalFetched: totalFetched,
+        requestCount: requestCount
+    };
+}
+
+/* ===== BLUESKY URL BUILDING HELPER ===== */
+
+function buildBskyApiUrl(endpoint, params, cursor = null) {
+    const url = new URL(endpoint);
+    
+    /* Add all base parameters */
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+            url.searchParams.set(key, value);
+        }
+    });
+    
+    /* CRITICAL FIX: Only add cursor parameter if we actually have a cursor value */
+    /* This prevents sending cursor=undefined or cursor=true on first request */
+    if (cursor && typeof cursor === 'string' && cursor.length > 0) {
+        url.searchParams.set('cursor', cursor);
+    }
+    
+    return url.toString();
 }
 
 /* ===== POST PROCESSING FUNCTIONS ===== */
