@@ -1,4 +1,4 @@
-/* Search functionality for Bluesky posts */
+/* Search functionality for Bluesky posts - REFACTORED */
 
 import { 
     authenticateUser,
@@ -10,7 +10,8 @@ import {
     hideError, 
     showLoading, 
     hideLoading, 
-    displayOutput 
+    displayOutput,
+    anonymizePosts
 } from './bsky-core.js';
 
 const BSKY_API_BASE = 'https://bsky.social/xrpc';
@@ -178,7 +179,11 @@ async function handleSearch(e) {
             allResults = allResults.slice(0, limit);
         }
         
-        const anonymizedResults = anonymizeSearchResults(allResults);
+        const anonymizedResults = anonymizePosts(allResults, {
+            sourceType: 'search',
+            includePostType: false, /* Search results don't have full context for post type detection */
+            includeAltText: true
+        });
         
         console.log(`Search completed: ${anonymizedResults.length} results`);
         
@@ -235,21 +240,6 @@ async function searchPosts(query, limit = 25, sort = 'top', cursor = null) {
     console.log(`API response: ${data.posts?.length || 0} posts returned`);
     
     return data;
-}
-
-/* Anonymize search results */
-function anonymizeSearchResults(posts) {
-    return posts.map((post, index) => ({
-        id: `post_${index + 1}`,
-        text: post.record?.text || '',
-        createdAt: post.record?.createdAt || '',
-        likeCount: post.likeCount || 0,
-        replyCount: post.replyCount || 0,
-        repostCount: post.repostCount || 0,
-        hasMedia: !!(post.record?.embed),
-        hasLinks: !!(post.record?.facets?.some(f => f.features?.some(feat => feat.$type === 'app.bsky.richtext.facet#link'))),
-        language: post.record?.langs?.[0] || 'unknown'
-    }));
 }
 
 /* Update UI based on authentication status */
