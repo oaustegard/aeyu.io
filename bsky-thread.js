@@ -1,4 +1,4 @@
-/* FILE: bsky-thread.js - REFACTORED with FIXED THREADING */
+/* FILE: bsky-thread.js - REFACTORED using separated core modules with FIXED THREADING */
 
 import { 
     showError, 
@@ -85,94 +85,138 @@ async function processReplies() {
         const threadData = await response.json();
         console.log('Thread data received:', threadData);
         
-        /* Process thread hierarchically instead of flattening */
-        const processedThread = processThreadNode(threadData.thread, rootTime);
-        const replies = extractRepliesFromProcessedNode(processedThread);
+        /* Validate thread data structure */
+        if (!threadData?.thread) {
+            throw new Error('Invalid thread data: missing thread object');
+        }
         
-        console.log(`Processed ${replies.length} replies with hierarchical structure`);
+        /* Process the flat replies array into hierarchical structure */
+        const processedReplies = processFlatReplies(threadData.thread.replies || [], rootTime);
         
-        return buildStandardOutput(originalPost, replies, {
+        console.log(`Processed ${processedReplies.length} top-level replies with hierarchical structure`);
+        
+        /* Get total count including nested replies */
+        const totalReplyCount = countAllReplies(processedReplies);
+        
+        return buildStandardOutput(originalPost, processedReplies, {
             originalPost: postUri,
-            totalReplies: replies.length,
+            totalReplies: totalReplyCount,
             childDataKey: 'replies'
         });
     });
 }
 
-/* Process a thread node recursively, maintaining hierarchical structure */
-function processThreadNode(node, rootTime) {
-    console.log('Processing thread node:', node?.post?.uri);
+/* Process flat replies array into hierarchical structure with chronological sorting */
+function processFlatReplies(flatReplies, rootTime) {
+    console.log(`Processing ${flatReplies.length} flat replies into hierarchical structure`);
     
-    if (!node?.post) {
-        console.log('Invalid node - no post data');
-        return null;
+    if (!flatReplies || flatReplies.length === 0) {
+        return [];
     }
     
-    /* Extract and anonymize the post */
-    const post = extractPostFromItem(node.post, 'thread');
-    if (!post) {
-        console.log('Failed to extract post from node');
-        return null;
-    }
+    /* Build a map of all posts by URI for quick lookup */
+    const postMap = new Map();
+    const rootUri = getRootUriFromReplies(flatReplies);
     
-    const anonymizedPost = anonymizePost(post, {
-        includePostType: false,
-        includeAltText: true,
-        rootTime: rootTime
+    /* Process each reply and build the lookup map */
+    flatReplies.forEach(replyItem => {
+        if (!replyItem?.post) return;
+        
+        const post = extractPostFromItem(replyItem.post, 'thread');
+        if (!post) return;
+        
+        const anonymizedPost = anonymizePost(post, {
+            includePostType: false,
+            includeAltText: true,
+            rootTime: rootTime
+        });
+        
+        /* Add metadata for hierarchy building */
+        anonymizedPost._uri = replyItem.post.uri;
+        anonymizedPost._parentUri = replyItem.post.record?.reply?.parent?.uri || rootUri;
+        anonymizedPost._createdAt = safeGetCreatedAt(replyItem.post);
+        anonymizedPost.replies = []; /* Initialize empty replies array */
+        
+        postMap.set(replyItem.post.uri, anonymizedPost);
     });
     
-    /* Process replies if they exist */
-    if (node.replies && Array.isArray(node.replies) && node.replies.length > 0) {
-        console.log(`Processing ${node.replies.length} replies for post ${anonymizedPost.id}`);
-        
-        /* Filter out invalid replies and sort chronologically */
-        const validReplies = node.replies
-            .filter(reply => {
-                const hasContent = reply?.post?.record?.text || reply?.post?.record?.embed;
-                const hasTime = reply?.post?.record?.createdAt;
-                if (!hasContent || !hasTime) {
-                    console.log('Filtering out invalid reply:', reply?.post?.uri);
-                }
-                return hasContent && hasTime;
-            })
-            .sort((a, b) => {
-                const timeA = safeGetCreatedAt(a.post);
-                const timeB = safeGetCreatedAt(b.post);
-                return timeA - timeB; /* Chronological order */
-            });
-        
-        console.log(`Sorted ${validReplies.length} valid replies chronologically`);
-        
-        /* Recursively process each reply */
-        const processedReplies = validReplies
-            .map(reply => processThreadNode(reply, rootTime))
-            .filter(Boolean);
-        
-        if (processedReplies.length > 0) {
-            anonymizedPost.replies = processedReplies;
-            console.log(`Added ${processedReplies.length} processed replies to post ${anonymizedPost.id}`);
-        }
-    }
+    console.log(`Built post map with ${postMap.size} entries`);
     
-    return anonymizedPost;
-}
-
-/* Extract all replies from a processed hierarchical node into a flat array */
-/* This maintains the chronological threading while providing a flat structure for counting */
-function extractRepliesFromProcessedNode(processedNode) {
-    const allReplies = [];
+    /* Build hierarchical structure by linking children to parents */
+    const topLevelReplies = [];
     
-    function collectReplies(node) {
-        if (node.replies && Array.isArray(node.replies)) {
-            for (const reply of node.replies) {
-                allReplies.push(reply);
-                collectReplies(reply); /* Recursively collect nested replies */
+    postMap.forEach(post => {
+        const parentUri = post._parentUri;
+        
+        if (parentUri === rootUri) {
+            /* This is a top-level reply */
+            topLevelReplies.push(post);
+        } else {
+            /* This is a nested reply - find its parent */
+            const parentPost = postMap.get(parentUri);
+            if (parentPost) {
+                parentPost.replies.push(post);
+            } else {
+                /* Parent not found - treat as top-level */
+                console.log(`Parent not found for ${post._uri}, treating as top-level`);
+                topLevelReplies.push(post);
             }
         }
+    });
+    
+    /* Sort all reply arrays chronologically (recursive) */
+    function sortRepliesChronologically(replies) {
+        replies.sort((a, b) => a._createdAt - b._createdAt);
+        replies.forEach(reply => {
+            if (reply.replies && reply.replies.length > 0) {
+                sortRepliesChronologically(reply.replies);
+            }
+        });
     }
     
-    collectReplies(processedNode);
-    return allReplies;
+    sortRepliesChronologically(topLevelReplies);
+    
+    /* Clean up internal metadata before returning */
+    function cleanupMetadata(replies) {
+        replies.forEach(reply => {
+            delete reply._uri;
+            delete reply._parentUri;
+            delete reply._createdAt;
+            if (reply.replies && reply.replies.length > 0) {
+                cleanupMetadata(reply.replies);
+            }
+        });
+    }
+    
+    cleanupMetadata(topLevelReplies);
+    
+    console.log(`Built hierarchical structure with ${topLevelReplies.length} top-level replies`);
+    return topLevelReplies;
+}
+
+/* Get the root URI from the first reply's root reference */
+function getRootUriFromReplies(replies) {
+    if (replies.length > 0 && replies[0]?.post?.record?.reply?.root?.uri) {
+        return replies[0].post.record.reply.root.uri;
+    }
+    return null;
+}
+
+/* Count total replies including nested ones */
+function countAllReplies(replies) {
+    let count = 0;
+    
+    function countRecursive(replyArray) {
+        replyArray.forEach(reply => {
+            count++;
+            if (reply.replies && reply.replies.length > 0) {
+                countRecursive(reply.replies);
+            }
+        });
+    }
+    
+    countRecursive(replies);
+    return count;
 }
 
 /* Legacy function for compatibility */
