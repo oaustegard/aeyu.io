@@ -1,4 +1,4 @@
-/* Thread processing functionality for replies - REFACTORED */
+/* Thread processing functionality for replies - FIXED VERSION */
 
 import { 
     parsePostUrl, 
@@ -10,51 +10,69 @@ import {
     extractPostFromItem,
     anonymizePost,
     anonymizePosts,
-    extractAltText
+    extractAltText,
+    resolveHandleToDid,
+    fetchOriginalPost,
+    buildPostUri
 } from './bsky-core.js';
 
 const BSKY_PUBLIC_API = 'https://public.api.bsky.app/xrpc';
 
-/* Resolve a handle to a DID using the public API */
-async function resolveHandleToDid(handle) {
-    console.log('Resolving handle to DID:', handle);
-    
-    const response = await fetch(`${BSKY_PUBLIC_API}/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
-    
-    if (!response.ok) {
-        throw new Error(`Failed to resolve handle: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    console.log('Resolved DID:', data.did);
-    return data.did;
-}
-
-/* Find quotes using the public search API */
-async function findQuotesUsingPublicAPI(postUri, postId) {
-    console.log('Searching for quotes using public API...');
+/* Find quotes using the proper getQuotes API */
+async function findQuotesUsingGetQuotesAPI(postUri) {
+    console.log('Finding quotes using app.bsky.feed.getQuotes API:', postUri);
     
     try {
-        /* Search for posts containing the post ID - potential quotes */
+        const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getQuotes?uri=${encodeURIComponent(postUri)}&limit=100`);
+        
+        if (!response.ok) {
+            console.error(`getQuotes API failed: ${response.status}`);
+            /* If getQuotes fails, fall back to search method */
+            return await findQuotesViaSearch(postUri);
+        }
+        
+        const data = await response.json();
+        const quotes = data.posts || [];
+        
+        console.log(`Found ${quotes.length} quotes via getQuotes API`);
+        return quotes;
+        
+    } catch (error) {
+        console.error('getQuotes API error:', error);
+        /* Fallback to search method */
+        return await findQuotesViaSearch(postUri);
+    }
+}
+
+/* Fallback search method for quotes */
+async function findQuotesViaSearch(postUri) {
+    console.log('Falling back to search method for quotes:', postUri);
+    
+    try {
+        /* Extract post ID for search */
+        const postIdMatch = postUri.match(/\/app\.bsky\.feed\.post\/(.+)$/);
+        if (!postIdMatch) {
+            console.error('Could not extract post ID from URI');
+            return [];
+        }
+        
+        const postId = postIdMatch[1];
         const searchQuery = postId.substring(0, 12); /* Use partial post ID */
         
         const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.searchPosts?q=${encodeURIComponent(searchQuery)}&limit=100`);
         
         if (!response.ok) {
-            console.log('Public search failed, trying alternative approach');
-            return await findQuotesAlternative(postUri, postId);
+            console.error('Search fallback also failed');
+            return [];
         }
         
         const data = await response.json();
         const allPosts = data.posts || [];
         
-        console.log(`Found ${allPosts.length} posts in search, filtering for quotes...`);
-        
         /* Filter for posts that actually embed/quote the target post */
         const quotes = allPosts.filter(post => {
             if (!post.record?.embed) return false;
             
-            /* Check if embed references our target post */
             const embed = post.record.embed;
             if (embed.$type === 'app.bsky.embed.record') {
                 return embed.record?.uri === postUri;
@@ -66,45 +84,11 @@ async function findQuotesUsingPublicAPI(postUri, postId) {
             return false;
         });
         
-        console.log(`Found ${quotes.length} actual quotes after filtering`);
+        console.log(`Found ${quotes.length} quotes via search fallback`);
         return quotes;
         
     } catch (error) {
-        console.error('Quote search failed:', error);
-        return [];
-    }
-}
-
-/* Alternative method for finding quotes if search fails */
-async function findQuotesAlternative(postUri, postId) {
-    console.log('Trying alternative quote detection method...');
-    
-    /* Try searching with just the post ID suffix */
-    const shortId = postId.slice(-8);
-    
-    try {
-        const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.searchPosts?q=${encodeURIComponent(shortId)}&limit=50`);
-        
-        if (!response.ok) {
-            console.log('Alternative search also failed');
-            return [];
-        }
-        
-        const data = await response.json();
-        const allPosts = data.posts || [];
-        
-        /* Filter for quotes */
-        const quotes = allPosts.filter(post => {
-            if (!post.record?.embed) return false;
-            const embed = post.record.embed;
-            return (embed.$type === 'app.bsky.embed.record' && embed.record?.uri === postUri) ||
-                   (embed.$type === 'app.bsky.embed.recordWithMedia' && embed.record?.record?.uri === postUri);
-        });
-        
-        return quotes;
-        
-    } catch (error) {
-        console.error('Alternative quote search failed:', error);
+        console.error('Search fallback failed:', error);
         return [];
     }
 }
@@ -151,16 +135,11 @@ async function processReplies() {
         const { handle, postId } = parsePostUrl(url);
         console.log('Parsed URL - Handle:', handle, 'Post ID:', postId);
         
-        /* Try to resolve the handle to get proper DID */
-        let postUri;
-        try {
-            const did = await resolveHandleToDid(handle);
-            postUri = `at://${did}/app.bsky.feed.post/${postId}`;
-            console.log('Resolved DID:', did, 'Post URI:', postUri);
-        } catch (didError) {
-            console.log('DID resolution failed, using handle directly:', didError.message);
-            postUri = `at://${handle}/app.bsky.feed.post/${postId}`;
-        }
+        /* Build the post URI with DID resolution */
+        const postUri = await buildPostUri(handle, postId);
+        
+        /* Fetch the original post */
+        const originalPost = await fetchOriginalPost(postUri);
         
         /* Fetch replies using the public Bluesky API */
         const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getPostThread?uri=${encodeURIComponent(postUri)}&depth=10&parentHeight=0`);
@@ -184,13 +163,23 @@ async function processReplies() {
         
         console.log(`Processed ${anonymizedReplies.length} replies`);
         
+        /* Structure output similar to user's example */
         const output = {
+            root: originalPost ? anonymizePost(originalPost, {
+                includePostType: false,
+                includeAltText: true,
+                index: 0
+            }) : {
+                id: 1,
+                text: '[Original post could not be fetched]',
+                error: 'Failed to fetch original post'
+            },
+            replies: anonymizedReplies,
             metadata: {
                 originalPost: postUri,
                 totalReplies: anonymizedReplies.length,
                 processedAt: new Date().toISOString()
-            },
-            replies: anonymizedReplies
+            }
         };
         
         displayOutput(output);
@@ -222,20 +211,16 @@ async function processQuotes() {
         const { handle, postId } = parsePostUrl(url);
         console.log('Parsed URL - Handle:', handle, 'Post ID:', postId);
         
-        /* Try to resolve the handle to get proper DID */
-        let postUri;
-        try {
-            const did = await resolveHandleToDid(handle);
-            postUri = `at://${did}/app.bsky.feed.post/${postId}`;
-        } catch (didError) {
-            console.log('DID resolution failed, using handle directly:', didError.message);
-            postUri = `at://${handle}/app.bsky.feed.post/${postId}`;
-        }
+        /* Build the post URI with DID resolution */
+        const postUri = await buildPostUri(handle, postId);
         
         console.log('Searching for quotes of post:', postUri);
         
-        /* Search for posts that quote this URI using public API */
-        const quotes = await findQuotesUsingPublicAPI(postUri, postId);
+        /* Fetch the original post */
+        const originalPost = await fetchOriginalPost(postUri);
+        
+        /* Get quotes using the proper API */
+        const quotes = await findQuotesUsingGetQuotesAPI(postUri);
         const anonymizedQuotes = anonymizePosts(quotes, {
             sourceType: 'search', /* Quotes are direct post objects */
             includePostType: false,
@@ -245,13 +230,23 @@ async function processQuotes() {
         
         console.log(`Found ${anonymizedQuotes.length} quotes`);
         
+        /* Structure output similar to user's example */
         const output = {
+            root: originalPost ? anonymizePost(originalPost, {
+                includePostType: false,
+                includeAltText: true,
+                index: 0
+            }) : {
+                id: 1,
+                text: '[Original post could not be fetched]',
+                error: 'Failed to fetch original post'
+            },
+            quotePosts: anonymizedQuotes,
             metadata: {
                 originalPost: postUri,
                 totalQuotes: anonymizedQuotes.length,
                 processedAt: new Date().toISOString()
-            },
-            quotes: anonymizedQuotes
+            }
         };
         
         displayOutput(output);
