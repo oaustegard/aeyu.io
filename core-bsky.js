@@ -1,26 +1,19 @@
-/* Core Bluesky API functionality - UPDATED WITH FIXES */
+/* Core Bluesky API functionality - separated from generic HTML utilities */
+
+import { fetchPaginatedData, fetchPaginatedDataWithFiltering } from './core-html.js';
+
+/* ===== AUTHENTICATION STATE ===== */
 
 let authToken = null;
 let userProfile = null;
 
-/* API endpoints */
+/* ===== API ENDPOINTS ===== */
+
 const BSKY_API_BASE = 'https://bsky.social/xrpc';
 const BSKY_PUBLIC_API = 'https://public.api.bsky.app/xrpc';
 
-/* Initialize core functionality */
-export async function initializeBskyCore() {
-    console.log('Initializing Bluesky core...');
-    
-    /* Set up copy functionality */
-    setupCopyButton();
-    
-    /* Check for stored auth */
-    checkStoredAuth();
-    
-    return true;
-}
+/* ===== AUTHENTICATION FUNCTIONS ===== */
 
-/* Authentication functions */
 export async function authenticateUser(handle, password) {
     console.log('Attempting authentication for:', handle);
     
@@ -76,7 +69,25 @@ export function getAuthToken() {
     return authToken;
 }
 
-/* Utility functions */
+/* ===== AUTHENTICATION HEADER BUILDER ===== */
+
+export function getApiHeaders(requireAuth = false) {
+    const headers = {};
+    const token = getAuthToken();
+    
+    if (requireAuth && !token) {
+        throw new Error('Authentication required but no token available');
+    }
+    
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return headers;
+}
+
+/* ===== BLUESKY API UTILITIES ===== */
+
 export function parsePostUrl(url) {
     console.log('Parsing post URL:', url);
     
@@ -98,107 +109,105 @@ export function parsePostUrl(url) {
     throw new Error('Invalid Bluesky post URL format');
 }
 
-export function showError(message) {
-    console.error('Error:', message);
-    const errorEl = document.getElementById('error');
-    if (errorEl) {
-        errorEl.textContent = message;
-        errorEl.style.display = 'block';
-    }
-}
-
-export function hideError() {
-    const errorEl = document.getElementById('error');
-    if (errorEl) {
-        errorEl.style.display = 'none';
-    }
-}
-
-export function showLoading(buttonId) {
-    const button = document.getElementById(buttonId);
-    if (button) {
-        button.disabled = true;
-        button.innerHTML = '<span class="loading"></span>' + button.textContent;
-    }
-}
-
-export function hideLoading(buttonId, originalText) {
-    const button = document.getElementById(buttonId);
-    if (button) {
-        button.disabled = false;
-        button.textContent = originalText;
-    }
-}
-
-export function displayOutput(data, format = 'json') {
-    console.log('Displaying output:', typeof data);
+export function extractHandleFromUrl(url) {
+    console.log('Extracting handle from URL:', url);
     
-    const outputEl = document.getElementById('output');
-    const actionsEl = document.querySelector('.output-actions');
+    const patterns = [
+        /https:\/\/bsky\.app\/profile\/([^\/\?]+)/,
+        /https:\/\/staging\.bsky\.app\/profile\/([^\/\?]+)/
+    ];
     
-    if (outputEl) {
-        let content;
-        if (format === 'json') {
-            content = JSON.stringify(data, null, 2);
-        } else {
-            content = data;
-        }
-        
-        outputEl.textContent = content;
-        
-        if (actionsEl) {
-            actionsEl.style.display = 'flex';
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match) {
+            return match[1];
         }
     }
+    
+    return null;
 }
 
-/* Copy functionality */
-function setupCopyButton() {
-    const copyButton = document.getElementById('copy-button');
-    const copyFeedback = document.getElementById('copy-feedback');
+export function extractDidFromUri(uri) {
+    console.log('Extracting DID from URI:', uri);
     
-    if (copyButton) {
-        copyButton.addEventListener('click', async () => {
-            const output = document.getElementById('output');
-            if (output && output.textContent) {
-                try {
-                    await navigator.clipboard.writeText(output.textContent);
-                    
-                    if (copyFeedback) {
-                        copyFeedback.style.display = 'block';
-                        setTimeout(() => {
-                            copyFeedback.style.display = 'none';
-                        }, 2000);
-                    }
-                } catch (error) {
-                    console.error('Failed to copy:', error);
-                }
-            }
-        });
+    const match = uri.match(/^at:\/\/([^\/]+)/);
+    return match ? match[1] : null;
+}
+
+export async function resolveHandleToDid(handle) {
+    console.log('Resolving handle to DID:', handle);
+    
+    try {
+        const response = await fetch(`${BSKY_PUBLIC_API}/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to resolve handle: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Resolved DID:', data.did);
+        return data.did;
+        
+    } catch (error) {
+        console.error('Handle resolution error:', error);
+        throw error;
     }
 }
 
-/* Check for stored authentication (placeholder for future localStorage implementation) */
-function checkStoredAuth() {
-    /* Future: Check localStorage for saved credentials */
-    console.log('Checking for stored authentication...');
+export async function buildPostUri(handle, postId, resolveDid = true) {
+    console.log('Building post URI for handle:', handle, 'postId:', postId);
+    
+    if (resolveDid && !handle.startsWith('did:')) {
+        try {
+            const did = await resolveHandleToDid(handle);
+            const uri = `at://${did}/app.bsky.feed.post/${postId}`;
+            console.log('Built DID-based URI:', uri);
+            return uri;
+        } catch (error) {
+            console.log('DID resolution failed, using handle directly:', error.message);
+        }
+    }
+    
+    const uri = `at://${handle}/app.bsky.feed.post/${postId}`;
+    console.log('Built handle-based URI:', uri);
+    return uri;
 }
 
-/* ===== COMMON POST PROCESSING FUNCTIONS ===== */
+/* ===== BLUESKY-SPECIFIC PAGINATION WRAPPERS ===== */
 
-/* Extract post object from different endpoint structures */
+export async function fetchBskyPaginatedData(endpoint, baseParams, options = {}) {
+    const bskyOptions = {
+        headers: getApiHeaders(options.authRequired),
+        dataKey: options.dataKey || 'posts',
+        cursorKey: 'cursor',
+        ...options
+    };
+    
+    return fetchPaginatedData(endpoint, baseParams, bskyOptions);
+}
+
+export async function fetchBskyPaginatedDataWithFiltering(endpoint, baseParams, filter, options = {}) {
+    const bskyOptions = {
+        headers: getApiHeaders(options.authRequired),
+        dataKey: options.dataKey || 'posts',
+        cursorKey: 'cursor',
+        ...options
+    };
+    
+    return fetchPaginatedDataWithFiltering(endpoint, baseParams, filter, bskyOptions);
+}
+
+/* ===== POST PROCESSING FUNCTIONS ===== */
+
 export function extractPostFromItem(item, sourceType = 'feed') {
     console.log('Extracting post from item, source type:', sourceType);
     
     switch (sourceType) {
         case 'feed':
-            /* Author feed, custom feed, list feed */
             return item.post;
         case 'search':
-            /* Search posts - item IS the post */
             return item;
         case 'thread':
-            /* Thread structure */
             return item.post;
         default:
             console.warn('Unknown source type:', sourceType);
@@ -206,7 +215,6 @@ export function extractPostFromItem(item, sourceType = 'feed') {
     }
 }
 
-/* Detect post type with context awareness */
 export function detectPostType(post, feedItem = null) {
     console.log('Detecting post type for post:', post.uri);
     
@@ -230,9 +238,9 @@ export function detectPostType(post, feedItem = null) {
         const authorDID = post.author?.did;
         const parentURI = post.record?.reply?.parent?.uri;
         if (authorDID && parentURI) {
-            const parentDID = parentURI.split('/')[2]; /* Extract DID from at://DID/... */
+            const parentDID = parentURI.split('/')[2];
             if (authorDID === parentDID) {
-                return 'thread'; /* Self-reply is thread continuation */
+                return 'thread';
             }
         }
         return 'reply';
@@ -241,7 +249,6 @@ export function detectPostType(post, feedItem = null) {
     return 'original';
 }
 
-/* Extract alt text from various embed structures */
 export function extractAltText(embed) {
     console.log('Extracting alt text from embed:', embed?.$type);
     
@@ -249,7 +256,6 @@ export function extractAltText(embed) {
     
     const altTexts = [];
     
-    /* Handle different embed types */
     switch (embed.$type) {
         case 'app.bsky.embed.images':
         case 'app.bsky.embed.images#view':
@@ -274,26 +280,22 @@ export function extractAltText(embed) {
             break;
             
         default:
-            /* Other embed types don't typically have alt text */
             break;
     }
     
     return altTexts;
 }
 
-/* Detect if post has media (excluding pure quote embeds) */
 export function hasMedia(post) {
     const embed = post.record?.embed;
     if (!embed) return false;
     
-    /* Images or external media */
     if (embed.$type === 'app.bsky.embed.images' || 
         embed.$type === 'app.bsky.embed.external' ||
         embed.$type === 'app.bsky.embed.recordWithMedia') {
         return true;
     }
     
-    /* Pure quote embed is not considered media */
     if (embed.$type === 'app.bsky.embed.record') {
         return false;
     }
@@ -301,7 +303,6 @@ export function hasMedia(post) {
     return false;
 }
 
-/* Detect if post has links */
 export function hasLinks(post) {
     const facets = post.record?.facets;
     if (!facets) return false;
@@ -313,7 +314,6 @@ export function hasLinks(post) {
     );
 }
 
-/* Standardized anonymization function */
 export function anonymizePost(post, options = {}) {
     console.log('Anonymizing post:', post.uri);
     
@@ -326,7 +326,6 @@ export function anonymizePost(post, options = {}) {
         index = 0
     } = options;
     
-    /* Extract basic post data */
     const anonymized = {
         id: `post_${index + 1}`,
         text: post.record?.text || '',
@@ -339,24 +338,20 @@ export function anonymizePost(post, options = {}) {
         language: post.record?.langs?.[0] || 'unknown'
     };
     
-    /* Add quote count if available */
     if (post.quoteCount !== undefined) {
         anonymized.quoteCount = post.quoteCount;
     }
     
-    /* Add post type if requested */
     if (includePostType) {
         anonymized.postType = postType || detectPostType(post, feedItem);
     }
     
-    /* Add alt text if requested and available */
     if (includeAltText) {
         const altTexts = extractAltText(post.record?.embed);
         if (altTexts.length > 0) {
             anonymized.altText = altTexts;
         }
         
-        /* Also check the view embed for alt text */
         const viewAltTexts = extractAltText(post.embed);
         if (viewAltTexts.length > 0) {
             anonymized.altText = anonymized.altText ? 
@@ -364,7 +359,6 @@ export function anonymizePost(post, options = {}) {
         }
     }
     
-    /* Add quoted post snippet if requested */
     if (includeQuotedSnippet && anonymized.postType === 'quote') {
         const snippet = extractQuotedTextSnippet(post.record?.embed);
         if (snippet) {
@@ -375,7 +369,6 @@ export function anonymizePost(post, options = {}) {
     return anonymized;
 }
 
-/* Extract snippet from quoted post */
 function extractQuotedTextSnippet(embed) {
     if (!embed) return null;
     
@@ -387,7 +380,6 @@ function extractQuotedTextSnippet(embed) {
         quotedText = embed.record?.record?.value?.text;
     }
     
-    /* Return first 100 characters as snippet */
     if (quotedText) {
         return quotedText.length > 100 ? quotedText.substring(0, 100) + '...' : quotedText;
     }
@@ -395,75 +387,6 @@ function extractQuotedTextSnippet(embed) {
     return null;
 }
 
-/* Extract handle from various URL formats */
-export function extractHandleFromUrl(url) {
-    console.log('Extracting handle from URL:', url);
-    
-    const patterns = [
-        /https:\/\/bsky\.app\/profile\/([^\/\?]+)/,
-        /https:\/\/staging\.bsky\.app\/profile\/([^\/\?]+)/
-    ];
-    
-    for (const pattern of patterns) {
-        const match = url.match(pattern);
-        if (match) {
-            return match[1];
-        }
-    }
-    
-    return null;
-}
-
-/* Extract DID from AT URI */
-export function extractDidFromUri(uri) {
-    console.log('Extracting DID from URI:', uri);
-    
-    const match = uri.match(/^at:\/\/([^\/]+)/);
-    return match ? match[1] : null;
-}
-
-/* Resolve a handle to a DID using the public API */
-export async function resolveHandleToDid(handle) {
-    console.log('Resolving handle to DID:', handle);
-    
-    try {
-        const response = await fetch(`${BSKY_PUBLIC_API}/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
-        
-        if (!response.ok) {
-            throw new Error(`Failed to resolve handle: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('Resolved DID:', data.did);
-        return data.did;
-        
-    } catch (error) {
-        console.error('Handle resolution error:', error);
-        throw error;
-    }
-}
-
-/* Build a post URI from handle/DID and post ID, with optional DID resolution */
-export async function buildPostUri(handle, postId, resolveDid = true) {
-    console.log('Building post URI for handle:', handle, 'postId:', postId);
-    
-    if (resolveDid && !handle.startsWith('did:')) {
-        try {
-            const did = await resolveHandleToDid(handle);
-            const uri = `at://${did}/app.bsky.feed.post/${postId}`;
-            console.log('Built DID-based URI:', uri);
-            return uri;
-        } catch (error) {
-            console.log('DID resolution failed, using handle directly:', error.message);
-        }
-    }
-    
-    const uri = `at://${handle}/app.bsky.feed.post/${postId}`;
-    console.log('Built handle-based URI:', uri);
-    return uri;
-}
-
-/* Batch anonymize posts with unified options */
 export function anonymizePosts(posts, options = {}) {
     console.log('Batch anonymizing posts:', posts.length);
     
@@ -477,12 +400,37 @@ export function anonymizePosts(posts, options = {}) {
     });
 }
 
-/* Fetch original post data - shared utility */
+/* ===== STANDARD OUTPUT BUILDER ===== */
+
+export function buildStandardOutput(rootPost, childData, metadata = {}) {
+    const output = {
+        metadata: {
+            processedAt: new Date().toISOString(),
+            ...metadata
+        }
+    };
+    
+    if (rootPost) {
+        output.root = anonymizePost(rootPost, {
+            includePostType: false,
+            includeAltText: true,
+            index: 0
+        });
+    }
+    
+    if (metadata.childDataKey && childData) {
+        output[metadata.childDataKey] = childData;
+    }
+    
+    return output;
+}
+
+/* ===== ORIGINAL POST FETCHER ===== */
+
 export async function fetchOriginalPost(postUri) {
     console.log('Fetching original post:', postUri);
     
     try {
-        /* Try getPosts first - more efficient */
         const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getPosts?uris=${encodeURIComponent(postUri)}`);
         
         if (response.ok) {
@@ -493,7 +441,6 @@ export async function fetchOriginalPost(postUri) {
             }
         }
         
-        /* Fallback to getPostThread */
         console.log('getPosts failed, trying getPostThread...');
         const threadResponse = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getPostThread?uri=${encodeURIComponent(postUri)}&depth=0&parentHeight=0`);
         
@@ -514,3 +461,19 @@ export async function fetchOriginalPost(postUri) {
         return null;
     }
 }
+
+/* ===== INITIALIZATION ===== */
+
+export function initializeBskyCore() {
+    console.log('Initializing Bluesky core...');
+    checkStoredAuth();
+    return true;
+}
+
+function checkStoredAuth() {
+    console.log('Checking for stored authentication...');
+}
+
+/* ===== EXPORTS ===== */
+
+export { BSKY_API_BASE, BSKY_PUBLIC_API };

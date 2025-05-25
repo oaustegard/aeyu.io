@@ -1,4 +1,4 @@
-<!-- bsky-search.html -->
+<!-- FILE: bsky-search.html - UPDATED for refactored modules -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -167,20 +167,16 @@
         </main>
     </div>
 
-    <script src="bsky-core.js" type="module"></script>
-    <script src="bsky-search.js" type="module"></script>
+    <!-- UPDATED: Use new main.js for simplified initialization -->
     <script type="module">
-        import { initializeBskyCore } from './bsky-core.js';
-        import { initializeSearchProcessing, autoProcessSearch } from './bsky-search.js';
+        import { initializeApplication } from './main.js';
         
         window.addEventListener('DOMContentLoaded', async () => {
             try {
-                const coreInitialized = await initializeBskyCore();
+                const initialized = await initializeApplication();
                 
-                if (coreInitialized) {
-                    initializeSearchProcessing();
-                    /* Auto-process search if query params exist */
-                    autoProcessSearch();
+                if (!initialized) {
+                    throw new Error('Application initialization failed');
                 }
             } catch (e) {
                 console.error("Initialization failed:", e);

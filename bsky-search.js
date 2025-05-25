@@ -1,20 +1,24 @@
-/* Search functionality for Bluesky posts - REFACTORED */
+/* FILE: bsky-search.js - REFACTORED using separated core modules */
 
 import { 
+    showError, 
+    hideError, 
+    showLoading, 
+    hideLoading,
+    displayOutput,
+    handleFormSubmission,
+    autoProcessFromUrlParams
+} from './core-html.js';
+
+import { 
+    BSKY_API_BASE,
     authenticateUser,
     logout,
     isAuthenticated,
     getCurrentUser,
-    getAuthToken,
-    showError, 
-    hideError, 
-    showLoading, 
-    hideLoading, 
-    displayOutput,
+    fetchBskyPaginatedData,
     anonymizePosts
-} from './bsky-core.js';
-
-const BSKY_API_BASE = 'https://bsky.social/xrpc';
+} from './core-bsky.js';
 
 /* Initialize search processing */
 export function initializeSearchProcessing() {
@@ -23,6 +27,19 @@ export function initializeSearchProcessing() {
     setupAuthenticationUI();
     setupSearchForm();
     updateUIBasedOnAuth();
+    
+    /* Auto-process from URL parameters */
+    autoProcessFromUrlParams({
+        paramMappings: {
+            'q': 'search-input',
+            'sort': 'sort-radio',
+            'limit': 'limit-input'
+        },
+        autoSubmit: {
+            condition: (params) => params.get('q') && isAuthenticated(),
+            handler: () => handleSearch({ preventDefault: () => {} })
+        }
+    });
 }
 
 /* Set up authentication UI */
@@ -40,7 +57,6 @@ function setupAuthenticationUI() {
         logoutButton.addEventListener('click', handleLogout);
     }
     
-    /* Show/hide pagination warning based on settings */
     if (limitSelect && sortRadios.length > 0) {
         const updateWarning = () => {
             const limit = parseInt(limitSelect.value);
@@ -117,77 +133,53 @@ function handleLogout() {
 /* Handle search submission */
 async function handleSearch(e) {
     e.preventDefault();
-    console.log('Handling search...');
-    hideError();
     
     if (!isAuthenticated()) {
         showError('Please authenticate first');
         return;
     }
     
-    const searchInput = document.getElementById('search-input');
-    const limitSelect = document.getElementById('limit-input');
-    const sortRadio = document.querySelector('input[name="sort"]:checked');
-    
-    const query = searchInput?.value?.trim();
-    const limit = parseInt(limitSelect?.value || '100');
-    const sort = sortRadio?.value || 'top';
-    
-    if (!query) {
-        showError('Please enter a search query');
-        return;
-    }
-    
-    try {
-        showLoading('process-search');
+    return handleFormSubmission('process-search', 'Process Search', async () => {
+        const searchInput = document.getElementById('search-input');
+        const limitSelect = document.getElementById('limit-input');
+        const sortRadio = document.querySelector('input[name="sort"]:checked');
+        
+        const query = searchInput?.value?.trim();
+        const limit = parseInt(limitSelect?.value || '100');
+        const sort = sortRadio?.value || 'top';
+        
+        if (!query) {
+            throw new Error('Please enter a search query');
+        }
         
         console.log(`Searching for: "${query}" (limit: ${limit}, sort: ${sort})`);
         
-        let allResults = [];
-        let cursor = null;
+        /* Determine batch size based on sort type and limit */
         let batchSize = Math.min(limit, 100);
-        
-        /* If large limit with top sort, use smaller batches for better sampling */
         if (limit > 100 && sort === 'top') {
-            batchSize = 25;
+            batchSize = 25; /* Use smaller batches for better sampling with top sort */
         }
         
-        while (allResults.length < limit) {
-            const remainingLimit = limit - allResults.length;
-            const currentBatchSize = Math.min(batchSize, remainingLimit);
-            
-            console.log(`Fetching batch: ${allResults.length + 1}-${allResults.length + currentBatchSize}`);
-            
-            const batch = await searchPosts(query, currentBatchSize, sort, cursor);
-            
-            if (!batch.posts || batch.posts.length === 0) {
-                console.log('No more results available');
-                break;
+        const result = await fetchBskyPaginatedData(
+            `${BSKY_API_BASE}/app.bsky.feed.searchPosts`,
+            { q: query, sort: sort },
+            { 
+                limit,
+                batchSize,
+                authRequired: true,
+                dataKey: 'posts'
             }
-            
-            allResults.push(...batch.posts);
-            cursor = batch.cursor;
-            
-            if (!cursor) {
-                console.log('No more pages available');
-                break;
-            }
-        }
+        );
         
-        /* Trim to exact limit if we got more */
-        if (allResults.length > limit) {
-            allResults = allResults.slice(0, limit);
-        }
-        
-        const anonymizedResults = anonymizePosts(allResults, {
+        const anonymizedResults = anonymizePosts(result.data, {
             sourceType: 'search',
-            includePostType: false, /* Search results don't have full context for post type detection */
+            includePostType: false,
             includeAltText: true
         });
         
         console.log(`Search completed: ${anonymizedResults.length} results`);
         
-        const output = {
+        return {
             metadata: {
                 query: query,
                 sort: sort,
@@ -196,50 +188,7 @@ async function handleSearch(e) {
             },
             posts: anonymizedResults
         };
-        
-        displayOutput(output);
-        
-    } catch (error) {
-        console.error('Search error:', error);
-        showError(error.message);
-    } finally {
-        hideLoading('process-search', 'Process Search');
-    }
-}
-
-/* Search posts using Bluesky API */
-async function searchPosts(query, limit = 25, sort = 'top', cursor = null) {
-    console.log(`API call: searching for "${query}", limit=${limit}, sort=${sort}, cursor=${cursor ? 'present' : 'none'}`);
-    
-    const token = getAuthToken();
-    if (!token) {
-        throw new Error('No authentication token available');
-    }
-    
-    const params = new URLSearchParams({
-        q: query,
-        limit: limit.toString(),
-        sort: sort
     });
-    
-    if (cursor) {
-        params.append('cursor', cursor);
-    }
-    
-    const response = await fetch(`${BSKY_API_BASE}/app.bsky.feed.searchPosts?${params}`, {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    });
-    
-    if (!response.ok) {
-        throw new Error(`Search API error: ${response.status}`);
-    }
-    
-    const data = await response.json();
-    console.log(`API response: ${data.posts?.length || 0} posts returned`);
-    
-    return data;
 }
 
 /* Update UI based on authentication status */
@@ -303,41 +252,7 @@ function hideAuthError() {
     }
 }
 
-/* Auto-process search based on URL parameters */
+/* Legacy function for compatibility */
 export function autoProcessSearch() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const query = urlParams.get('q');
-    const sort = urlParams.get('sort');
-    const limit = urlParams.get('limit');
-    
-    if (query) {
-        console.log('Auto-processing search from URL params:', query);
-        
-        const searchInput = document.getElementById('search-input');
-        if (searchInput) {
-            searchInput.value = query;
-        }
-        
-        if (sort && ['top', 'latest'].includes(sort)) {
-            const sortRadio = document.getElementById(`sort-${sort}`);
-            if (sortRadio) {
-                sortRadio.checked = true;
-            }
-        }
-        
-        if (limit) {
-            const limitSelect = document.getElementById('limit-input');
-            if (limitSelect) {
-                limitSelect.value = limit;
-            }
-        }
-        
-        /* Only auto-search if already authenticated */
-        if (isAuthenticated()) {
-            const searchForm = document.getElementById('search-form');
-            if (searchForm) {
-                handleSearch({ preventDefault: () => {} });
-            }
-        }
-    }
+    console.log('autoProcessSearch() called - functionality now handled by core autoProcessFromUrlParams()');
 }
