@@ -175,9 +175,10 @@ export async function validateApiResponse(response, context = 'API call') {
 }
 
 /* ===== GENERIC PAGINATION HANDLER ===== */
+/* NOTE: These generic functions are kept for non-Bluesky APIs that might need different cursor handling */
 
 export async function fetchPaginatedData(endpoint, baseParams, options = {}) {
-    console.log('Starting paginated fetch:', endpoint);
+    console.log('Starting generic paginated fetch:', endpoint);
     
     const {
         limit = 100,
@@ -202,6 +203,7 @@ export async function fetchPaginatedData(endpoint, baseParams, options = {}) {
         const params = new URLSearchParams(baseParams);
         params.set('limit', currentBatchSize.toString());
         
+        /* Generic cursor handling - add cursor parameter if we have one */
         if (cursor) {
             params.set(cursorKey, cursor);
         }
@@ -233,9 +235,11 @@ export async function fetchPaginatedData(endpoint, baseParams, options = {}) {
     };
 }
 
-/* ===== PAGINATION WITH FILTERING ===== */
+/* ===== GENERIC PAGINATION WITH FILTERING ===== */
 
 export async function fetchPaginatedDataWithFiltering(endpoint, baseParams, filter, options = {}) {
+    console.log('Starting generic filtered paginated fetch:', endpoint);
+    
     const {
         limit = 100,
         requestMultiplier = 2,
@@ -244,35 +248,34 @@ export async function fetchPaginatedDataWithFiltering(endpoint, baseParams, filt
     } = options;
     
     let filteredData = [];
-    let cursor = null;
     let attempts = 0;
+    let lastResult = null;
     
     while (filteredData.length < limit && attempts < maxAttempts) {
         const remainingLimit = limit - filteredData.length;
         const fetchSize = Math.min(remainingLimit * requestMultiplier, 100);
         
-        /* Update baseParams with cursor if we have one */
+        /* Use cursor from last result if available */
         const currentParams = { ...baseParams };
-        if (cursor) {
-            currentParams.cursor = cursor;
+        if (lastResult && lastResult.hasMore) {
+            currentParams.cursor = lastResult.cursor;
         }
         
-        const result = await fetchPaginatedData(endpoint, currentParams, {
+        lastResult = await fetchPaginatedData(endpoint, currentParams, {
             ...paginationOptions,
             limit: fetchSize,
             batchSize: fetchSize
         });
         
-        const batch = result.data;
+        const batch = lastResult.data;
         const filteredBatch = batch.filter(filter);
         
         console.log(`Filtered batch: ${filteredBatch.length}/${batch.length} items matched filter`);
         
         filteredData.push(...filteredBatch);
-        cursor = result.hasMore;
         attempts++;
         
-        if (!result.hasMore) {
+        if (!lastResult.hasMore) {
             console.log('No more data available from API');
             break;
         }
