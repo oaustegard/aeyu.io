@@ -5,6 +5,12 @@
 let authToken = null;
 let userProfile = null;
 
+/* ===== GLOBAL STATE FOR PSEUDONYMIZATION ===== */
+
+const userMap = new Map();
+let userCounter = 0;
+let postCounter = 0;
+
 /* ===== API ENDPOINTS ===== */
 
 const BSKY_API_BASE = 'https://bsky.social/xrpc';
@@ -65,6 +71,35 @@ export function getCurrentUser() {
 
 export function getAuthToken() {
     return authToken;
+}
+
+/* ===== PSEUDONYMIZATION FUNCTIONS ===== */
+
+export function resetProcessing() {
+    console.log('Resetting processing state');
+    userMap.clear();
+    userCounter = 0;
+    postCounter = 0;
+}
+
+export function anonymize(did) {
+    if (!userMap.has(did)) {
+        userMap.set(did, `p${++userCounter}`);
+    }
+    return userMap.get(did);
+}
+
+/* ===== RELATIVE TIME CALCULATION ===== */
+
+export function getRelativeTime(baseTime, compareTime) {
+    const diff = compareTime - baseTime;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    if (days > 0) return `${days}d`;
+    if (hours > 0) return `${hours}h`;
+    if (minutes > 0) return `${minutes}m`;
+    return 'now';
 }
 
 /* ===== AUTHENTICATION HEADER BUILDER ===== */
@@ -492,6 +527,17 @@ export function hasLinks(post) {
     );
 }
 
+/* ===== SAFE DATE EXTRACTION ===== */
+
+export function safeGetCreatedAt(post) {
+    try {
+        return new Date(post?.record?.createdAt || 0);
+    } catch (e) {
+        console.log('Date extraction error:', e.message, post);
+        return new Date(0);
+    }
+}
+
 export function anonymizePost(post, options = {}) {
     console.log('Anonymizing post:', post.uri);
     
@@ -501,22 +547,39 @@ export function anonymizePost(post, options = {}) {
         includeQuotedSnippet = false,
         postType = null,
         feedItem = null,
-        index = 0
+        index = 0,
+        rootTime = null
     } = options;
     
+    /* Get the author DID for pseudonymization */
+    const authorDID = post.author?.did || 'unknown';
+    
     const anonymized = {
-        id: `post_${index + 1}`,
+        id: `post_${++postCounter}`,
+        author: anonymize(authorDID),
         text: post.record?.text || '',
-        createdAt: post.record?.createdAt || post.indexedAt || '',
-        likeCount: post.likeCount || 0,
-        replyCount: post.replyCount || 0,
-        repostCount: post.repostCount || 0,
-        hasMedia: hasMedia(post),
-        hasLinks: hasLinks(post),
-        language: post.record?.langs?.[0] || 'unknown'
+        createdAt: post.record?.createdAt || post.indexedAt || ''
     };
     
-    if (post.quoteCount !== undefined) {
+    /* Add relative time if rootTime provided */
+    if (rootTime && post.record?.createdAt) {
+        const postTime = safeGetCreatedAt(post);
+        if (postTime > rootTime) {
+            anonymized.delay = getRelativeTime(rootTime, postTime);
+        }
+    }
+    
+    /* Only include engagement counts when > 0 */
+    if (post.likeCount > 0) {
+        anonymized.likeCount = post.likeCount;
+    }
+    if (post.replyCount > 0) {
+        anonymized.replyCount = post.replyCount;
+    }
+    if (post.repostCount > 0) {
+        anonymized.repostCount = post.repostCount;
+    }
+    if (post.quoteCount > 0) {
         anonymized.quoteCount = post.quoteCount;
     }
     
