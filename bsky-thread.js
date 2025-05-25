@@ -1,4 +1,4 @@
-/* Thread processing functionality for replies */
+/* Thread processing functionality for replies - REFACTORED */
 
 import { 
     parsePostUrl, 
@@ -6,7 +6,11 @@ import {
     hideError, 
     showLoading, 
     hideLoading, 
-    displayOutput 
+    displayOutput,
+    extractPostFromItem,
+    anonymizePost,
+    anonymizePosts,
+    extractAltText
 } from './bsky-core.js';
 
 const BSKY_PUBLIC_API = 'https://public.api.bsky.app/xrpc';
@@ -105,62 +109,6 @@ async function findQuotesAlternative(postUri, postId) {
     }
 }
 
-/* Anonymize quote data */
-function anonymizeQuotes(quotes) {
-    return quotes.map((quote, index) => ({
-        id: `quote_${index + 1}`,
-        text: quote.record?.text || '',
-        createdAt: quote.record?.createdAt || '',
-        likeCount: quote.likeCount || 0,
-        replyCount: quote.replyCount || 0,
-        repostCount: quote.repostCount || 0,
-        hasMedia: hasNonQuoteMedia(quote.record?.embed),
-        hasLinks: !!(quote.record?.facets?.some(f => 
-            f.features?.some(feat => feat.$type === 'app.bsky.richtext.facet#link')
-        )),
-        language: quote.record?.langs?.[0] || 'unknown',
-        quotedPostSnippet: extractQuotedTextSnippet(quote.record?.embed)
-    }));
-}
-
-/* Check if post has media beyond the quoted post */
-function hasNonQuoteMedia(embed) {
-    if (!embed) return false;
-    
-    /* If it's just a record embed (quote), no additional media */
-    if (embed.$type === 'app.bsky.embed.record') {
-        return false;
-    }
-    
-    /* If it's record with media, then yes it has media */
-    if (embed.$type === 'app.bsky.embed.recordWithMedia') {
-        return true;
-    }
-    
-    /* Other embed types indicate media */
-    return true;
-}
-
-/* Extract a snippet from the quoted post */
-function extractQuotedTextSnippet(embed) {
-    if (!embed) return null;
-    
-    let quotedText = null;
-    
-    if (embed.$type === 'app.bsky.embed.record') {
-        quotedText = embed.record?.value?.text;
-    } else if (embed.$type === 'app.bsky.embed.recordWithMedia') {
-        quotedText = embed.record?.record?.value?.text;
-    }
-    
-    /* Return first 100 characters as snippet */
-    if (quotedText) {
-        return quotedText.length > 100 ? quotedText.substring(0, 100) + '...' : quotedText;
-    }
-    
-    return null;
-}
-
 /* Initialize thread processing */
 export function initializeThreadProcessing() {
     console.log('Initializing thread processing...');
@@ -228,7 +176,11 @@ async function processReplies() {
         
         /* Extract and anonymize replies */
         const replies = extractReplies(threadData.thread);
-        const anonymizedReplies = anonymizeReplies(replies);
+        const anonymizedReplies = anonymizePosts(replies, {
+            sourceType: 'search', /* Replies are direct post objects */
+            includePostType: false,
+            includeAltText: true
+        });
         
         console.log(`Processed ${anonymizedReplies.length} replies`);
         
@@ -284,7 +236,12 @@ async function processQuotes() {
         
         /* Search for posts that quote this URI using public API */
         const quotes = await findQuotesUsingPublicAPI(postUri, postId);
-        const anonymizedQuotes = anonymizeQuotes(quotes);
+        const anonymizedQuotes = anonymizePosts(quotes, {
+            sourceType: 'search', /* Quotes are direct post objects */
+            includePostType: false,
+            includeAltText: true,
+            includeQuotedSnippet: true
+        });
         
         console.log(`Found ${anonymizedQuotes.length} quotes`);
         
@@ -324,20 +281,6 @@ function extractReplies(thread) {
     
     traverseReplies(thread);
     return replies;
-}
-
-/* Anonymize reply data */
-function anonymizeReplies(replies) {
-    return replies.map((reply, index) => ({
-        id: `reply_${index + 1}`,
-        text: reply.record?.text || '',
-        createdAt: reply.record?.createdAt || '',
-        likeCount: reply.likeCount || 0,
-        replyCount: reply.replyCount || 0,
-        repostCount: reply.repostCount || 0,
-        hasMedia: !!(reply.record?.embed),
-        hasLinks: !!(reply.record?.facets?.some(f => f.features?.some(feat => feat.$type === 'app.bsky.richtext.facet#link')))
-    }));
 }
 
 /* Auto-process based on URL parameters */
