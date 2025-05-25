@@ -1,4 +1,3 @@
-<!-- FILE: bsky-posts.html - UPDATED for refactored modules -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -74,17 +73,25 @@
         </main>
     </div>
 
-    <!-- UPDATED: Use new main.js for simplified initialization -->
     <script type="module">
-        import { initializeApplication } from './main.js';
+        /* Self-contained initialization - no main.js needed */
+        import { initializeHtmlCore } from './core-html.js';
+        import { initializeBskyCore } from './core-bsky.js';
+        import { initializeThreadProcessing } from './bsky-thread.js';
+        import { initializeQuoteProcessing } from './bsky-quote.js';
         
         window.addEventListener('DOMContentLoaded', async () => {
             try {
-                const initialized = await initializeApplication();
+                console.log('Initializing Post Processor...');
                 
-                if (!initialized) {
-                    throw new Error('Application initialization failed');
-                }
+                /* Initialize only what this page needs */
+                initializeHtmlCore();
+                initializeBskyCore();
+                initializeThreadProcessing();
+                initializeQuoteProcessing();
+                
+                console.log('Post Processor initialization complete!');
+                
             } catch (e) {
                 console.error("Initialization failed:", e);
                 document.getElementById('error').textContent = "Failed to initialize: " + e.message;
