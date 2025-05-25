@@ -1,20 +1,21 @@
-/* FILE: bsky-feeds.js */
-/* Feed processing functionality for Bluesky content with post type filtering - REFACTORED */
+/* FILE: bsky-feeds.js - REFACTORED using separated core modules */
 
 import { 
     showError, 
-    hideError, 
-    showLoading, 
-    hideLoading, 
+    hideError,
     displayOutput,
-    extractPostFromItem,
-    detectPostType,
-    anonymizePost,
-    anonymizePosts,
-    extractHandleFromUrl
-} from './bsky-core.js';
+    handleFormSubmission,
+    autoProcessFromUrlParams
+} from './core-html.js';
 
-const BSKY_PUBLIC_API = 'https://public.api.bsky.app/xrpc';
+import { 
+    BSKY_PUBLIC_API,
+    extractHandleFromUrl,
+    detectPostType,
+    anonymizePosts,
+    fetchBskyPaginatedData,
+    fetchBskyPaginatedDataWithFiltering
+} from './core-bsky.js';
 
 /* Initialize feed processing */
 export function initializeFeedProcessing() {
@@ -23,12 +24,28 @@ export function initializeFeedProcessing() {
     setupContentTypeHandlers();
     setupFeedForm();
     updateUIForContentType();
+    
+    /* Auto-process from URL parameters */
+    autoProcessFromUrlParams({
+        paramMappings: {
+            'url': 'url-input',
+            'type': 'content-type-radio',
+            'limit': 'limit-select',
+            'posts': 'include-posts',
+            'reposts': 'include-reposts', 
+            'quotes': 'include-quotes'
+        },
+        uiUpdater: updateUIForContentType,
+        autoSubmit: {
+            condition: (params) => params.get('url'),
+            handler: () => handleFeedSubmission({ preventDefault: () => {} })
+        }
+    });
 }
 
 /* Set up content type radio button handlers */
 function setupContentTypeHandlers() {
     const contentTypeRadios = document.querySelectorAll('input[name="content-type"]');
-    
     contentTypeRadios.forEach(radio => {
         radio.addEventListener('change', updateUIForContentType);
     });
@@ -37,7 +54,6 @@ function setupContentTypeHandlers() {
 /* Set up feed form submission */
 function setupFeedForm() {
     const feedForm = document.getElementById('feed-form');
-    
     if (feedForm) {
         feedForm.addEventListener('submit', handleFeedSubmission);
     }
@@ -80,7 +96,6 @@ function updateUIForContentType() {
     if (urlInput) urlInput.placeholder = config.placeholder;
     if (urlHelp) urlHelp.textContent = config.help;
     
-    /* Show/hide post filters based on content type */
     if (postFilters) {
         postFilters.style.display = selectedType === 'profile' ? 'block' : 'none';
     }
@@ -89,28 +104,17 @@ function updateUIForContentType() {
 /* Handle feed form submission */
 async function handleFeedSubmission(e) {
     e.preventDefault();
-    console.log('Handling feed submission...');
-    hideError();
     
-    const urlInput = document.getElementById('url-input');
-    const limitSelect = document.getElementById('limit-select');
-    const contentType = document.querySelector('input[name="content-type"]:checked')?.value;
-    
-    const url = urlInput?.value?.trim();
-    const limit = parseInt(limitSelect?.value || '100');
-    
-    if (!url) {
-        showError('Please enter a URL');
-        return;
-    }
-    
-    if (!contentType) {
-        showError('Please select a content type');
-        return;
-    }
-    
-    try {
-        showLoading('process-feed');
+    return handleFormSubmission('process-feed', 'Process Feed', async () => {
+        const urlInput = document.getElementById('url-input');
+        const limitSelect = document.getElementById('limit-select');
+        const contentType = document.querySelector('input[name="content-type"]:checked')?.value;
+        
+        const url = urlInput?.value?.trim();
+        const limit = parseInt(limitSelect?.value || '100');
+        
+        if (!url) throw new Error('Please enter a URL');
+        if (!contentType) throw new Error('Please select a content type');
         
         console.log(`Processing ${contentType} feed: ${url} (limit: ${limit})`);
         
@@ -140,14 +144,14 @@ async function handleFeedSubmission(e) {
         }
         
         const anonymizedPosts = anonymizePosts(posts, {
-            sourceType: 'feed', /* All feed endpoints use feed structure */
+            sourceType: 'feed',
             includePostType: true,
             includeAltText: true
         });
         
         console.log(`Feed processing completed: ${anonymizedPosts.length} posts`);
         
-        const output = {
+        return {
             metadata: {
                 ...metadata,
                 contentType: contentType,
@@ -156,15 +160,7 @@ async function handleFeedSubmission(e) {
             },
             posts: anonymizedPosts
         };
-        
-        displayOutput(output);
-        
-    } catch (error) {
-        console.error('Feed processing error:', error);
-        showError(error.message);
-    } finally {
-        hideLoading('process-feed', 'Process Feed');
-    }
+    });
 }
 
 /* Filter feed items by type based on user selection */
@@ -189,77 +185,33 @@ async function processProfileFeed(url, limit, filters = null) {
         throw new Error('Invalid profile URL format');
     }
     
-    console.log('Extracted handle:', handle);
-    
-    /* Default filters if not provided */
     const postFilters = filters || {
         includePosts: true,
         includeReposts: false,
         includeQuotes: false
     };
     
-    console.log('Post filters:', postFilters);
+    console.log('Extracted handle:', handle, 'Filters:', postFilters);
     
-    let allPosts = [];
-    let cursor = null;
-    const batchSize = Math.min(limit, 100);
-    /* Request more than needed since we'll be filtering */
-    const requestMultiplier = 2;
-    
-    while (allPosts.length < limit) {
-        const remainingLimit = limit - allPosts.length;
-        const currentBatchSize = Math.min(batchSize * requestMultiplier, 100);
-        
-        console.log(`Fetching profile batch: ${allPosts.length + 1}-${allPosts.length + currentBatchSize}`);
-        
-        const params = new URLSearchParams({
-            actor: handle,
-            limit: currentBatchSize.toString()
-        });
-        
-        if (cursor) {
-            params.append('cursor', cursor);
+    const result = await fetchBskyPaginatedDataWithFiltering(
+        `${BSKY_PUBLIC_API}/app.bsky.feed.getAuthorFeed`,
+        { actor: handle },
+        (item) => filterFeedItemsByType([item], postFilters).length > 0,
+        { 
+            limit, 
+            dataKey: 'feed',
+            requestMultiplier: 2
         }
-        
-        const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getAuthorFeed?${params}`);
-        
-        if (!response.ok) {
-            throw new Error(`Profile feed API error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log(`API response: ${data.feed?.length || 0} posts returned`);
-        
-        if (!data.feed || data.feed.length === 0) {
-            console.log('No more posts available');
-            break;
-        }
-        
-        /* Filter posts based on type - pass full feed items and preserve type info */
-        const filteredBatch = filterFeedItemsByType(data.feed, postFilters);
-        console.log(`Filtered batch: ${filteredBatch.length}/${data.feed.length} posts matched filters`);
-        
-        allPosts.push(...filteredBatch);
-        cursor = data.cursor;
-        
-        if (!cursor) {
-            console.log('No more pages available');
-            break;
-        }
-        
-        /* If we have enough posts after filtering, break */
-        if (allPosts.length >= limit) {
-            break;
-        }
-    }
+    );
     
     return {
-        posts: allPosts.slice(0, limit),
+        posts: result.data,
         metadata: {
             source: url,
             actor: handle,
             feedType: 'profile',
-            filters: postFilters
+            filters: postFilters,
+            totalFetched: result.totalFetched
         }
     };
 }
@@ -275,54 +227,22 @@ async function processCustomFeed(url, limit) {
     
     console.log('Extracted feed URI:', feedUri);
     
-    let allPosts = [];
-    let cursor = null;
-    const batchSize = Math.min(limit, 100);
-    
-    while (allPosts.length < limit) {
-        const remainingLimit = limit - allPosts.length;
-        const currentBatchSize = Math.min(batchSize, remainingLimit);
-        
-        console.log(`Fetching feed batch: ${allPosts.length + 1}-${allPosts.length + currentBatchSize}`);
-        
-        const params = new URLSearchParams({
-            feed: feedUri,
-            limit: currentBatchSize.toString()
-        });
-        
-        if (cursor) {
-            params.append('cursor', cursor);
+    const result = await fetchBskyPaginatedData(
+        `${BSKY_PUBLIC_API}/app.bsky.feed.getFeed`,
+        { feed: feedUri },
+        { 
+            limit,
+            dataKey: 'feed'
         }
-        
-        const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getFeed?${params}`);
-        
-        if (!response.ok) {
-            throw new Error(`Custom feed API error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log(`API response: ${data.feed?.length || 0} posts returned`);
-        
-        if (!data.feed || data.feed.length === 0) {
-            console.log('No more posts available');
-            break;
-        }
-        
-        allPosts.push(...data.feed);
-        cursor = data.cursor;
-        
-        if (!cursor) {
-            console.log('No more pages available');
-            break;
-        }
-    }
+    );
     
     return {
-        posts: allPosts.slice(0, limit),
+        posts: result.data,
         metadata: {
             source: url,
             feedUri: feedUri,
-            feedType: 'custom'
+            feedType: 'custom',
+            totalFetched: result.totalFetched
         }
     };
 }
@@ -338,54 +258,22 @@ async function processListFeed(url, limit) {
     
     console.log('Extracted list URI:', listUri);
     
-    let allPosts = [];
-    let cursor = null;
-    const batchSize = Math.min(limit, 100);
-    
-    while (allPosts.length < limit) {
-        const remainingLimit = limit - allPosts.length;
-        const currentBatchSize = Math.min(batchSize, remainingLimit);
-        
-        console.log(`Fetching list batch: ${allPosts.length + 1}-${allPosts.length + currentBatchSize}`);
-        
-        const params = new URLSearchParams({
-            list: listUri,
-            limit: currentBatchSize.toString()
-        });
-        
-        if (cursor) {
-            params.append('cursor', cursor);
+    const result = await fetchBskyPaginatedData(
+        `${BSKY_PUBLIC_API}/app.bsky.feed.getListFeed`,
+        { list: listUri },
+        { 
+            limit,
+            dataKey: 'feed'
         }
-        
-        const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getListFeed?${params}`);
-        
-        if (!response.ok) {
-            throw new Error(`List feed API error: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log(`API response: ${data.feed?.length || 0} posts returned`);
-        
-        if (!data.feed || data.feed.length === 0) {
-            console.log('No more posts available');
-            break;
-        }
-        
-        allPosts.push(...data.feed);
-        cursor = data.cursor;
-        
-        if (!cursor) {
-            console.log('No more pages available');
-            break;
-        }
-    }
+    );
     
     return {
-        posts: allPosts.slice(0, limit),
+        posts: result.data,
         metadata: {
             source: url,
             listUri: listUri,
-            feedType: 'list'
+            feedType: 'list',
+            totalFetched: result.totalFetched
         }
     };
 }
@@ -401,21 +289,15 @@ async function processStarterPackFeed(url, limit) {
     
     console.log('Extracted starter pack URI:', starterPackUri);
     
-    /* First, get the starter pack info */
-    const params = new URLSearchParams({
-        starterPack: starterPackUri
-    });
-    
-    const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.graph.getStarterPack?${params}`);
+    const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.graph.getStarterPack?starterPack=${encodeURIComponent(starterPackUri)}`);
     
     if (!response.ok) {
         throw new Error(`Starter pack API error: ${response.status}`);
     }
     
     const starterPackData = await response.json();
-    console.log('Starter pack data:', starterPackData);
-    
     const listItems = starterPackData.starterPack?.list?.listItemsSample || [];
+    
     console.log(`Found ${listItems.length} users in starter pack`);
     
     if (listItems.length === 0) {
@@ -430,7 +312,6 @@ async function processStarterPackFeed(url, limit) {
         };
     }
     
-    /* Get posts from each user in the starter pack */
     let allPosts = [];
     const postsPerUser = Math.ceil(limit / listItems.length);
     
@@ -443,22 +324,20 @@ async function processStarterPackFeed(url, limit) {
         try {
             console.log(`Fetching posts from user: ${userHandle}`);
             
-            const userParams = new URLSearchParams({
-                actor: userHandle,
-                limit: Math.min(postsPerUser, limit - allPosts.length).toString()
-            });
+            const userResult = await fetchBskyPaginatedData(
+                `${BSKY_PUBLIC_API}/app.bsky.feed.getAuthorFeed`,
+                { actor: userHandle },
+                { 
+                    limit: Math.min(postsPerUser, limit - allPosts.length),
+                    dataKey: 'feed'
+                }
+            );
             
-            const userResponse = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getAuthorFeed?${userParams}`);
+            allPosts.push(...userResult.data);
+            console.log(`Added ${userResult.data.length} posts from ${userHandle}`);
             
-            if (userResponse.ok) {
-                const userData = await userResponse.json();
-                const userPosts = userData.feed || [];
-                allPosts.push(...userPosts);
-                console.log(`Added ${userPosts.length} posts from ${userHandle}`);
-            }
         } catch (error) {
             console.error(`Failed to fetch posts from ${userHandle}:`, error);
-            /* Continue with other users */
         }
     }
     
@@ -468,44 +347,34 @@ async function processStarterPackFeed(url, limit) {
             source: url,
             starterPackUri: starterPackUri,
             feedType: 'starterpack',
-            userCount: listItems.length
+            userCount: listItems.length,
+            totalFetched: allPosts.length
         }
     };
 }
 
-/* Extract feed URI from feed URL */
+/* URI extraction functions */
 function extractFeedUriFromUrl(url) {
-    /* Pattern: https://bsky.app/profile/{did}/feed/{rkey} */
     const match = url.match(/https:\/\/bsky\.app\/profile\/([^\/]+)\/feed\/([^\/\?]+)/);
     if (match) {
         const did = match[1];
         const rkey = match[2];
         return `at://${did}/app.bsky.feed.generator/${rkey}`;
     }
-    
     return null;
 }
 
-/* Extract list URI from list URL */
 function extractListUriFromUrl(url) {
-    /* Pattern: https://bsky.app/profile/{handle}/lists/{rkey} */
     const match = url.match(/https:\/\/bsky\.app\/profile\/([^\/]+)\/lists\/([^\/\?]+)/);
     if (match) {
         const handle = match[1];
         const rkey = match[2];
-        /* Note: We'll need to resolve handle to DID for proper AT URI */
-        /* For now, try with handle and let the API handle resolution */
         return `at://${handle}/app.bsky.graph.list/${rkey}`;
     }
-    
     return null;
 }
 
-/* Extract starter pack URI from starter pack URL */
 function extractStarterPackUriFromUrl(url) {
-    /* Pattern: https://bsky.app/starter-pack/{creator}/{rkey} or https://bsky.app/starter-pack-short/{code} */
-    
-    /* Long format */
     let match = url.match(/https:\/\/bsky\.app\/starter-pack\/([^\/]+)\/([^\/\?]+)/);
     if (match) {
         const creator = match[1];
@@ -513,72 +382,15 @@ function extractStarterPackUriFromUrl(url) {
         return `at://${creator}/app.bsky.graph.starterpack/${rkey}`;
     }
     
-    /* Short format - these need special handling, but for now return the full URL */
     match = url.match(/https:\/\/bsky\.app\/starter-pack-short\/([^\/\?]+)/);
     if (match) {
-        /* Short URLs need to be resolved differently */
-        /* For now, return null and let the user use the full format */
         throw new Error('Short starter pack URLs are not supported. Please use the full URL format.');
     }
     
     return null;
 }
 
-/* Auto-process feed based on URL parameters */
+/* Legacy function for compatibility */
 export function autoProcessFeed() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const feedUrl = urlParams.get('url');
-    const contentType = urlParams.get('type');
-    const limit = urlParams.get('limit');
-    const includePosts = urlParams.get('posts');
-    const includeReposts = urlParams.get('reposts');
-    const includeQuotes = urlParams.get('quotes');
-    
-    if (feedUrl) {
-        console.log('Auto-processing feed from URL params:', feedUrl, contentType);
-        
-        const urlInput = document.getElementById('url-input');
-        if (urlInput) {
-            urlInput.value = feedUrl;
-        }
-        
-        if (contentType && ['profile', 'feed', 'list', 'starterpack'].includes(contentType)) {
-            const typeRadio = document.querySelector(`input[name="content-type"][value="${contentType}"]`);
-            if (typeRadio) {
-                typeRadio.checked = true;
-                updateUIForContentType();
-            }
-        }
-        
-        if (limit) {
-            const limitSelect = document.getElementById('limit-select');
-            if (limitSelect) {
-                limitSelect.value = limit;
-            }
-        }
-        
-        /* Set filter checkboxes for profile type */
-        if (contentType === 'profile') {
-            if (includePosts !== null) {
-                const postsCheckbox = document.getElementById('include-posts');
-                if (postsCheckbox) postsCheckbox.checked = includePosts === 'true';
-            }
-            if (includeReposts !== null) {
-                const repostsCheckbox = document.getElementById('include-reposts');
-                if (repostsCheckbox) repostsCheckbox.checked = includeReposts === 'true';
-            }
-            if (includeQuotes !== null) {
-                const quotesCheckbox = document.getElementById('include-quotes');
-                if (quotesCheckbox) quotesCheckbox.checked = includeQuotes === 'true';
-            }
-        }
-        
-        /* Auto-submit after a short delay to allow UI updates */
-        setTimeout(() => {
-            const feedForm = document.getElementById('feed-form');
-            if (feedForm) {
-                handleFeedSubmission({ preventDefault: () => {} });
-            }
-        }, 100);
-    }
+    console.log('autoProcessFeed() called - functionality now handled by core autoProcessFromUrlParams()');
 }
