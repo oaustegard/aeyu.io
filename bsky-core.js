@@ -1,4 +1,4 @@
-/* Core Bluesky API functionality */
+/* Core Bluesky API functionality - REFACTORED */
 
 let authToken = null;
 let userProfile = null;
@@ -182,4 +182,256 @@ function setupCopyButton() {
 function checkStoredAuth() {
     /* Future: Check localStorage for saved credentials */
     console.log('Checking for stored authentication...');
+}
+
+/* ===== COMMON POST PROCESSING FUNCTIONS ===== */
+
+/* Extract post object from different endpoint structures */
+export function extractPostFromItem(item, sourceType = 'feed') {
+    console.log('Extracting post from item, source type:', sourceType);
+    
+    switch (sourceType) {
+        case 'feed':
+            /* Author feed, custom feed, list feed */
+            return item.post;
+        case 'search':
+            /* Search posts - item IS the post */
+            return item;
+        case 'thread':
+            /* Thread structure */
+            return item.post;
+        default:
+            console.warn('Unknown source type:', sourceType);
+            return item.post || item;
+    }
+}
+
+/* Detect post type with context awareness */
+export function detectPostType(post, feedItem = null) {
+    console.log('Detecting post type for post:', post.uri);
+    
+    /* Check for repost (only available in feed items) */
+    if (feedItem && feedItem.reason && feedItem.reason.$type === 'app.bsky.feed.defs#reasonRepost') {
+        return 'repost';
+    }
+    
+    /* Check for quote post */
+    const embed = post.record?.embed;
+    if (embed) {
+        if (embed.$type === 'app.bsky.embed.record' || embed.$type === 'app.bsky.embed.recordWithMedia') {
+            return 'quote';
+        }
+    }
+    
+    /* Check for reply */
+    const hasReplyField = !!(post.record?.reply);
+    if (hasReplyField) {
+        /* Check if it's a self-reply (thread continuation) */
+        const authorDID = post.author?.did;
+        const parentURI = post.record?.reply?.parent?.uri;
+        if (authorDID && parentURI) {
+            const parentDID = parentURI.split('/')[2]; /* Extract DID from at://DID/... */
+            if (authorDID === parentDID) {
+                return 'thread'; /* Self-reply is thread continuation */
+            }
+        }
+        return 'reply';
+    }
+    
+    return 'original';
+}
+
+/* Extract alt text from various embed structures */
+export function extractAltText(embed) {
+    console.log('Extracting alt text from embed:', embed?.$type);
+    
+    if (!embed) return [];
+    
+    const altTexts = [];
+    
+    /* Handle different embed types */
+    switch (embed.$type) {
+        case 'app.bsky.embed.images':
+        case 'app.bsky.embed.images#view':
+            if (embed.images) {
+                embed.images.forEach(img => {
+                    if (img.alt) {
+                        altTexts.push(img.alt);
+                    }
+                });
+            }
+            break;
+            
+        case 'app.bsky.embed.recordWithMedia':
+        case 'app.bsky.embed.recordWithMedia#view':
+            if (embed.media && embed.media.images) {
+                embed.media.images.forEach(img => {
+                    if (img.alt) {
+                        altTexts.push(img.alt);
+                    }
+                });
+            }
+            break;
+            
+        default:
+            /* Other embed types don't typically have alt text */
+            break;
+    }
+    
+    return altTexts;
+}
+
+/* Detect if post has media (excluding pure quote embeds) */
+export function hasMedia(post) {
+    const embed = post.record?.embed;
+    if (!embed) return false;
+    
+    /* Images or external media */
+    if (embed.$type === 'app.bsky.embed.images' || 
+        embed.$type === 'app.bsky.embed.external' ||
+        embed.$type === 'app.bsky.embed.recordWithMedia') {
+        return true;
+    }
+    
+    /* Pure quote embed is not considered media */
+    if (embed.$type === 'app.bsky.embed.record') {
+        return false;
+    }
+    
+    return false;
+}
+
+/* Detect if post has links */
+export function hasLinks(post) {
+    const facets = post.record?.facets;
+    if (!facets) return false;
+    
+    return facets.some(facet => 
+        facet.features?.some(feature => 
+            feature.$type === 'app.bsky.richtext.facet#link'
+        )
+    );
+}
+
+/* Standardized anonymization function */
+export function anonymizePost(post, options = {}) {
+    console.log('Anonymizing post:', post.uri);
+    
+    const {
+        includePostType = true,
+        includeAltText = true,
+        includeQuotedSnippet = false,
+        postType = null,
+        feedItem = null,
+        index = 0
+    } = options;
+    
+    /* Extract basic post data */
+    const anonymized = {
+        id: `post_${index + 1}`,
+        text: post.record?.text || '',
+        createdAt: post.record?.createdAt || post.indexedAt || '',
+        likeCount: post.likeCount || 0,
+        replyCount: post.replyCount || 0,
+        repostCount: post.repostCount || 0,
+        hasMedia: hasMedia(post),
+        hasLinks: hasLinks(post),
+        language: post.record?.langs?.[0] || 'unknown'
+    };
+    
+    /* Add quote count if available */
+    if (post.quoteCount !== undefined) {
+        anonymized.quoteCount = post.quoteCount;
+    }
+    
+    /* Add post type if requested */
+    if (includePostType) {
+        anonymized.postType = postType || detectPostType(post, feedItem);
+    }
+    
+    /* Add alt text if requested and available */
+    if (includeAltText) {
+        const altTexts = extractAltText(post.record?.embed);
+        if (altTexts.length > 0) {
+            anonymized.altText = altTexts;
+        }
+        
+        /* Also check the view embed for alt text */
+        const viewAltTexts = extractAltText(post.embed);
+        if (viewAltTexts.length > 0) {
+            anonymized.altText = anonymized.altText ? 
+                [...anonymized.altText, ...viewAltTexts] : viewAltTexts;
+        }
+    }
+    
+    /* Add quoted post snippet if requested */
+    if (includeQuotedSnippet && anonymized.postType === 'quote') {
+        const snippet = extractQuotedTextSnippet(post.record?.embed);
+        if (snippet) {
+            anonymized.quotedPostSnippet = snippet;
+        }
+    }
+    
+    return anonymized;
+}
+
+/* Extract snippet from quoted post */
+function extractQuotedTextSnippet(embed) {
+    if (!embed) return null;
+    
+    let quotedText = null;
+    
+    if (embed.$type === 'app.bsky.embed.record') {
+        quotedText = embed.record?.value?.text;
+    } else if (embed.$type === 'app.bsky.embed.recordWithMedia') {
+        quotedText = embed.record?.record?.value?.text;
+    }
+    
+    /* Return first 100 characters as snippet */
+    if (quotedText) {
+        return quotedText.length > 100 ? quotedText.substring(0, 100) + '...' : quotedText;
+    }
+    
+    return null;
+}
+
+/* Extract handle from various URL formats */
+export function extractHandleFromUrl(url) {
+    console.log('Extracting handle from URL:', url);
+    
+    const patterns = [
+        /https:\/\/bsky\.app\/profile\/([^\/\?]+)/,
+        /https:\/\/staging\.bsky\.app\/profile\/([^\/\?]+)/
+    ];
+    
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match) {
+            return match[1];
+        }
+    }
+    
+    return null;
+}
+
+/* Extract DID from AT URI */
+export function extractDidFromUri(uri) {
+    console.log('Extracting DID from URI:', uri);
+    
+    const match = uri.match(/^at:\/\/([^\/]+)/);
+    return match ? match[1] : null;
+}
+
+/* Batch anonymize posts with unified options */
+export function anonymizePosts(posts, options = {}) {
+    console.log('Batch anonymizing posts:', posts.length);
+    
+    return posts.map((post, index) => {
+        const postObj = extractPostFromItem(post, options.sourceType);
+        return anonymizePost(postObj, {
+            ...options,
+            index,
+            feedItem: options.sourceType === 'feed' ? post : null
+        });
+    });
 }

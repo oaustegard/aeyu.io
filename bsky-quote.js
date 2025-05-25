@@ -1,4 +1,4 @@
-/* Quote processing functionality for Bluesky posts */
+/* Quote processing functionality for Bluesky posts - REFACTORED */
 
 import { 
     parsePostUrl, 
@@ -7,7 +7,8 @@ import {
     showLoading, 
     hideLoading, 
     displayOutput,
-    getAuthToken 
+    getAuthToken,
+    anonymizePosts
 } from './bsky-core.js';
 
 const BSKY_API_BASE = 'https://bsky.social/xrpc';
@@ -30,7 +31,12 @@ export async function processQuotes(postUrl) {
         
         /* Find quotes by searching for posts that embed this specific post */
         const quotes = await findQuotesForPost(postUri);
-        const anonymizedQuotes = anonymizeQuotes(quotes);
+        const anonymizedQuotes = anonymizePosts(quotes, {
+            sourceType: 'search', /* Quotes are direct post objects */
+            includePostType: false,
+            includeAltText: true,
+            includeQuotedSnippet: true
+        });
         
         console.log(`Found ${anonymizedQuotes.length} quotes`);
         
@@ -157,56 +163,5 @@ async function searchForQuotes(postUri) {
     }
 }
 
-/* Anonymize quote data */
-function anonymizeQuotes(quotes) {
-    return quotes.map((quote, index) => ({
-        id: `quote_${index + 1}`,
-        text: quote.record?.text || '',
-        createdAt: quote.record?.createdAt || '',
-        likeCount: quote.likeCount || 0,
-        replyCount: quote.replyCount || 0,
-        repostCount: quote.repostCount || 0,
-        hasMedia: hasNonQuoteMedia(quote.record?.embed),
-        hasLinks: !!(quote.record?.facets?.some(f => 
-            f.features?.some(feat => feat.$type === 'app.bsky.richtext.facet#link')
-        )),
-        language: quote.record?.langs?.[0] || 'unknown',
-        quotedPostText: extractQuotedText(quote.record?.embed)
-    }));
-}
-
-/* Check if post has media beyond the quoted post */
-function hasNonQuoteMedia(embed) {
-    if (!embed) return false;
-    
-    /* If it's just a record embed (quote), no additional media */
-    if (embed.$type === 'app.bsky.embed.record') {
-        return false;
-    }
-    
-    /* If it's record with media, then yes it has media */
-    if (embed.$type === 'app.bsky.embed.recordWithMedia') {
-        return true;
-    }
-    
-    /* Other embed types indicate media */
-    return true;
-}
-
-/* Extract text from the quoted post */
-function extractQuotedText(embed) {
-    if (!embed) return null;
-    
-    if (embed.$type === 'app.bsky.embed.record') {
-        return embed.record?.value?.text || null;
-    }
-    
-    if (embed.$type === 'app.bsky.embed.recordWithMedia') {
-        return embed.record?.record?.value?.text || null;
-    }
-    
-    return null;
-}
-
 /* Export for use in other modules */
-export { findQuotesForPost, anonymizeQuotes };
+export { findQuotesForPost };
