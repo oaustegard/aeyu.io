@@ -93,13 +93,18 @@ export function anonymize(did) {
 
 export function getRelativeTime(baseTime, compareTime) {
     const diff = compareTime - baseTime;
-    const minutes = Math.floor(diff / 60000);
+    const absDiff = Math.abs(diff);
+    const minutes = Math.floor(absDiff / 60000);
     const hours = Math.floor(minutes / 60);
     const days = Math.floor(hours / 24);
-    if (days > 0) return `${days}d`;
-    if (hours > 0) return `${hours}h`;
-    if (minutes > 0) return `${minutes}m`;
-    return 'now';
+    
+    let timeStr;
+    if (days > 0) timeStr = `${days}d`;
+    else if (hours > 0) timeStr = `${hours}h`;
+    else if (minutes > 0) timeStr = `${minutes}m`;
+    else return 'now';
+    
+    return diff < 0 ? `${timeStr} ago` : `${timeStr} later`;
 }
 
 /* ===== AUTHENTICATION HEADER BUILDER ===== */
@@ -557,16 +562,15 @@ export function anonymizePost(post, options = {}) {
     const anonymized = {
         id: `post_${++postCounter}`,
         author: anonymize(authorDID),
-        text: post.record?.text || '',
-        createdAt: post.record?.createdAt || post.indexedAt || ''
+        text: post.record?.text || ''
     };
     
-    /* Add relative time if rootTime provided */
+    /* Add relative time if rootTime provided, otherwise use createdAt */
     if (rootTime && post.record?.createdAt) {
         const postTime = safeGetCreatedAt(post);
-        if (postTime > rootTime) {
-            anonymized.delay = getRelativeTime(rootTime, postTime);
-        }
+        anonymized.relativeTime = getRelativeTime(rootTime, postTime);
+    } else {
+        anonymized.createdAt = post.record?.createdAt || post.indexedAt || '';
     }
     
     /* Only include engagement counts when > 0 */
