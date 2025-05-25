@@ -17,7 +17,7 @@ import {
     fetchOriginalPost,
     buildStandardOutput,
     anonymizePosts,
-    getAuthToken
+    safeGetCreatedAt
 } from './core-bsky.js';
 
 /* Initialize thread processing */
@@ -26,19 +26,11 @@ export function initializeThreadProcessing() {
     
     const form = document.getElementById('processor-form');
     const repliesButton = document.getElementById('process-replies');
-    const quotesButton = document.getElementById('process-quotes');
     
     if (form && repliesButton) {
         repliesButton.addEventListener('click', async (e) => {
             e.preventDefault();
             await processReplies();
-        });
-    }
-    
-    if (form && quotesButton) {
-        quotesButton.addEventListener('click', async (e) => {
-            e.preventDefault();
-            await processQuotes();
         });
     }
     
@@ -48,11 +40,8 @@ export function initializeThreadProcessing() {
             'url': 'url-input'
         },
         autoSubmit: {
-            condition: (params) => params.get('url'),
-            handler: () => {
-                const mode = new URLSearchParams(window.location.search).get('mode');
-                return mode === 'quotes' ? processQuotes() : processReplies();
-            }
+            condition: (params) => params.get('url') && !params.get('mode'),
+            handler: () => processReplies()
         }
     });
 }
@@ -80,6 +69,10 @@ async function processReplies() {
         const postUri = await buildPostUri(handle, postId);
         const originalPost = await fetchOriginalPost(postUri);
         
+        /* Get root post time for relative timing */
+        const rootTime = safeGetCreatedAt(originalPost);
+        console.log('Root post time:', rootTime);
+        
         const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getPostThread?uri=${encodeURIComponent(postUri)}&depth=10&parentHeight=0`);
         
         if (!response.ok) {
@@ -95,7 +88,8 @@ async function processReplies() {
         const anonymizedReplies = anonymizePosts(replies, {
             sourceType: 'search',
             includePostType: false,
-            includeAltText: true
+            includeAltText: true,
+            rootTime: rootTime
         });
         
         console.log(`Processed ${anonymizedReplies.length} replies`);
@@ -106,108 +100,6 @@ async function processReplies() {
             childDataKey: 'replies'
         });
     });
-}
-
-/* Process quotes for a post */
-async function processQuotes() {
-    console.log('Processing quotes...');
-    
-    return handleFormSubmission('process-quotes', 'Process Quotes', async () => {
-        const { handle, postId } = parsePostUrl(getUrlInput());
-        console.log('Parsed URL - Handle:', handle, 'Post ID:', postId);
-        
-        const postUri = await buildPostUri(handle, postId);
-        console.log('Searching for quotes of post:', postUri);
-        
-        const originalPost = await fetchOriginalPost(postUri);
-        const quotes = await findQuotesUsingGetQuotesAPI(postUri);
-        
-        const anonymizedQuotes = anonymizePosts(quotes, {
-            sourceType: 'search',
-            includePostType: false,
-            includeAltText: true,
-            includeQuotedSnippet: true
-        });
-        
-        console.log(`Found ${anonymizedQuotes.length} quotes`);
-        
-        return buildStandardOutput(originalPost, anonymizedQuotes, {
-            originalPost: postUri,
-            totalQuotes: anonymizedQuotes.length,
-            childDataKey: 'quotePosts'
-        });
-    });
-}
-
-/* Find quotes using the proper getQuotes API */
-async function findQuotesUsingGetQuotesAPI(postUri) {
-    console.log('Finding quotes using app.bsky.feed.getQuotes API:', postUri);
-    
-    try {
-        const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getQuotes?uri=${encodeURIComponent(postUri)}&limit=100`);
-        
-        if (!response.ok) {
-            console.error(`getQuotes API failed: ${response.status}`);
-            return await findQuotesViaSearch(postUri);
-        }
-        
-        const data = await response.json();
-        const quotes = data.posts || [];
-        
-        console.log(`Found ${quotes.length} quotes via getQuotes API`);
-        return quotes;
-        
-    } catch (error) {
-        console.error('getQuotes API error:', error);
-        return await findQuotesViaSearch(postUri);
-    }
-}
-
-/* Fallback search method for quotes */
-async function findQuotesViaSearch(postUri) {
-    console.log('Falling back to search method for quotes:', postUri);
-    
-    try {
-        const postIdMatch = postUri.match(/\/app\.bsky\.feed\.post\/(.+)$/);
-        if (!postIdMatch) {
-            console.error('Could not extract post ID from URI');
-            return [];
-        }
-        
-        const postId = postIdMatch[1];
-        const searchQuery = postId.substring(0, 12);
-        
-        const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.searchPosts?q=${encodeURIComponent(searchQuery)}&limit=100`);
-        
-        if (!response.ok) {
-            console.error('Search fallback also failed');
-            return [];
-        }
-        
-        const data = await response.json();
-        const allPosts = data.posts || [];
-        
-        const quotes = allPosts.filter(post => {
-            if (!post.record?.embed) return false;
-            
-            const embed = post.record.embed;
-            if (embed.$type === 'app.bsky.embed.record') {
-                return embed.record?.uri === postUri;
-            }
-            if (embed.$type === 'app.bsky.embed.recordWithMedia') {
-                return embed.record?.record?.uri === postUri;
-            }
-            
-            return false;
-        });
-        
-        console.log(`Found ${quotes.length} quotes via search fallback`);
-        return quotes;
-        
-    } catch (error) {
-        console.error('Search fallback failed:', error);
-        return [];
-    }
 }
 
 /* Extract replies from thread data */
