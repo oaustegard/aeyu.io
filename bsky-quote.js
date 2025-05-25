@@ -5,7 +5,9 @@ import {
     hideError, 
     showLoading, 
     hideLoading,
-    displayOutput
+    displayOutput,
+    handleFormSubmission,
+    autoProcessFromUrlParams
 } from './core-html.js';
 
 import { 
@@ -15,12 +17,88 @@ import {
     fetchOriginalPost,
     buildStandardOutput,
     anonymizePosts,
-    getAuthToken
+    getAuthToken,
+    safeGetCreatedAt
 } from './core-bsky.js';
 
-/* Process quotes for a specific post using the proper API */
+/* Initialize quote processing */
+export function initializeQuoteProcessing() {
+    console.log('Initializing quote processing...');
+    
+    const form = document.getElementById('processor-form');
+    const quotesButton = document.getElementById('process-quotes');
+    
+    if (form && quotesButton) {
+        quotesButton.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await processQuotes();
+        });
+    }
+    
+    /* Auto-process from URL parameters */
+    autoProcessFromUrlParams({
+        paramMappings: {
+            'url': 'url-input'
+        },
+        autoSubmit: {
+            condition: (params) => params.get('url') && params.get('mode') === 'quotes',
+            handler: () => processQuotes()
+        }
+    });
+}
+
+/* Get URL input helper */
+function getUrlInput() {
+    const urlInput = document.getElementById('url-input');
+    const url = urlInput?.value?.trim();
+    
+    if (!url) {
+        throw new Error('Please enter a Bluesky post URL');
+    }
+    
+    return url;
+}
+
+/* Process quotes for a post */
+async function processQuotes() {
+    console.log('Processing quotes...');
+    
+    return handleFormSubmission('process-quotes', 'Process Quotes', async () => {
+        const { handle, postId } = parsePostUrl(getUrlInput());
+        console.log('Parsed URL - Handle:', handle, 'Post ID:', postId);
+        
+        const postUri = await buildPostUri(handle, postId);
+        console.log('Searching for quotes of post:', postUri);
+        
+        const originalPost = await fetchOriginalPost(postUri);
+        
+        /* Get root post time for relative timing */
+        const rootTime = safeGetCreatedAt(originalPost);
+        console.log('Root post time:', rootTime);
+        
+        const quotes = await findQuotesUsingGetQuotesAPI(postUri);
+        
+        const anonymizedQuotes = anonymizePosts(quotes, {
+            sourceType: 'search',
+            includePostType: false,
+            includeAltText: true,
+            includeQuotedSnippet: true,
+            rootTime: rootTime
+        });
+        
+        console.log(`Found ${anonymizedQuotes.length} quotes`);
+        
+        return buildStandardOutput(originalPost, anonymizedQuotes, {
+            originalPost: postUri,
+            totalQuotes: anonymizedQuotes.length,
+            childDataKey: 'quotePosts'
+        });
+    });
+}
+
+/* Process quotes for a specific post using the proper API (legacy interface) */
 export async function processQuotes(postUrl) {
-    console.log('Processing quotes for post:', postUrl);
+    console.log('Processing quotes for post (legacy interface):', postUrl);
     hideError();
     
     if (!postUrl) {
@@ -34,13 +112,18 @@ export async function processQuotes(postUrl) {
         
         const postUri = await buildPostUri(handle, postId);
         const originalPost = await fetchOriginalPost(postUri);
-        const quotes = await findQuotesForPost(postUri);
+        
+        /* Get root post time for relative timing */
+        const rootTime = safeGetCreatedAt(originalPost);
+        
+        const quotes = await findQuotesUsingGetQuotesAPI(postUri);
         
         const anonymizedQuotes = anonymizePosts(quotes, {
             sourceType: 'search',
             includePostType: false,
             includeAltText: true,
-            includeQuotedSnippet: true
+            includeQuotedSnippet: true,
+            rootTime: rootTime
         });
         
         console.log(`Found ${anonymizedQuotes.length} quotes`);
@@ -61,64 +144,48 @@ export async function processQuotes(postUrl) {
     }
 }
 
-/* Find quotes for a specific post using the proper getQuotes API */
-async function findQuotesForPost(postUri) {
-    console.log('Finding quotes for post URI using getQuotes API:', postUri);
+/* Find quotes using the proper getQuotes API */
+async function findQuotesUsingGetQuotesAPI(postUri) {
+    console.log('Finding quotes using app.bsky.feed.getQuotes API:', postUri);
     
     try {
         const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getQuotes?uri=${encodeURIComponent(postUri)}&limit=100`);
         
-        if (response.ok) {
-            const data = await response.json();
-            const quotes = data.posts || [];
-            console.log(`Found ${quotes.length} quotes via getQuotes API`);
-            return quotes;
-        } else {
-            const errorText = await response.text();
-            console.log('getQuotes API failed:', response.status, errorText);
-            
-            console.log('Falling back to search method...');
-            return await searchForQuotes(postUri);
+        if (!response.ok) {
+            console.error(`getQuotes API failed: ${response.status}`);
+            return await findQuotesViaSearch(postUri);
         }
+        
+        const data = await response.json();
+        const quotes = data.posts || [];
+        
+        console.log(`Found ${quotes.length} quotes via getQuotes API`);
+        return quotes;
         
     } catch (error) {
         console.error('getQuotes API error:', error);
-        console.log('Falling back to search method due to error...');
-        return await searchForQuotes(postUri);
+        return await findQuotesViaSearch(postUri);
     }
 }
 
-/* Fallback search method for finding quotes */
-async function searchForQuotes(postUri) {
-    console.log('Searching for quotes using search fallback:', postUri);
-    
-    const token = getAuthToken();
+/* Fallback search method for quotes */
+async function findQuotesViaSearch(postUri) {
+    console.log('Falling back to search method for quotes:', postUri);
     
     try {
         const postIdMatch = postUri.match(/\/app\.bsky\.feed\.post\/(.+)$/);
         if (!postIdMatch) {
-            throw new Error('Could not extract post ID from URI');
+            console.error('Could not extract post ID from URI');
+            return [];
         }
         
         const postId = postIdMatch[1];
         const searchQuery = postId.substring(0, 12);
         
-        const params = new URLSearchParams({
-            q: searchQuery,
-            limit: '100'
-        });
-        
-        const headers = {};
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-        
-        const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.searchPosts?${params}`, {
-            headers
-        });
+        const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.searchPosts?q=${encodeURIComponent(searchQuery)}&limit=100`);
         
         if (!response.ok) {
-            console.log('Search failed, returning empty results');
+            console.error('Search fallback also failed');
             return [];
         }
         
@@ -143,10 +210,12 @@ async function searchForQuotes(postUri) {
         return quotes;
         
     } catch (error) {
-        console.error('Quote search fallback failed:', error);
+        console.error('Search fallback failed:', error);
         return [];
     }
 }
 
-/* Export for use in other modules */
-export { findQuotesForPost };
+/* Export for use in other modules (legacy interface) */
+export async function findQuotesForPost(postUri) {
+    return await findQuotesUsingGetQuotesAPI(postUri);
+}
