@@ -1,4 +1,4 @@
-/* Core Bluesky API functionality - REFACTORED */
+/* Core Bluesky API functionality - UPDATED WITH FIXES */
 
 let authToken = null;
 let userProfile = null;
@@ -422,6 +422,47 @@ export function extractDidFromUri(uri) {
     return match ? match[1] : null;
 }
 
+/* Resolve a handle to a DID using the public API */
+export async function resolveHandleToDid(handle) {
+    console.log('Resolving handle to DID:', handle);
+    
+    try {
+        const response = await fetch(`${BSKY_PUBLIC_API}/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle)}`);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to resolve handle: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('Resolved DID:', data.did);
+        return data.did;
+        
+    } catch (error) {
+        console.error('Handle resolution error:', error);
+        throw error;
+    }
+}
+
+/* Build a post URI from handle/DID and post ID, with optional DID resolution */
+export async function buildPostUri(handle, postId, resolveDid = true) {
+    console.log('Building post URI for handle:', handle, 'postId:', postId);
+    
+    if (resolveDid && !handle.startsWith('did:')) {
+        try {
+            const did = await resolveHandleToDid(handle);
+            const uri = `at://${did}/app.bsky.feed.post/${postId}`;
+            console.log('Built DID-based URI:', uri);
+            return uri;
+        } catch (error) {
+            console.log('DID resolution failed, using handle directly:', error.message);
+        }
+    }
+    
+    const uri = `at://${handle}/app.bsky.feed.post/${postId}`;
+    console.log('Built handle-based URI:', uri);
+    return uri;
+}
+
 /* Batch anonymize posts with unified options */
 export function anonymizePosts(posts, options = {}) {
     console.log('Batch anonymizing posts:', posts.length);
@@ -434,4 +475,42 @@ export function anonymizePosts(posts, options = {}) {
             feedItem: options.sourceType === 'feed' ? post : null
         });
     });
+}
+
+/* Fetch original post data - shared utility */
+export async function fetchOriginalPost(postUri) {
+    console.log('Fetching original post:', postUri);
+    
+    try {
+        /* Try getPosts first - more efficient */
+        const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getPosts?uris=${encodeURIComponent(postUri)}`);
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.posts && data.posts.length > 0) {
+                console.log('Successfully fetched original post via getPosts');
+                return data.posts[0];
+            }
+        }
+        
+        /* Fallback to getPostThread */
+        console.log('getPosts failed, trying getPostThread...');
+        const threadResponse = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getPostThread?uri=${encodeURIComponent(postUri)}&depth=0&parentHeight=0`);
+        
+        if (!threadResponse.ok) {
+            throw new Error(`Failed to fetch original post: ${threadResponse.status}`);
+        }
+        
+        const threadData = await threadResponse.json();
+        if (threadData.thread?.post) {
+            console.log('Successfully fetched original post via getPostThread');
+            return threadData.thread.post;
+        }
+        
+        throw new Error('No post data found in response');
+        
+    } catch (error) {
+        console.error('Error fetching original post:', error);
+        return null;
+    }
 }

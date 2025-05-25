@@ -1,4 +1,4 @@
-/* Quote processing functionality for Bluesky posts - REFACTORED */
+/* Quote processing functionality for Bluesky posts - FIXED VERSION */
 
 import { 
     parsePostUrl, 
@@ -8,12 +8,16 @@ import {
     hideLoading, 
     displayOutput,
     getAuthToken,
-    anonymizePosts
+    anonymizePosts,
+    anonymizePost,
+    resolveHandleToDid,
+    fetchOriginalPost,
+    buildPostUri
 } from './bsky-core.js';
 
-const BSKY_API_BASE = 'https://bsky.social/xrpc';
+const BSKY_PUBLIC_API = 'https://public.api.bsky.app/xrpc';
 
-/* Process quotes for a specific post */
+/* Process quotes for a specific post using the proper API */
 export async function processQuotes(postUrl) {
     console.log('Processing quotes for post:', postUrl);
     hideError();
@@ -27,9 +31,13 @@ export async function processQuotes(postUrl) {
         const { handle, postId } = parsePostUrl(postUrl);
         console.log('Parsed URL - Handle:', handle, 'Post ID:', postId);
         
-        const postUri = `at://${handle}/app.bsky.feed.post/${postId}`;
+        /* Build the post URI with DID resolution */
+        const postUri = await buildPostUri(handle, postId);
         
-        /* Find quotes by searching for posts that embed this specific post */
+        /* Fetch the original post for context */
+        const originalPost = await fetchOriginalPost(postUri);
+        
+        /* Get quotes using the proper getQuotes API */
         const quotes = await findQuotesForPost(postUri);
         const anonymizedQuotes = anonymizePosts(quotes, {
             sourceType: 'search', /* Quotes are direct post objects */
@@ -40,13 +48,23 @@ export async function processQuotes(postUrl) {
         
         console.log(`Found ${anonymizedQuotes.length} quotes`);
         
+        /* Structure output similar to user's example with root post */
         const output = {
+            root: originalPost ? anonymizePost(originalPost, {
+                includePostType: false,
+                includeAltText: true,
+                index: 0
+            }) : {
+                id: 1,
+                text: '[Original post could not be fetched]',
+                error: 'Failed to fetch original post'
+            },
+            quotePosts: anonymizedQuotes,
             metadata: {
                 originalPost: postUri,
                 totalQuotes: anonymizedQuotes.length,
                 processedAt: new Date().toISOString()
-            },
-            quotes: anonymizedQuotes
+            }
         };
         
         displayOutput(output);
@@ -59,48 +77,39 @@ export async function processQuotes(postUrl) {
     }
 }
 
-/* Find quotes for a specific post */
+/* Find quotes for a specific post using the proper getQuotes API */
 async function findQuotesForPost(postUri) {
-    console.log('Finding quotes for post URI:', postUri);
-    
-    /* Method 1: Try to use the post's quote count and fetch quotes directly */
-    const directQuotes = await fetchDirectQuotes(postUri);
-    if (directQuotes.length > 0) {
-        return directQuotes;
-    }
-    
-    /* Method 2: Search for posts that might quote this URI */
-    const searchQuotes = await searchForQuotes(postUri);
-    
-    return searchQuotes;
-}
-
-/* Attempt to fetch quotes directly from the post */
-async function fetchDirectQuotes(postUri) {
-    console.log('Attempting to fetch direct quotes for:', postUri);
+    console.log('Finding quotes for post URI using getQuotes API:', postUri);
     
     try {
-        /* This endpoint may not exist or may require different parameters */
-        /* This is a placeholder implementation */
-        const response = await fetch(`${BSKY_API_BASE}/app.bsky.feed.getQuotes?uri=${encodeURIComponent(postUri)}`);
+        /* Use the proper getQuotes API endpoint */
+        const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.getQuotes?uri=${encodeURIComponent(postUri)}&limit=100`);
         
         if (response.ok) {
             const data = await response.json();
-            return data.posts || [];
+            const quotes = data.posts || [];
+            console.log(`Found ${quotes.length} quotes via getQuotes API`);
+            return quotes;
+        } else {
+            const errorText = await response.text();
+            console.log('getQuotes API failed:', response.status, errorText);
+            
+            /* If getQuotes fails, try search fallback */
+            console.log('Falling back to search method...');
+            return await searchForQuotes(postUri);
         }
         
-        console.log('Direct quotes endpoint not available or returned error');
-        return [];
-        
     } catch (error) {
-        console.log('Direct quotes fetch failed:', error.message);
-        return [];
+        console.error('getQuotes API error:', error);
+        /* Fallback to search method */
+        console.log('Falling back to search method due to error...');
+        return await searchForQuotes(postUri);
     }
 }
 
-/* Search for posts that quote the given URI */
+/* Fallback search method for finding quotes */
 async function searchForQuotes(postUri) {
-    console.log('Searching for quotes of:', postUri);
+    console.log('Searching for quotes using search fallback:', postUri);
     
     const token = getAuthToken();
     
@@ -114,7 +123,7 @@ async function searchForQuotes(postUri) {
         const postId = postIdMatch[1];
         
         /* Search for posts containing the post ID (potential quotes) */
-        const searchQuery = postId.substring(0, 10); /* Use partial ID to find quotes */
+        const searchQuery = postId.substring(0, 12); /* Use partial ID to find quotes */
         
         const params = new URLSearchParams({
             q: searchQuery,
@@ -126,7 +135,7 @@ async function searchForQuotes(postUri) {
             headers['Authorization'] = `Bearer ${token}`;
         }
         
-        const response = await fetch(`${BSKY_API_BASE}/app.bsky.feed.searchPosts?${params}`, {
+        const response = await fetch(`${BSKY_PUBLIC_API}/app.bsky.feed.searchPosts?${params}`, {
             headers
         });
         
@@ -154,11 +163,11 @@ async function searchForQuotes(postUri) {
             return false;
         });
         
-        console.log(`Found ${quotes.length} quotes via search`);
+        console.log(`Found ${quotes.length} quotes via search fallback`);
         return quotes;
         
     } catch (error) {
-        console.error('Quote search failed:', error);
+        console.error('Quote search fallback failed:', error);
         return [];
     }
 }
