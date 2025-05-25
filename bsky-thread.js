@@ -1,4 +1,4 @@
-/* FILE: bsky-thread.js - REFACTORED using separated core modules */
+/* FILE: bsky-thread.js - REFACTORED with FIXED THREADING */
 
 import { 
     showError, 
@@ -16,8 +16,9 @@ import {
     buildPostUri,
     fetchOriginalPost,
     buildStandardOutput,
-    anonymizePosts,
-    safeGetCreatedAt
+    anonymizePost,
+    safeGetCreatedAt,
+    extractPostFromItem
 } from './core-bsky.js';
 
 /* Initialize thread processing */
@@ -84,41 +85,94 @@ async function processReplies() {
         const threadData = await response.json();
         console.log('Thread data received:', threadData);
         
-        const replies = extractReplies(threadData.thread);
-        const anonymizedReplies = anonymizePosts(replies, {
-            sourceType: 'search',
-            includePostType: false,
-            includeAltText: true,
-            rootTime: rootTime
-        });
+        /* Process thread hierarchically instead of flattening */
+        const processedThread = processThreadNode(threadData.thread, rootTime);
+        const replies = extractRepliesFromProcessedNode(processedThread);
         
-        console.log(`Processed ${anonymizedReplies.length} replies`);
+        console.log(`Processed ${replies.length} replies with hierarchical structure`);
         
-        return buildStandardOutput(originalPost, anonymizedReplies, {
+        return buildStandardOutput(originalPost, replies, {
             originalPost: postUri,
-            totalReplies: anonymizedReplies.length,
+            totalReplies: replies.length,
             childDataKey: 'replies'
         });
     });
 }
 
-/* Extract replies from thread data */
-function extractReplies(thread) {
-    const replies = [];
+/* Process a thread node recursively, maintaining hierarchical structure */
+function processThreadNode(node, rootTime) {
+    console.log('Processing thread node:', node?.post?.uri);
     
-    function traverseReplies(node) {
-        if (node.replies) {
-            for (const reply of node.replies) {
-                if (reply.post) {
-                    replies.push(reply.post);
+    if (!node?.post) {
+        console.log('Invalid node - no post data');
+        return null;
+    }
+    
+    /* Extract and anonymize the post */
+    const post = extractPostFromItem(node.post, 'thread');
+    if (!post) {
+        console.log('Failed to extract post from node');
+        return null;
+    }
+    
+    const anonymizedPost = anonymizePost(post, {
+        includePostType: false,
+        includeAltText: true,
+        rootTime: rootTime
+    });
+    
+    /* Process replies if they exist */
+    if (node.replies && Array.isArray(node.replies) && node.replies.length > 0) {
+        console.log(`Processing ${node.replies.length} replies for post ${anonymizedPost.id}`);
+        
+        /* Filter out invalid replies and sort chronologically */
+        const validReplies = node.replies
+            .filter(reply => {
+                const hasContent = reply?.post?.record?.text || reply?.post?.record?.embed;
+                const hasTime = reply?.post?.record?.createdAt;
+                if (!hasContent || !hasTime) {
+                    console.log('Filtering out invalid reply:', reply?.post?.uri);
                 }
-                traverseReplies(reply);
+                return hasContent && hasTime;
+            })
+            .sort((a, b) => {
+                const timeA = safeGetCreatedAt(a.post);
+                const timeB = safeGetCreatedAt(b.post);
+                return timeA - timeB; /* Chronological order */
+            });
+        
+        console.log(`Sorted ${validReplies.length} valid replies chronologically`);
+        
+        /* Recursively process each reply */
+        const processedReplies = validReplies
+            .map(reply => processThreadNode(reply, rootTime))
+            .filter(Boolean);
+        
+        if (processedReplies.length > 0) {
+            anonymizedPost.replies = processedReplies;
+            console.log(`Added ${processedReplies.length} processed replies to post ${anonymizedPost.id}`);
+        }
+    }
+    
+    return anonymizedPost;
+}
+
+/* Extract all replies from a processed hierarchical node into a flat array */
+/* This maintains the chronological threading while providing a flat structure for counting */
+function extractRepliesFromProcessedNode(processedNode) {
+    const allReplies = [];
+    
+    function collectReplies(node) {
+        if (node.replies && Array.isArray(node.replies)) {
+            for (const reply of node.replies) {
+                allReplies.push(reply);
+                collectReplies(reply); /* Recursively collect nested replies */
             }
         }
     }
     
-    traverseReplies(thread);
-    return replies;
+    collectReplies(processedNode);
+    return allReplies;
 }
 
 /* Legacy function for compatibility */
