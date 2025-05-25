@@ -1,4 +1,4 @@
-<!-- FILE: bsky-feeds.html -->
+<!-- FILE: bsky-feeds.html - UPDATED for refactored modules -->
 <!-- Bluesky Feed Processor with Post Type Filters -->
 <!DOCTYPE html>
 <html lang="en">
@@ -136,20 +136,16 @@
         </main>
     </div>
 
-    <script src="bsky-core.js" type="module"></script>
-    <script src="bsky-feeds.js" type="module"></script>
+    <!-- UPDATED: Use new main.js for simplified initialization -->
     <script type="module">
-        import { initializeBskyCore } from './bsky-core.js';
-        import { initializeFeedProcessing, autoProcessFeed } from './bsky-feeds.js';
+        import { initializeApplication } from './main.js';
         
         window.addEventListener('DOMContentLoaded', async () => {
             try {
-                const coreInitialized = await initializeBskyCore();
+                const initialized = await initializeApplication();
                 
-                if (coreInitialized) {
-                    initializeFeedProcessing();
-                    /* Auto-process if URL is in query params */
-                    autoProcessFeed();
+                if (!initialized) {
+                    throw new Error('Application initialization failed');
                 }
             } catch (e) {
                 console.error("Initialization failed:", e);
