@@ -187,12 +187,6 @@ export function Dashboard() {
                 <path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
               </svg>
             </button>
-            <button
-              onClick=${handleDisconnect}
-              class="text-sm text-gray-500 hover:text-red-600 transition-colors"
-            >
-              Disconnect
-            </button>
           </div>
         </div>
       </header>
@@ -400,6 +394,16 @@ export function Dashboard() {
                   Segments dominated by traffic lights or stops produce wildly varying times. If your times on a segment vary by more than 50% (coefficient of variation), awards are suppressed since those times reflect traffic, not performance. Season First is the exception — it always counts.
                 </div>
               </details>
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-gray-100">
+              <button
+                onClick=${handleDisconnect}
+                class="text-xs text-gray-400 hover:text-red-500 transition-colors"
+              >
+                Disconnect Strava
+              </button>
+              <p class="text-xs text-gray-300 mt-1">Removes your login session. Synced data stays in your browser until you clear it.</p>
             </div>
           </div>
         `}
