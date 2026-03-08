@@ -24,6 +24,7 @@ import {
   getAllSegments,
   getActivitiesWithoutEfforts,
   getSyncState,
+  clearAllData,
 } from "../db.js";
 import { navigate } from "../app.js";
 
@@ -32,6 +33,9 @@ const activityAwards = signal(new Map());
 const stats = signal({ segments: 0, awards: 0 });
 const loading = signal(true);
 const backfillComplete = signal(false);
+const showFaq = signal(false);
+const deleteConfirmText = signal("");
+const showDeleteConfirm = signal(false);
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
@@ -56,6 +60,9 @@ const AWARD_LABELS = {
   year_best: { label: "Year Best", color: "bg-yellow-100 text-yellow-800" },
   season_first: { label: "Season First", color: "bg-green-100 text-green-800" },
   recent_best: { label: "Recent Best", color: "bg-blue-100 text-blue-800" },
+  beat_median: { label: "Beat Median", color: "bg-purple-100 text-purple-800" },
+  top_quartile: { label: "Top Quartile", color: "bg-indigo-100 text-indigo-800" },
+  consistency: { label: "Metronome", color: "bg-teal-100 text-teal-800" },
 };
 
 async function loadDashboard() {
@@ -175,10 +182,13 @@ export function Dashboard() {
               ${syncing ? "Syncing..." : "Sync Now"}
             </button>
             <button
-              onClick=${handleDisconnect}
-              class="text-sm text-gray-500 hover:text-red-600 transition-colors"
+              onClick=${() => { showFaq.value = !showFaq.value; }}
+              class="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+              title="FAQ & Help"
             >
-              Disconnect
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
             </button>
           </div>
         </div>
@@ -266,7 +276,7 @@ export function Dashboard() {
               for (const a of awards) {
                 typeCounts.set(a.type, (typeCounts.get(a.type) || 0) + 1);
               }
-              const typeOrder = ["season_first", "year_best", "recent_best"];
+              const typeOrder = ["season_first", "year_best", "recent_best", "beat_median", "top_quartile", "consistency"];
               const summary = typeOrder
                 .filter((t) => typeCounts.has(t))
                 .map((t) => ({ type: t, count: typeCounts.get(t) }));
@@ -300,6 +310,152 @@ export function Dashboard() {
                 </button>
               `;
             })}
+          </div>
+        `}
+
+        <!-- FAQ (toggled) -->
+        ${showFaq.value && html`
+          <div class="bg-white rounded-xl border border-gray-200 p-6 mt-6">
+            <div class="flex items-center justify-between mb-4">
+              <h2 class="text-lg font-semibold text-gray-800">FAQ</h2>
+              <button
+                onClick=${() => { showFaq.value = false; }}
+                class="text-sm text-gray-400 hover:text-gray-600"
+              >Close</button>
+            </div>
+
+            <div class="divide-y divide-gray-100">
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                  What do the awards mean?
+                  <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 text-sm text-gray-600 space-y-2">
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-800 whitespace-nowrap mt-0.5">Season First</span>
+                    <span>First effort on a segment this calendar year.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 whitespace-nowrap mt-0.5">Year Best</span>
+                    <span>Fastest time on a segment this year (after March, with 3+ efforts).</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 whitespace-nowrap mt-0.5">Recent Best</span>
+                    <span>Fastest of your last 5 attempts on a segment.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 whitespace-nowrap mt-0.5">Beat Median</span>
+                    <span>Faster than your median time on this segment.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 whitespace-nowrap mt-0.5">Top Quartile</span>
+                    <span>In the top 25% of your own history on this segment.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 whitespace-nowrap mt-0.5">Metronome</span>
+                    <span>Remarkably consistent — low variance across your last 5 efforts.</span>
+                  </div>
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                  How does this work without a server?
+                  <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 text-sm text-gray-600">
+                  Everything runs in your browser. Your activity data is fetched directly from Strava's API and stored locally. Awards are computed on your device. No server receives or stores your data.
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                  Is my data private?
+                  <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 text-sm text-gray-600">
+                  Completely. Your Strava data never leaves your browser. No analytics, no tracking, no cookies, no server logs. The only network requests go directly to Strava's API.
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                  Why don't I see my data on another device?
+                  <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 text-sm text-gray-600">
+                  Your data lives in your browser's local storage. Each browser/device needs its own Strava connection and sync. No server means no sync between devices — that's the trade-off for complete privacy.
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                  Why are some segments missing awards?
+                  <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 text-sm text-gray-600">
+                  Segments dominated by traffic lights or stops produce wildly varying times. If your times on a segment vary by more than 50% (coefficient of variation), awards are suppressed since those times reflect traffic, not performance. Season First is the exception — it always counts.
+                </div>
+              </details>
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-gray-100 space-y-3">
+              <div>
+                <button
+                  onClick=${handleDisconnect}
+                  class="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  Disconnect Strava
+                </button>
+                <p class="text-xs text-gray-300 mt-1">Removes your login session. Synced data stays in your browser.</p>
+              </div>
+              <div>
+                <button
+                  onClick=${() => { showDeleteConfirm.value = !showDeleteConfirm.value; deleteConfirmText.value = ""; }}
+                  class="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  Delete all data
+                </button>
+                <p class="text-xs text-gray-300 mt-1">Permanently removes all synced activities, segments, and login from this browser.</p>
+                ${showDeleteConfirm.value && html`
+                  <div class="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p class="text-xs text-red-700 mb-2">
+                      This will delete all your data from this browser. To confirm, type <span class="font-mono font-bold">delete my data</span> below.
+                    </p>
+                    <input
+                      type="text"
+                      value=${deleteConfirmText.value}
+                      onInput=${(e) => { deleteConfirmText.value = e.target.value; }}
+                      placeholder="delete my data"
+                      class="w-full text-xs border border-red-300 rounded px-2 py-1.5 mb-2 focus:outline-none focus:ring-1 focus:ring-red-400"
+                    />
+                    <div class="flex gap-2">
+                      <button
+                        onClick=${async () => {
+                          await clearAllData();
+                          navigate("");
+                          window.location.reload();
+                        }}
+                        disabled=${deleteConfirmText.value !== "delete my data"}
+                        class="text-xs px-3 py-1.5 rounded font-medium transition-colors ${
+                          deleteConfirmText.value === "delete my data"
+                            ? "bg-red-600 text-white hover:bg-red-700"
+                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        }"
+                      >
+                        Delete everything
+                      </button>
+                      <button
+                        onClick=${() => { showDeleteConfirm.value = false; deleteConfirmText.value = ""; }}
+                        class="text-xs px-3 py-1.5 rounded text-gray-500 hover:text-gray-700 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                `}
+              </div>
+            </div>
           </div>
         `}
 

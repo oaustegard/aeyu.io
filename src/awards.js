@@ -1,17 +1,21 @@
 /**
- * Participation Awards — Awards Engine (MVP: Temporal Windows)
+ * Participation Awards — Awards Engine
  * Runs entirely client-side against IndexedDB data.
  *
  * Award types:
  *   - Year Best (YB): Fastest effort on a segment this calendar year
  *   - Season First: First effort on a segment this calendar year
  *   - Recent Best: Best time among last 5 attempts (requires 3+ history)
+ *   - Beat Median: Faster than your median time on this segment
+ *   - Top Quartile: In the top 25% of your own history
+ *   - Consistency (Metronome): Low variance across recent efforts (CV < 0.05)
  *
  * Data quality rules:
- *   - Minimum effort threshold: comparative awards (Year Best, Recent Best)
- *     require ≥3 total efforts on the segment. Season First is exempt.
- *   - Calendar gate: Year Best is suppressed before March 1 to prevent
- *     early-season inflation when every segment is trivially "year best".
+ *   - Minimum effort threshold: comparative awards (Year Best, Recent Best,
+ *     Beat Median, Top Quartile) require ≥3 total efforts. Season First exempt.
+ *   - Calendar gate: Year Best suppressed before March 1.
+ *   - High-variance filter: segments with CV > 0.5 (≥5 efforts) are
+ *     traffic-dominated — all awards suppressed except Season First.
  */
 
 import { getSegment } from "./db.js";
@@ -21,6 +25,18 @@ const MIN_EFFORTS_FOR_AWARDS = 3;
 
 /** Month (1-indexed) before which Year Best awards are suppressed */
 const YEAR_BEST_CALENDAR_GATE_MONTH = 3; // March
+
+/** CV above this threshold suppresses awards (traffic-dominated segments) */
+const HIGH_VARIANCE_CV_THRESHOLD = 0.5;
+
+/** Minimum efforts before CV filtering kicks in */
+const MIN_EFFORTS_FOR_CV = 5;
+
+/** CV below this threshold earns a Consistency award */
+const CONSISTENCY_CV_THRESHOLD = 0.05;
+
+/** Minimum recent efforts to evaluate consistency */
+const CONSISTENCY_MIN_EFFORTS = 5;
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
@@ -34,6 +50,39 @@ function formatDate(isoString) {
     day: "numeric",
     year: "numeric",
   });
+}
+
+/** Compute mean of an array of numbers */
+function mean(values) {
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
+/** Compute standard deviation of an array of numbers */
+function stdev(values) {
+  const m = mean(values);
+  const variance = values.reduce((sum, v) => sum + (v - m) ** 2, 0) / values.length;
+  return Math.sqrt(variance);
+}
+
+/** Coefficient of variation (stdev / mean) */
+function cv(values) {
+  const m = mean(values);
+  if (m === 0) return 0;
+  return stdev(values) / m;
+}
+
+/** Compute percentile rank (0-100) — what percentage of values is >= this value (lower time = better) */
+function percentileRank(values, value) {
+  const worse = values.filter((v) => v > value).length;
+  return Math.round((worse / values.length) * 100);
+}
+
+/** Compute the median of a sorted array of numbers */
+function median(sortedValues) {
+  const n = sortedValues.length;
+  if (n === 0) return 0;
+  const mid = Math.floor(n / 2);
+  return n % 2 === 0 ? (sortedValues[mid - 1] + sortedValues[mid]) / 2 : sortedValues[mid];
 }
 
 /**
@@ -54,11 +103,19 @@ export async function computeAwards(activity) {
     if (!segment || !segment.efforts || segment.efforts.length === 0) continue;
 
     const allEfforts = segment.efforts;
+    const allTimes = allEfforts.map((e) => e.elapsed_time);
     const thisYearEfforts = allEfforts.filter(
       (e) => new Date(e.start_date_local).getFullYear() === currentYear
     );
 
-    // --- Season First ---
+    // --- High-variance filter (#38) ---
+    // Segments with CV > 0.5 and ≥5 efforts are traffic-dominated.
+    // Only Season First passes through; all other awards are suppressed.
+    const isHighVariance =
+      allEfforts.length >= MIN_EFFORTS_FOR_CV &&
+      cv(allTimes) > HIGH_VARIANCE_CV_THRESHOLD;
+
+    // --- Season First (exempt from CV filter) ---
     if (thisYearEfforts.length === 1) {
       const previousEfforts = allEfforts
         .filter(
@@ -80,8 +137,10 @@ export async function computeAwards(activity) {
       continue; // Season first — no other awards possible
     }
 
+    // All remaining awards are suppressed on high-variance segments
+    if (isHighVariance) continue;
+
     // --- Year Best ---
-    // Requires ≥3 total efforts on the segment and activity after March 1
     const activityDate = new Date(activity.start_date_local);
     const afterCalendarGate = (activityDate.getMonth() + 1) >= YEAR_BEST_CALENDAR_GATE_MONTH;
     if (thisYearEfforts.length > 1 && allEfforts.length >= MIN_EFFORTS_FOR_AWARDS && afterCalendarGate) {
@@ -129,6 +188,64 @@ export async function computeAwards(activity) {
           comparison: null,
           delta: null,
           message: `Best of your last ${last5.length} on ${segment.name}! ${formatTime(effort.elapsed_time)}`,
+        });
+      }
+    }
+
+    // --- Beat Median (#29) ---
+    if (allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
+      const sortedTimes = [...allTimes].sort((a, b) => a - b);
+      const med = median(sortedTimes);
+
+      if (effort.elapsed_time < med) {
+        const pctile = percentileRank(allTimes, effort.elapsed_time);
+        awards.push({
+          type: "beat_median",
+          segment: segment.name,
+          segment_id: segment.id,
+          time: effort.elapsed_time,
+          comparison: null,
+          delta: Math.round(med - effort.elapsed_time),
+          message: `Beat your median on ${segment.name}! ${formatTime(effort.elapsed_time)} — ${formatTime(Math.round(med - effort.elapsed_time))} under median (top ${100 - pctile}% of ${allEfforts.length} efforts)`,
+        });
+      }
+    }
+
+    // --- Top Quartile (#29) ---
+    if (allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
+      const sortedTimes = [...allTimes].sort((a, b) => a - b);
+      const q1Index = Math.floor(sortedTimes.length * 0.25);
+      const q1Threshold = sortedTimes[q1Index];
+
+      if (effort.elapsed_time <= q1Threshold) {
+        const rank = sortedTimes.filter((t) => t < effort.elapsed_time).length + 1;
+        awards.push({
+          type: "top_quartile",
+          segment: segment.name,
+          segment_id: segment.id,
+          time: effort.elapsed_time,
+          comparison: null,
+          delta: null,
+          message: `Top quartile on ${segment.name}! #${rank} of ${allEfforts.length} efforts — ${formatTime(effort.elapsed_time)}`,
+        });
+      }
+    }
+
+    // --- Consistency / Metronome (#39) ---
+    if (last5.length >= CONSISTENCY_MIN_EFFORTS) {
+      const recentTimes = last5.map((e) => e.elapsed_time);
+      const recentCV = cv(recentTimes);
+      const spread = Math.max(...recentTimes) - Math.min(...recentTimes);
+
+      if (recentCV <= CONSISTENCY_CV_THRESHOLD) {
+        awards.push({
+          type: "consistency",
+          segment: segment.name,
+          segment_id: segment.id,
+          time: effort.elapsed_time,
+          comparison: null,
+          delta: null,
+          message: `Metronome on ${segment.name}! ${spread}s spread across last ${last5.length} efforts (CV: ${(recentCV * 100).toFixed(1)}%)`,
         });
       }
     }
