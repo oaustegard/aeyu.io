@@ -79,23 +79,24 @@ async function loadDashboard() {
     const recent = activities.slice(0, 20);
     recentActivities.value = recent;
 
-    // Check if initial list sync is done (activity list fully fetched)
+    // Check sync completion state
     const state = await getSyncState();
     backfillComplete.value = state.backfill_complete;
 
-    // Compute awards once the activity list is complete — don't require
-    // every single activity to have details, since some may permanently
-    // fail (deleted, private, API errors). Work with what we have.
-    if (state.backfill_complete) {
-      const withEfforts = recent.filter((a) => a.has_efforts);
+    // Always compute awards for activities that have efforts — even during
+    // backfill. As more data syncs across sessions, segment histories grow
+    // and award calculations become richer (medians, quartiles, streaks
+    // all improve with more data). Awards recalculate after every sync.
+    const withEfforts = recent.filter((a) => a.has_efforts);
+    if (withEfforts.length > 0) {
       const awards = await computeAwardsForActivities(withEfforts);
       activityAwards.value = awards;
 
-      const segments = await getAllSegments();
       let totalAwards = 0;
       for (const [, awardList] of awards) {
         totalAwards += awardList.length;
       }
+      const segments = await getAllSegments();
       stats.value = { segments: segments.length, awards: totalAwards };
     } else {
       activityAwards.value = new Map();
@@ -120,7 +121,8 @@ export function Dashboard() {
 
       // Auto-trigger backfill if initial list sync isn't done
       const state = await getSyncState();
-      if (!state.backfill_complete) {
+      const pending = await getActivitiesWithoutEfforts();
+      if (!state.backfill_complete || pending.length > 0) {
         try {
           await startBackfill();
         } catch (err) {
@@ -135,6 +137,15 @@ export function Dashboard() {
   async function handleSync() {
     if (backfillComplete.value) {
       await incrementalSync();
+      // Also resume any pending detail fetches from prior rate-limited sessions
+      const pending = await getActivitiesWithoutEfforts();
+      if (pending.length > 0) {
+        try {
+          await startBackfill();
+        } catch (err) {
+          console.error("Detail resume error:", err);
+        }
+      }
     } else {
       try {
         await startBackfill();
@@ -153,10 +164,9 @@ export function Dashboard() {
   async function handleUnitToggle() {
     const next = units === "metric" ? "imperial" : "metric";
     await setUnitPreference(next);
-    // Re-render by updating signal (already done in setUnitPreference)
-    // Recompute awards to update messages
-    if (backfillComplete.value) {
-      const withEfforts = recentActivities.value.filter((a) => a.has_efforts);
+    // Recompute awards to update formatted messages
+    const withEfforts = recentActivities.value.filter((a) => a.has_efforts);
+    if (withEfforts.length > 0) {
       const awards = await computeAwardsForActivities(withEfforts);
       activityAwards.value = awards;
     }
@@ -271,11 +281,9 @@ export function Dashboard() {
           </div>
           <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
             <div class="text-3xl font-bold text-gray-800">${stats.value.awards}</div>
-            <div class="text-sm text-gray-500">
-              ${backfillComplete.value ? "Awards (recent 20)" : "Awards"}
-            </div>
+            <div class="text-sm text-gray-500">Awards (recent 20)</div>
             ${!backfillComplete.value && !loading.value && html`
-              <div class="text-xs text-gray-400 mt-1">Available after sync</div>
+              <div class="text-xs text-gray-400 mt-1">May change as more data syncs</div>
             `}
           </div>
         </div>
