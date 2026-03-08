@@ -63,6 +63,13 @@ const AWARD_LABELS = {
   beat_median: { label: "Beat Median", color: "bg-purple-100 text-purple-800" },
   top_quartile: { label: "Top Quartile", color: "bg-indigo-100 text-indigo-800" },
   consistency: { label: "Metronome", color: "bg-teal-100 text-teal-800" },
+  monthly_best: { label: "Monthly Best", color: "bg-orange-100 text-orange-800" },
+  improvement_streak: { label: "On a Roll", color: "bg-emerald-100 text-emerald-800" },
+  comeback: { label: "Comeback", color: "bg-rose-100 text-rose-800" },
+  milestone: { label: "Milestone", color: "bg-amber-100 text-amber-800" },
+  distance_record: { label: "Longest Ride", color: "bg-cyan-100 text-cyan-800" },
+  elevation_record: { label: "Most Climbing", color: "bg-sky-100 text-sky-800" },
+  segment_count: { label: "Most Segments", color: "bg-lime-100 text-lime-800" },
 };
 
 async function loadDashboard() {
@@ -276,7 +283,7 @@ export function Dashboard() {
               for (const a of awards) {
                 typeCounts.set(a.type, (typeCounts.get(a.type) || 0) + 1);
               }
-              const typeOrder = ["season_first", "year_best", "recent_best", "beat_median", "top_quartile", "consistency"];
+              const typeOrder = ["season_first", "year_best", "monthly_best", "recent_best", "improvement_streak", "comeback", "beat_median", "top_quartile", "consistency", "milestone", "distance_record", "elevation_record", "segment_count"];
               const summary = typeOrder
                 .filter((t) => typeCounts.has(t))
                 .map((t) => ({ type: t, count: typeCounts.get(t) }));
@@ -354,6 +361,34 @@ export function Dashboard() {
                   <div class="flex items-start gap-2">
                     <span class="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 whitespace-nowrap mt-0.5">Metronome</span>
                     <span>Remarkably consistent — low variance across your last 5 efforts.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 whitespace-nowrap mt-0.5">Monthly Best</span>
+                    <span>Fastest time on a segment this calendar month.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 whitespace-nowrap mt-0.5">On a Roll</span>
+                    <span>3+ consecutive improving times on a segment — each ride faster than the last.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 whitespace-nowrap mt-0.5">Comeback</span>
+                    <span>Beat your median after 3+ slower efforts in a row.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 whitespace-nowrap mt-0.5">Milestone</span>
+                    <span>Round-number attempt on a segment (10th, 25th, 50th, 100th, etc.).</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-800 whitespace-nowrap mt-0.5">Longest Ride</span>
+                    <span>Your longest ride of the year by distance.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 whitespace-nowrap mt-0.5">Most Climbing</span>
+                    <span>Most elevation gain in a single ride this year.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-lime-100 text-lime-800 whitespace-nowrap mt-0.5">Most Segments</span>
+                    <span>Most segments hit in a single ride this year.</span>
                   </div>
                 </div>
               </details>
