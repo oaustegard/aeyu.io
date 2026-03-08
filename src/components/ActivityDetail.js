@@ -7,7 +7,7 @@
 import { html } from "htm/preact";
 import { signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
-import { getActivity, getSegment, getAllActivities, getResetEvent } from "../db.js";
+import { getActivity, getSegment, getAllActivities, getResetEvent, getUserConfig } from "../db.js";
 import { computeAwards, computeRideLevelAwards } from "../awards.js";
 import { navigate } from "../app.js";
 import {
@@ -62,6 +62,7 @@ const AWARD_LABELS = {
   comeback_distance: { label: "Comeback Distance", color: "bg-rose-100 text-rose-800", icon: "→" },
   comeback_elevation: { label: "Comeback Climbing", color: "bg-rose-100 text-rose-800", icon: "⛰" },
   comeback_endurance: { label: "Comeback Endurance", color: "bg-rose-100 text-rose-800", icon: "⏱" },
+  reference_best: { label: "Reference Best", color: "bg-teal-200 text-teal-900", icon: "⊕" },
 };
 
 const AWARD_COLORS = {
@@ -92,6 +93,7 @@ const AWARD_COLORS = {
   comeback_distance:  { bg: "#FFE4E6", text: "#9F1239", accent: "#F43F5E" },
   comeback_elevation: { bg: "#FFE4E6", text: "#9F1239", accent: "#F43F5E" },
   comeback_endurance: { bg: "#FFE4E6", text: "#9F1239", accent: "#F43F5E" },
+  reference_best:     { bg: "#99F6E4", text: "#134E4A", accent: "#14B8A6" },
 };
 
 async function loadActivity(id) {
@@ -104,7 +106,9 @@ async function loadActivity(id) {
 
     if (act.has_efforts) {
       const resetEvent = await getResetEvent();
-      const segmentAwards = await computeAwards(act, resetEvent);
+      const userConfig = await getUserConfig();
+      const refPoints = userConfig.referencePoints || [];
+      const segmentAwards = await computeAwards(act, resetEvent, refPoints);
       const allActivities = await getAllActivities();
       const rideAwards = computeRideLevelAwards(act, allActivities, resetEvent);
       const awardsList = [...segmentAwards, ...rideAwards];

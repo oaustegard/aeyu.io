@@ -274,6 +274,33 @@ export async function recordRecoveryMilestone(segmentId, threshold) {
   }
 }
 
+// --- User Config (Reference Points) ---
+
+/**
+ * Get user configuration (reference points for custom awards).
+ * Stored in sync_state under "user_config" key.
+ * Shape: { referencePoints: Array<{ id, type, label, date?, count?, birthday?, age? }> }
+ */
+export async function getUserConfig() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("sync_state", "readonly");
+    const req = tx.objectStore("sync_state").get("user_config");
+    req.onsuccess = () => resolve(req.result || { referencePoints: [] });
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function setUserConfig(config) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("sync_state", "readwrite");
+    tx.objectStore("sync_state").put(config, "user_config");
+    tx.oncomplete = () => resolve(config);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 // --- Sync State ---
 
 const DEFAULT_SYNC_STATE = {
