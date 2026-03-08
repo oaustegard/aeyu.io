@@ -24,6 +24,9 @@ import {
   getAllSegments,
   getSyncState,
   clearAllData,
+  getResetEvent,
+  setResetEvent,
+  clearResetEvent,
 } from "../db.js";
 import { navigate } from "../app.js";
 import {
@@ -45,6 +48,10 @@ const backfillComplete = signal(false);
 const showFaq = signal(false);
 const deleteConfirmText = signal("");
 const showDeleteConfirm = signal(false);
+const activeResetEvent = signal(null);
+const showResetForm = signal(false);
+const resetName = signal("");
+const resetDate = signal("");
 
 const AWARD_LABELS = {
   year_best: { label: "Year Best", color: "bg-yellow-100 text-yellow-800" },
@@ -67,12 +74,20 @@ const AWARD_LABELS = {
   endurance_record: { label: "Longest by Time", color: "bg-slate-100 text-slate-800" },
   ytd_best_time: { label: "YTD Best", color: "bg-amber-200 text-amber-900" },
   ytd_best_power: { label: "YTD Power", color: "bg-red-200 text-red-900" },
+  // Comeback mode awards (#60)
+  comeback_pb: { label: "Comeback PB", color: "bg-rose-200 text-rose-900" },
+  recovery_milestone: { label: "Recovery", color: "bg-orange-200 text-orange-900" },
+  comeback_full: { label: "You're Back!", color: "bg-green-200 text-green-900" },
+  comeback_distance: { label: "Comeback Distance", color: "bg-rose-100 text-rose-800" },
+  comeback_elevation: { label: "Comeback Climbing", color: "bg-rose-100 text-rose-800" },
+  comeback_endurance: { label: "Comeback Endurance", color: "bg-rose-100 text-rose-800" },
 };
 
 async function loadDashboard() {
   loading.value = true;
   try {
     await loadUnitPreference();
+    activeResetEvent.value = await getResetEvent();
     const activities = await getAllActivities();
     // Sort by date descending, take recent 20
     activities.sort((a, b) => b.start_date_local.localeCompare(a.start_date_local));
@@ -270,6 +285,31 @@ export function Dashboard() {
               so this happens over a few sessions. Tap <strong>Sync Now</strong> to continue,
               or it will resume automatically next time you visit.
             </p>
+          </div>
+        `}
+
+        <!-- Comeback mode banner (#60) -->
+        ${activeResetEvent.value && html`
+          <div class="bg-rose-50 border border-rose-200 rounded-xl p-4 mb-6">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-lg">🔄</span>
+                <div>
+                  <p class="text-sm font-medium text-rose-800">Comeback Mode: ${activeResetEvent.value.name}</p>
+                  <p class="text-xs text-rose-600">Since ${new Date(activeResetEvent.value.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} — awards adjusted for recovery</p>
+                </div>
+              </div>
+              <button
+                onClick=${async () => {
+                  activeResetEvent.value = null;
+                  await clearResetEvent();
+                  await loadDashboard();
+                }}
+                class="text-xs text-rose-400 hover:text-rose-600 transition-colors"
+              >
+                End
+              </button>
+            </div>
           </div>
         `}
 
@@ -503,6 +543,85 @@ export function Dashboard() {
                   Power is shown for rides with a power meter (measured watts only — estimated power is excluded). Average watts appear in ride summaries and per-segment details. YTD Power awards compare your power output by date across years.
                 </div>
               </details>
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-gray-100 space-y-3">
+              <!-- Comeback Mode Settings (#60) -->
+              <div>
+                <p class="text-xs font-medium text-gray-600 mb-1.5">Comeback Mode</p>
+                ${activeResetEvent.value ? html`
+                  <div class="flex items-center justify-between bg-rose-50 rounded-lg px-3 py-2">
+                    <div>
+                      <p class="text-xs font-medium text-rose-800">${activeResetEvent.value.name}</p>
+                      <p class="text-xs text-rose-600">Since ${new Date(activeResetEvent.value.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                    </div>
+                    <button
+                      onClick=${async () => {
+                        activeResetEvent.value = null;
+                        await clearResetEvent();
+                        await loadDashboard();
+                      }}
+                      class="text-xs text-rose-400 hover:text-rose-600 px-2 py-1 rounded transition-colors"
+                    >
+                      End comeback
+                    </button>
+                  </div>
+                ` : html`
+                  ${showResetForm.value ? html`
+                    <div class="bg-gray-50 rounded-lg p-3 space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Event name (e.g. Knee surgery)"
+                        value=${resetName.value}
+                        onInput=${(e) => { resetName.value = e.target.value; }}
+                        class="w-full text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-rose-400"
+                      />
+                      <input
+                        type="date"
+                        value=${resetDate.value}
+                        onInput=${(e) => { resetDate.value = e.target.value; }}
+                        class="w-full text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-rose-400"
+                      />
+                      <div class="flex gap-2">
+                        <button
+                          onClick=${async () => {
+                            if (!resetName.value.trim() || !resetDate.value) return;
+                            const event = { name: resetName.value.trim(), date: resetDate.value, sport_types: null };
+                            await setResetEvent(event);
+                            activeResetEvent.value = event;
+                            showResetForm.value = false;
+                            resetName.value = "";
+                            resetDate.value = "";
+                            await loadDashboard();
+                          }}
+                          disabled=${!resetName.value.trim() || !resetDate.value}
+                          class="text-xs px-3 py-1.5 rounded font-medium transition-colors ${
+                            resetName.value.trim() && resetDate.value
+                              ? "bg-rose-600 text-white hover:bg-rose-700"
+                              : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                          }"
+                        >
+                          Start comeback
+                        </button>
+                        <button
+                          onClick=${() => { showResetForm.value = false; resetName.value = ""; resetDate.value = ""; }}
+                          class="text-xs px-3 py-1.5 rounded text-gray-500 hover:text-gray-700 transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ` : html`
+                    <button
+                      onClick=${() => { showResetForm.value = true; }}
+                      class="text-xs text-gray-400 hover:text-rose-500 transition-colors"
+                    >
+                      Set a reset date (injury recovery)
+                    </button>
+                    <p class="text-xs text-gray-300 mt-1">Awards will adjust to celebrate your recovery progress instead of comparing to pre-injury bests.</p>
+                  `}
+                `}
+              </div>
             </div>
 
             <div class="mt-4 pt-4 border-t border-gray-100 space-y-3">

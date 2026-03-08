@@ -218,6 +218,62 @@ export async function appendEffort(segmentId, segmentData, effort) {
   });
 }
 
+// --- Reset Event (Comeback Mode) ---
+
+/**
+ * Get the active reset event, if any.
+ * Stored in sync_state under "reset_event" key.
+ * Shape: { name: string, date: string (ISO), sport_types: string[]|null, milestones: {} }
+ * milestones tracks per-segment recovery thresholds already awarded:
+ *   { [segmentId]: [80, 90, ...] }
+ */
+export async function getResetEvent() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("sync_state", "readonly");
+    const req = tx.objectStore("sync_state").get("reset_event");
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function setResetEvent(event) {
+  const db = await openDB();
+  // Ensure milestones tracker exists
+  const stored = { ...event, milestones: event.milestones || {} };
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("sync_state", "readwrite");
+    tx.objectStore("sync_state").put(stored, "reset_event");
+    tx.oncomplete = () => resolve(stored);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function clearResetEvent() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("sync_state", "readwrite");
+    tx.objectStore("sync_state").delete("reset_event");
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/**
+ * Record that a recovery milestone threshold was awarded for a segment.
+ * Prevents re-awarding the same threshold.
+ */
+export async function recordRecoveryMilestone(segmentId, threshold) {
+  const event = await getResetEvent();
+  if (!event) return;
+  if (!event.milestones) event.milestones = {};
+  if (!event.milestones[segmentId]) event.milestones[segmentId] = [];
+  if (!event.milestones[segmentId].includes(threshold)) {
+    event.milestones[segmentId].push(threshold);
+    await setResetEvent(event);
+  }
+}
+
 // --- Sync State ---
 
 const DEFAULT_SYNC_STATE = {

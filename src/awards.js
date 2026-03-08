@@ -21,11 +21,17 @@
  *   - YTD Best Time: Fastest time by this date across all years
  *   - YTD Best Power: Highest power by this date across all years
  *
+ * Comeback Mode awards (computed when a reset event is active, #60):
+ *   - Comeback PB: Post-reset personal best on a segment
+ *   - Recovery Milestone: Crossed 80/90/95% of pre-injury best on a segment
+ *   - You're Back!: Matched or beat pre-injury best (100% recovery)
+ *
  * Ride-level awards (computed per-activity, not per-segment):
  *   - Distance Record: Longest ride this year (#36)
  *   - Elevation Record: Most climbing in a ride this year (#36)
  *   - Segment Count: Most segments in a ride this year (#36)
  *   - Endurance Record: Longest moving time this year (#31)
+ *   - Comeback Distance/Elevation/Endurance: Post-reset records (#60)
  *
  * Data quality rules:
  *   - Minimum effort threshold: comparative awards (Year Best, Recent Best,
@@ -35,9 +41,16 @@
  *   - High-variance filter: segments with CV > 0.5 (≥5 efforts) are
  *     traffic-dominated — all awards suppressed except Season First and Milestone.
  *   - Power awards require device_watts === true (measured, not estimated).
+ *
+ * Comeback mode (#60):
+ *   When a reset event is active, the engine uses smart fading:
+ *   - Recovery zone (>15% slower than pre-injury): suppresses demoralizing
+ *     comparative awards; shows comeback-scoped awards instead.
+ *   - Transition zone (0-15% slower): shows both normal and comeback awards.
+ *   - Recovered (at or better than pre-injury): normal awards + "You're Back!"
  */
 
-import { getSegment } from "./db.js";
+import { getSegment, getResetEvent, recordRecoveryMilestone } from "./db.js";
 import { formatTime, formatDistance } from "./units.js";
 
 /** Minimum total efforts on a segment before comparative awards apply */
@@ -69,6 +82,19 @@ const MILESTONE_COUNTS = [10, 25, 50, 100, 250, 500, 1000];
 
 /** Minimum prior years needed for YTD comparison */
 const YTD_MIN_PRIOR_YEARS = 1;
+
+/** Recovery ratio above which normal comparative awards are suppressed */
+const RECOVERY_ZONE_THRESHOLD = 1.15;
+
+/** Recovery milestone thresholds (percentage of pre-injury best) */
+const RECOVERY_MILESTONES = [80, 90, 95, 100];
+
+/** Award types suppressed during recovery zone (demoralizing comparisons to pre-injury data) */
+const SUPPRESSED_IN_RECOVERY = new Set([
+  "year_best", "beat_median", "top_quartile", "top_decile",
+  "recent_best", "best_month_ever", "ytd_best_time", "ytd_best_power",
+  "closing_in",
+]);
 
 function formatDate(isoString) {
   return new Date(isoString).toLocaleDateString("en-US", {
@@ -198,11 +224,42 @@ function computeYtdComparison(currentValue, allEfforts, activityDate, field) {
 
 
 /**
+ * Compute comeback context for a segment effort given an active reset event.
+ * @param {Object} effort - Current segment effort
+ * @param {Array} allEfforts - All efforts on this segment
+ * @param {Object} resetEvent - Active reset event { name, date, sport_types, milestones }
+ * @returns {{ preInjuryBest: number|null, recoveryRatio: number|null, inRecoveryZone: boolean, postResetEfforts: Array }}
+ */
+function computeComebackContext(effort, allEfforts, resetEvent) {
+  const resetDate = new Date(resetEvent.date);
+
+  // Split efforts into pre and post reset
+  const preResetEfforts = allEfforts.filter(
+    (e) => new Date(e.start_date_local) < resetDate
+  );
+  const postResetEfforts = allEfforts.filter(
+    (e) => new Date(e.start_date_local) >= resetDate
+  );
+
+  if (preResetEfforts.length === 0) {
+    return { preInjuryBest: null, recoveryRatio: null, inRecoveryZone: false, postResetEfforts };
+  }
+
+  const preInjuryBest = Math.min(...preResetEfforts.map((e) => e.elapsed_time));
+  const recoveryRatio = effort.elapsed_time / preInjuryBest;
+  const inRecoveryZone = recoveryRatio > RECOVERY_ZONE_THRESHOLD;
+
+  return { preInjuryBest, recoveryRatio, postResetEfforts, inRecoveryZone };
+}
+
+
+/**
  * Compute awards for a single activity's segment efforts.
  * @param {Object} activity — Activity with segment_efforts populated
+ * @param {Object|null} resetEvent — Active reset event, if any
  * @returns {Array} — Array of award objects
  */
-export async function computeAwards(activity) {
+export async function computeAwards(activity, resetEvent = null) {
   if (!activity.segment_efforts || activity.segment_efforts.length === 0) {
     return [];
   }
@@ -226,6 +283,15 @@ export async function computeAwards(activity) {
     const isHighVariance =
       allEfforts.length >= MIN_EFFORTS_FOR_CV &&
       cv(allTimes) > HIGH_VARIANCE_CV_THRESHOLD;
+
+    // --- Comeback context (#60) ---
+    const activityDate_raw = new Date(activity.start_date_local);
+    const comebackActive = resetEvent &&
+      activityDate_raw >= new Date(resetEvent.date) &&
+      (!resetEvent.sport_types || resetEvent.sport_types.includes(activity.sport_type));
+    const comebackCtx = comebackActive
+      ? computeComebackContext(effort, allEfforts, resetEvent)
+      : null;
 
     // --- Milestone (#36) — exempt from CV filter ---
     if (MILESTONE_COUNTS.includes(allEfforts.length)) {
@@ -599,6 +665,96 @@ export async function computeAwards(activity) {
         }
       }
     }
+
+    // --- Comeback Awards (#60) ---
+    if (comebackCtx && comebackCtx.preInjuryBest != null) {
+      const { preInjuryBest, recoveryRatio, postResetEfforts } = comebackCtx;
+      const eventName = resetEvent.name || "reset";
+
+      // Comeback PB: post-reset personal best on this segment
+      if (postResetEfforts.length >= 2) {
+        const bestPostReset = Math.min(...postResetEfforts.map((e) => e.elapsed_time));
+        if (effort.elapsed_time === bestPostReset) {
+          const prevPostReset = postResetEfforts
+            .filter((e) => e.effort_id !== effort.id)
+            .sort((a, b) => a.elapsed_time - b.elapsed_time);
+          const prevBest = prevPostReset.length > 0 ? prevPostReset[0] : null;
+          awards.push({
+            type: "comeback_pb",
+            segment: segment.name,
+            segment_id: segment.id,
+            time: effort.elapsed_time,
+            power: effort.average_watts || null,
+            comparison: prevBest,
+            delta: prevBest ? prevBest.elapsed_time - effort.elapsed_time : null,
+            message: prevBest
+              ? `Best time since ${eventName} on ${segment.name}! ${formatTime(effort.elapsed_time)} (previous: ${formatTime(prevBest.elapsed_time)})`
+              : `Best time since ${eventName} on ${segment.name}! ${formatTime(effort.elapsed_time)}`,
+          });
+        }
+      }
+
+      // Recovery Milestone: crossing 80%, 90%, 95%, 100% of pre-injury best
+      const recoveryPct = Math.min(100, Math.round((preInjuryBest / effort.elapsed_time) * 100));
+      const awarded = (resetEvent.milestones && resetEvent.milestones[segment.id]) || [];
+      for (const threshold of RECOVERY_MILESTONES) {
+        if (recoveryPct >= threshold && !awarded.includes(threshold)) {
+          const label = threshold === 100
+            ? `You're back on ${segment.name}! Matched your pre-${eventName} best — ${formatTime(effort.elapsed_time)}`
+            : `Back to ${threshold}% on ${segment.name}! ${formatTime(effort.elapsed_time)} — recovering toward your pre-${eventName} best of ${formatTime(preInjuryBest)}`;
+          awards.push({
+            type: threshold === 100 ? "comeback_full" : "recovery_milestone",
+            segment: segment.name,
+            segment_id: segment.id,
+            time: effort.elapsed_time,
+            power: effort.average_watts || null,
+            comparison: null,
+            delta: effort.elapsed_time - preInjuryBest,
+            message: label,
+            _milestone_threshold: threshold,
+            _milestone_segment_id: segment.id,
+          });
+        }
+      }
+    }
+  }
+
+  // --- Comeback suppression (#60) ---
+  // In recovery zone, suppress demoralizing comparisons to pre-injury data
+  if (resetEvent) {
+    const resetDate = new Date(resetEvent.date);
+    const actDate = new Date(activity.start_date_local);
+    const isPostReset = actDate >= resetDate &&
+      (!resetEvent.sport_types || resetEvent.sport_types.includes(activity.sport_type));
+
+    if (isPostReset) {
+      // Check if ANY segment on this activity is in the recovery zone
+      const hasRecoveryZone = awards.some(
+        (a) => a.type === "comeback_pb" || a.type === "recovery_milestone" || a.type === "comeback_full"
+      );
+      if (hasRecoveryZone) {
+        // Only suppress if the athlete is still recovering on at least one segment
+        // Keep awards for segments where they're fully recovered
+        return awards.filter((a) => {
+          if (!SUPPRESSED_IN_RECOVERY.has(a.type)) return true;
+          // Check this specific segment's recovery status
+          if (!a.segment_id) return true; // ride-level awards pass through
+          // Find the comeback context for this segment — if no comeback PB or milestone exists
+          // for this segment, the athlete might be fully recovered on it
+          const hasRecoveryAward = awards.some(
+            (r) => r.segment_id === a.segment_id &&
+              (r.type === "recovery_milestone" || r.type === "comeback_full")
+          );
+          // If there's a "comeback_full" (100%), athlete is back — don't suppress
+          const isFullyRecovered = awards.some(
+            (r) => r.segment_id === a.segment_id && r.type === "comeback_full"
+          );
+          if (isFullyRecovered) return true;
+          // Suppress comparative awards for segments still in recovery
+          return !hasRecoveryAward;
+        });
+      }
+    }
   }
 
   return awards;
@@ -613,7 +769,7 @@ export async function computeAwards(activity) {
  * @param {Array} allActivities — All activities for comparison (same sport type)
  * @returns {Array} — Array of ride-level award objects
  */
-export function computeRideLevelAwards(activity, allActivities) {
+export function computeRideLevelAwards(activity, allActivities, resetEvent = null) {
   const awards = [];
   const currentYear = new Date(activity.start_date_local).getFullYear();
 
@@ -702,6 +858,78 @@ export function computeRideLevelAwards(activity, allActivities) {
     }
   }
 
+  // --- Comeback Ride-Level Records (#60) ---
+  if (resetEvent) {
+    const resetDate = new Date(resetEvent.date);
+    const actDate = new Date(activity.start_date_local);
+    const isPostReset = actDate >= resetDate &&
+      (!resetEvent.sport_types || resetEvent.sport_types.includes(activity.sport_type));
+
+    if (isPostReset) {
+      const eventName = resetEvent.name || "reset";
+      const sameTypePostReset = allActivities.filter(
+        (a) =>
+          a.sport_type === activity.sport_type &&
+          new Date(a.start_date_local) >= resetDate &&
+          a.id !== activity.id
+      );
+
+      // Only need 2 post-reset activities to start comparing (lower bar than normal)
+      if (sameTypePostReset.length >= 2) {
+        // Comeback Distance Record
+        if (activity.distance > 0) {
+          const maxPostReset = Math.max(...sameTypePostReset.map((a) => a.distance || 0));
+          if (activity.distance > maxPostReset) {
+            awards.push({
+              type: "comeback_distance",
+              segment: null,
+              segment_id: null,
+              time: null,
+              power: null,
+              comparison: null,
+              delta: null,
+              message: `Longest ${activity.sport_type === "Ride" ? "ride" : "activity"} since ${eventName}! ${formatDistance(activity.distance)}`,
+            });
+          }
+        }
+
+        // Comeback Elevation Record
+        if (activity.total_elevation_gain > 0) {
+          const maxPostReset = Math.max(...sameTypePostReset.map((a) => a.total_elevation_gain || 0));
+          if (activity.total_elevation_gain > maxPostReset) {
+            awards.push({
+              type: "comeback_elevation",
+              segment: null,
+              segment_id: null,
+              time: null,
+              power: null,
+              comparison: null,
+              delta: null,
+              message: `Most climbing since ${eventName}! ${formatDistance(activity.total_elevation_gain)} elevation`,
+            });
+          }
+        }
+
+        // Comeback Endurance Record
+        if (activity.moving_time > 0) {
+          const maxPostReset = Math.max(...sameTypePostReset.map((a) => a.moving_time || 0));
+          if (activity.moving_time > maxPostReset) {
+            awards.push({
+              type: "comeback_endurance",
+              segment: null,
+              segment_id: null,
+              time: null,
+              power: null,
+              comparison: null,
+              delta: null,
+              message: `Longest ${activity.sport_type === "Ride" ? "ride" : "activity"} by time since ${eventName}! ${formatTime(activity.moving_time)}`,
+            });
+          }
+        }
+      }
+    }
+  }
+
   return awards;
 }
 
@@ -711,11 +939,25 @@ export function computeRideLevelAwards(activity, allActivities) {
  * @returns {Map} — Map of activity.id → awards array
  */
 export async function computeAwardsForActivities(activities) {
+  const resetEvent = await getResetEvent();
   const result = new Map();
   for (const activity of activities) {
-    const segmentAwards = await computeAwards(activity);
-    const rideAwards = computeRideLevelAwards(activity, activities);
+    const segmentAwards = await computeAwards(activity, resetEvent);
+    const rideAwards = computeRideLevelAwards(activity, activities, resetEvent);
     const allAwards = [...segmentAwards, ...rideAwards];
+
+    // Persist recovery milestones so they're only awarded once
+    if (resetEvent) {
+      for (const award of allAwards) {
+        if (award._milestone_threshold != null && award._milestone_segment_id != null) {
+          await recordRecoveryMilestone(award._milestone_segment_id, award._milestone_threshold);
+          // Clean up internal fields
+          delete award._milestone_threshold;
+          delete award._milestone_segment_id;
+        }
+      }
+    }
+
     if (allAwards.length > 0) {
       result.set(activity.id, allAwards);
     }
