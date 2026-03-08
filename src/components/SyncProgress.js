@@ -52,8 +52,8 @@ export function SyncProgress() {
             Your activity data is stored entirely in your browser — we have
             no server or database. That means we fetch everything directly
             from Strava's API on your behalf, one page at a time.
-            Strava limits apps to
-            <strong>100 requests per 15 minutes</strong> and
+            Strava limits apps to${" "}
+            <strong>100 requests per 15 minutes</strong> and${" "}
             <strong>1,000 per day</strong>, so a large history takes a
             few sessions to fully load. You can close this page and come
             back — we'll pick up where we left off.
