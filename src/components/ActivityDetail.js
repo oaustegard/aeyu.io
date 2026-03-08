@@ -7,8 +7,8 @@
 import { html } from "htm/preact";
 import { signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
-import { getActivity, getSegment } from "../db.js";
-import { computeAwards } from "../awards.js";
+import { getActivity, getSegment, getAllActivities } from "../db.js";
+import { computeAwards, computeRideLevelAwards } from "../awards.js";
 import { navigate } from "../app.js";
 
 const activity = signal(null);
@@ -53,15 +53,29 @@ const AWARD_LABELS = {
   beat_median: { label: "Beat Median", color: "bg-purple-100 text-purple-800", icon: "◆" },
   top_quartile: { label: "Top Quartile", color: "bg-indigo-100 text-indigo-800", icon: "▲" },
   consistency: { label: "Metronome", color: "bg-teal-100 text-teal-800", icon: "≡" },
+  monthly_best: { label: "Monthly Best", color: "bg-orange-100 text-orange-800", icon: "◎" },
+  improvement_streak: { label: "On a Roll", color: "bg-emerald-100 text-emerald-800", icon: "⟫" },
+  comeback: { label: "Comeback", color: "bg-rose-100 text-rose-800", icon: "↺" },
+  milestone: { label: "Milestone", color: "bg-amber-100 text-amber-800", icon: "⬡" },
+  distance_record: { label: "Longest Ride", color: "bg-cyan-100 text-cyan-800", icon: "→" },
+  elevation_record: { label: "Most Climbing", color: "bg-sky-100 text-sky-800", icon: "⛰" },
+  segment_count: { label: "Most Segments", color: "bg-lime-100 text-lime-800", icon: "#" },
 };
 
 const AWARD_COLORS = {
-  year_best:    { bg: "#FEF9C3", text: "#854D0E", accent: "#EAB308" },
-  season_first: { bg: "#DCFCE7", text: "#166534", accent: "#22C55E" },
-  recent_best:  { bg: "#DBEAFE", text: "#1E40AF", accent: "#3B82F6" },
-  beat_median:  { bg: "#F3E8FF", text: "#6B21A8", accent: "#A855F7" },
-  top_quartile: { bg: "#E0E7FF", text: "#3730A3", accent: "#6366F1" },
-  consistency:  { bg: "#CCFBF1", text: "#115E59", accent: "#14B8A6" },
+  year_best:          { bg: "#FEF9C3", text: "#854D0E", accent: "#EAB308" },
+  season_first:       { bg: "#DCFCE7", text: "#166534", accent: "#22C55E" },
+  recent_best:        { bg: "#DBEAFE", text: "#1E40AF", accent: "#3B82F6" },
+  beat_median:        { bg: "#F3E8FF", text: "#6B21A8", accent: "#A855F7" },
+  top_quartile:       { bg: "#E0E7FF", text: "#3730A3", accent: "#6366F1" },
+  consistency:        { bg: "#CCFBF1", text: "#115E59", accent: "#14B8A6" },
+  monthly_best:       { bg: "#FFEDD5", text: "#9A3412", accent: "#F97316" },
+  improvement_streak: { bg: "#D1FAE5", text: "#065F46", accent: "#10B981" },
+  comeback:           { bg: "#FFE4E6", text: "#9F1239", accent: "#F43F5E" },
+  milestone:          { bg: "#FEF3C7", text: "#92400E", accent: "#F59E0B" },
+  distance_record:    { bg: "#CFFAFE", text: "#155E75", accent: "#06B6D4" },
+  elevation_record:   { bg: "#E0F2FE", text: "#075985", accent: "#0EA5E9" },
+  segment_count:      { bg: "#ECFCCB", text: "#3F6212", accent: "#84CC16" },
 };
 
 async function loadActivity(id) {
@@ -73,7 +87,10 @@ async function loadActivity(id) {
     activity.value = act;
 
     if (act.has_efforts) {
-      const awardsList = await computeAwards(act);
+      const segmentAwards = await computeAwards(act);
+      const allActivities = await getAllActivities();
+      const rideAwards = computeRideLevelAwards(act, allActivities);
+      const awardsList = [...segmentAwards, ...rideAwards];
       awards.value = awardsList;
 
       const history = new Map();
@@ -230,7 +247,7 @@ function renderShareCard(canvas, act, awardsList) {
   if (awardsList.length > 0) {
     // Summary pills
     const counts = {};
-    const order = ["season_first", "year_best", "recent_best", "beat_median", "top_quartile", "consistency"];
+    const order = ["season_first", "year_best", "monthly_best", "recent_best", "improvement_streak", "comeback", "beat_median", "top_quartile", "consistency", "milestone", "distance_record", "elevation_record", "segment_count"];
     for (const a of awardsList) counts[a.type] = (counts[a.type] || 0) + 1;
 
     let pillX = left;

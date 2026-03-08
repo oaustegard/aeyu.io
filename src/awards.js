@@ -9,13 +9,23 @@
  *   - Beat Median: Faster than your median time on this segment
  *   - Top Quartile: In the top 25% of your own history
  *   - Consistency (Metronome): Low variance across recent efforts (CV < 0.05)
+ *   - Monthly Best: Fastest effort on a segment this calendar month (#36)
+ *   - Improvement Streak: 3+ consecutive faster times ending now (#36)
+ *   - Comeback: Beat median after 3+ sub-median efforts in a row (#36)
+ *   - Milestone: Round-number attempt count on a segment (#36)
+ *
+ * Ride-level awards (computed per-activity, not per-segment):
+ *   - Distance Record: Longest ride this year (#36)
+ *   - Elevation Record: Most climbing in a ride this year (#36)
+ *   - Segment Count: Most segments in a ride this year (#36)
  *
  * Data quality rules:
  *   - Minimum effort threshold: comparative awards (Year Best, Recent Best,
- *     Beat Median, Top Quartile) require ≥3 total efforts. Season First exempt.
+ *     Beat Median, Top Quartile, Monthly Best) require ≥3 total efforts.
+ *     Season First and Milestone exempt.
  *   - Calendar gate: Year Best suppressed before March 1.
  *   - High-variance filter: segments with CV > 0.5 (≥5 efforts) are
- *     traffic-dominated — all awards suppressed except Season First.
+ *     traffic-dominated — all awards suppressed except Season First and Milestone.
  */
 
 import { getSegment } from "./db.js";
@@ -37,6 +47,15 @@ const CONSISTENCY_CV_THRESHOLD = 0.05;
 
 /** Minimum recent efforts to evaluate consistency */
 const CONSISTENCY_MIN_EFFORTS = 5;
+
+/** Minimum consecutive improving efforts for a streak award */
+const STREAK_MIN_LENGTH = 3;
+
+/** Minimum consecutive sub-median efforts before a comeback triggers */
+const COMEBACK_MIN_SLUMP = 3;
+
+/** Effort counts that earn a milestone award */
+const MILESTONE_COUNTS = [10, 25, 50, 100, 250, 500, 1000];
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
@@ -69,6 +88,13 @@ function cv(values) {
   const m = mean(values);
   if (m === 0) return 0;
   return stdev(values) / m;
+}
+
+/** Format a number with ordinal suffix (1st, 2nd, 3rd, etc.) */
+function ordinal(n) {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
 /** Compute percentile rank (0-100) — what percentage of values is >= this value (lower time = better) */
@@ -114,6 +140,19 @@ export async function computeAwards(activity) {
     const isHighVariance =
       allEfforts.length >= MIN_EFFORTS_FOR_CV &&
       cv(allTimes) > HIGH_VARIANCE_CV_THRESHOLD;
+
+    // --- Milestone (#36) — exempt from CV filter ---
+    if (MILESTONE_COUNTS.includes(allEfforts.length)) {
+      awards.push({
+        type: "milestone",
+        segment: segment.name,
+        segment_id: segment.id,
+        time: effort.elapsed_time,
+        comparison: null,
+        delta: null,
+        message: `${ordinal(allEfforts.length)} effort on ${segment.name}!`,
+      });
+    }
 
     // --- Season First (exempt from CV filter) ---
     if (thisYearEfforts.length === 1) {
@@ -249,9 +288,169 @@ export async function computeAwards(activity) {
         });
       }
     }
+
+    // --- Monthly Best (#36) ---
+    const actMonth = activityDate.getMonth();
+    const thisMonthEfforts = allEfforts.filter((e) => {
+      const d = new Date(e.start_date_local);
+      return d.getMonth() === actMonth && d.getFullYear() === currentYear;
+    });
+    if (thisMonthEfforts.length >= 2 && allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
+      const bestThisMonth = Math.min(...thisMonthEfforts.map((e) => e.elapsed_time));
+      if (effort.elapsed_time === bestThisMonth) {
+        const monthName = activityDate.toLocaleDateString("en-US", { month: "long" });
+        awards.push({
+          type: "monthly_best",
+          segment: segment.name,
+          segment_id: segment.id,
+          time: effort.elapsed_time,
+          comparison: null,
+          delta: null,
+          message: `${monthName} Best on ${segment.name}! ${formatTime(effort.elapsed_time)} — fastest of ${thisMonthEfforts.length} efforts this month`,
+        });
+      }
+    }
+
+    // --- Improvement Streak (#36) ---
+    // 3+ consecutive faster times (chronologically) ending with this effort
+    if (sortedByDate.length >= STREAK_MIN_LENGTH) {
+      let streak = 1;
+      for (let i = 0; i < sortedByDate.length - 1; i++) {
+        if (sortedByDate[i].elapsed_time < sortedByDate[i + 1].elapsed_time) {
+          streak++;
+        } else {
+          break;
+        }
+      }
+      if (streak >= STREAK_MIN_LENGTH) {
+        awards.push({
+          type: "improvement_streak",
+          segment: segment.name,
+          segment_id: segment.id,
+          time: effort.elapsed_time,
+          comparison: null,
+          delta: sortedByDate[streak - 1].elapsed_time - effort.elapsed_time,
+          message: `${streak}-effort improvement streak on ${segment.name}! Each ride faster than the last — ${formatTime(effort.elapsed_time)}`,
+        });
+      }
+    }
+
+    // --- Comeback (#36) ---
+    // Beat median after 3+ consecutive sub-median efforts
+    if (allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
+      const sortedTimes = [...allTimes].sort((a, b) => a - b);
+      const med = median(sortedTimes);
+      if (effort.elapsed_time < med && sortedByDate.length > COMEBACK_MIN_SLUMP) {
+        // Check if the previous N efforts were all slower than median
+        let slumpLength = 0;
+        for (let i = 1; i < sortedByDate.length; i++) {
+          if (sortedByDate[i].elapsed_time >= med) {
+            slumpLength++;
+          } else {
+            break;
+          }
+        }
+        if (slumpLength >= COMEBACK_MIN_SLUMP) {
+          awards.push({
+            type: "comeback",
+            segment: segment.name,
+            segment_id: segment.id,
+            time: effort.elapsed_time,
+            comparison: null,
+            delta: Math.round(med - effort.elapsed_time),
+            message: `Comeback on ${segment.name}! Beat your median after ${slumpLength} slower efforts — ${formatTime(effort.elapsed_time)}`,
+          });
+        }
+      }
+    }
   }
 
   return awards;
+}
+
+/**
+ * Compute ride-level awards for an activity by comparing against other activities.
+ * These compare the whole ride (distance, elevation, segment count) rather than
+ * individual segment efforts.
+ *
+ * @param {Object} activity — The activity to evaluate
+ * @param {Array} allActivities — All activities for comparison (same sport type)
+ * @returns {Array} — Array of ride-level award objects
+ */
+export function computeRideLevelAwards(activity, allActivities) {
+  const awards = [];
+  const currentYear = new Date(activity.start_date_local).getFullYear();
+
+  // Filter to same sport type and same year, excluding this activity
+  const sameTypeThisYear = allActivities.filter(
+    (a) =>
+      a.sport_type === activity.sport_type &&
+      new Date(a.start_date_local).getFullYear() === currentYear &&
+      a.id !== activity.id
+  );
+
+  // Need at least 5 prior activities this year to make records meaningful
+  if (sameTypeThisYear.length < 5) return awards;
+
+  // --- Distance Record (#36) ---
+  if (activity.distance > 0) {
+    const maxPriorDistance = Math.max(...sameTypeThisYear.map((a) => a.distance || 0));
+    if (activity.distance > maxPriorDistance) {
+      awards.push({
+        type: "distance_record",
+        segment: null,
+        segment_id: null,
+        time: null,
+        comparison: null,
+        delta: null,
+        message: `Longest ${activity.sport_type === "Ride" ? "ride" : "activity"} this year! ${formatDistance(activity.distance)}`,
+      });
+    }
+  }
+
+  // --- Elevation Record (#36) ---
+  if (activity.total_elevation_gain > 0) {
+    const maxPriorElevation = Math.max(
+      ...sameTypeThisYear.map((a) => a.total_elevation_gain || 0)
+    );
+    if (activity.total_elevation_gain > maxPriorElevation) {
+      awards.push({
+        type: "elevation_record",
+        segment: null,
+        segment_id: null,
+        time: null,
+        comparison: null,
+        delta: null,
+        message: `Most climbing in a ${activity.sport_type === "Ride" ? "ride" : "activity"} this year! ${Math.round(activity.total_elevation_gain)}m elevation`,
+      });
+    }
+  }
+
+  // --- Segment Count (#36) ---
+  const segCount = (activity.segment_efforts || []).length;
+  if (segCount > 0) {
+    const maxPriorSegments = Math.max(
+      ...sameTypeThisYear.map((a) => (a.segment_efforts || []).length)
+    );
+    if (segCount > maxPriorSegments) {
+      awards.push({
+        type: "segment_count",
+        segment: null,
+        segment_id: null,
+        time: null,
+        comparison: null,
+        delta: null,
+        message: `Most segments in a single ${activity.sport_type === "Ride" ? "ride" : "activity"} this year! ${segCount} segments`,
+      });
+    }
+  }
+
+  return awards;
+}
+
+function formatDistance(meters) {
+  const km = meters / 1000;
+  return km >= 1 ? `${km.toFixed(1)} km` : `${Math.round(meters)} m`;
 }
 
 /**
@@ -262,9 +461,11 @@ export async function computeAwards(activity) {
 export async function computeAwardsForActivities(activities) {
   const result = new Map();
   for (const activity of activities) {
-    const awards = await computeAwards(activity);
-    if (awards.length > 0) {
-      result.set(activity.id, awards);
+    const segmentAwards = await computeAwards(activity);
+    const rideAwards = computeRideLevelAwards(activity, activities);
+    const allAwards = [...segmentAwards, ...rideAwards];
+    if (allAwards.length > 0) {
+      result.set(activity.id, allAwards);
     }
   }
   return result;
