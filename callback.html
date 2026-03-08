@@ -18,6 +18,7 @@
 </head>
 <body class="bg-gray-50 text-gray-900 min-h-screen flex items-center justify-center">
     <div id="status" class="text-center px-6 max-w-md">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-[#FC4C02] mb-4"></div>
         <p class="text-xl text-gray-600">Connecting to Strava...</p>
         <p class="text-sm text-gray-400 mt-2">Exchanging authorization code</p>
     </div>
@@ -28,6 +29,10 @@
       const code = params.get("code");
       const error = params.get("error");
       const statusEl = document.getElementById("status");
+
+      // Remove callback page from browser history so back button
+      // doesn't return here with a stale authorization code
+      history.replaceState(null, "", "/");
 
       if (error) {
         statusEl.innerHTML = `
@@ -43,7 +48,8 @@
       } else {
         try {
           await handleOAuthCallback(code);
-          window.location.href = "/#sync";
+          // Navigate to sync — use replace so callback isn't in history
+          window.location.replace("/#sync");
         } catch (err) {
           statusEl.innerHTML = `
             <p class="text-xl text-red-600">Connection failed</p>
