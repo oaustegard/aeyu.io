@@ -62,6 +62,7 @@ const AWARD_LABELS = {
   recent_best: { label: "Recent Best", color: "bg-blue-100 text-blue-800" },
   beat_median: { label: "Beat Median", color: "bg-purple-100 text-purple-800" },
   top_quartile: { label: "Top Quartile", color: "bg-indigo-100 text-indigo-800" },
+  top_decile: { label: "Top 10%", color: "bg-red-100 text-red-800" },
   consistency: { label: "Metronome", color: "bg-teal-100 text-teal-800" },
   monthly_best: { label: "Monthly Best", color: "bg-orange-100 text-orange-800" },
   improvement_streak: { label: "On a Roll", color: "bg-emerald-100 text-emerald-800" },
@@ -287,7 +288,7 @@ export function Dashboard() {
               for (const a of awards) {
                 typeCounts.set(a.type, (typeCounts.get(a.type) || 0) + 1);
               }
-              const typeOrder = ["season_first", "year_best", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "beat_median", "top_quartile", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
+              const typeOrder = ["season_first", "year_best", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
               const summary = typeOrder
                 .filter((t) => typeCounts.has(t))
                 .map((t) => ({ type: t, count: typeCounts.get(t) }));
@@ -361,6 +362,10 @@ export function Dashboard() {
                   <div class="flex items-start gap-2">
                     <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 whitespace-nowrap mt-0.5">Top Quartile</span>
                     <span>In the top 25% of your own history on this segment.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800 whitespace-nowrap mt-0.5">Top 10%</span>
+                    <span>In the top 10% of your own history. Supersedes Top Quartile and Beat Median.</span>
                   </div>
                   <div class="flex items-start gap-2">
                     <span class="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 whitespace-nowrap mt-0.5">Metronome</span>

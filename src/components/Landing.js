@@ -174,6 +174,10 @@ export function Landing() {
                 <span>In the top 25% of your own history on this segment. A genuinely strong effort by your standards.</span>
               </div>
               <div class="flex items-start gap-2">
+                <span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800 whitespace-nowrap mt-0.5">Top 10%</span>
+                <span>In the top 10% of your history. Supersedes Top Quartile and Beat Median — only the highest tier is shown.</span>
+              </div>
+              <div class="flex items-start gap-2">
                 <span class="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 whitespace-nowrap mt-0.5">Metronome</span>
                 <span>Remarkably consistent — your last 5 efforts have very low variance. Not getting faster, but repeatable.</span>
               </div>
