@@ -22,6 +22,7 @@ import { computeAwardsForActivities } from "../awards.js";
 import {
   getAllActivities,
   getAllSegments,
+  getActivitiesWithoutEfforts,
   getSyncState,
   clearAllData,
   getResetEvent,
@@ -136,8 +137,7 @@ export function Dashboard() {
 
       // Auto-trigger backfill if initial list sync isn't done
       const state = await getSyncState();
-      const pending = await getActivitiesWithoutEfforts();
-      if (!state.backfill_complete || pending.length > 0) {
+      if (!state.backfill_complete) {
         try {
           await startBackfill();
         } catch (err) {
