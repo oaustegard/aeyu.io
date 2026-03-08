@@ -6,9 +6,21 @@
  *   - Year Best (YB): Fastest effort on a segment this calendar year
  *   - Season First: First effort on a segment this calendar year
  *   - Recent Best: Best time among last 5 attempts (requires 3+ history)
+ *
+ * Data quality rules:
+ *   - Minimum effort threshold: comparative awards (Year Best, Recent Best)
+ *     require ≥3 total efforts on the segment. Season First is exempt.
+ *   - Calendar gate: Year Best is suppressed before March 1 to prevent
+ *     early-season inflation when every segment is trivially "year best".
  */
 
 import { getSegment } from "./db.js";
+
+/** Minimum total efforts on a segment before comparative awards apply */
+const MIN_EFFORTS_FOR_AWARDS = 3;
+
+/** Month (1-indexed) before which Year Best awards are suppressed */
+const YEAR_BEST_CALENDAR_GATE_MONTH = 3; // March
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
@@ -69,7 +81,10 @@ export async function computeAwards(activity) {
     }
 
     // --- Year Best ---
-    if (thisYearEfforts.length > 1) {
+    // Requires ≥3 total efforts on the segment and activity after March 1
+    const activityDate = new Date(activity.start_date_local);
+    const afterCalendarGate = (activityDate.getMonth() + 1) >= YEAR_BEST_CALENDAR_GATE_MONTH;
+    if (thisYearEfforts.length > 1 && allEfforts.length >= MIN_EFFORTS_FOR_AWARDS && afterCalendarGate) {
       const bestThisYear = Math.min(
         ...thisYearEfforts.map((e) => e.elapsed_time)
       );
@@ -96,7 +111,7 @@ export async function computeAwards(activity) {
       }
     }
 
-    // --- Recent Best ---
+    // --- Recent Best (inherently requires ≥3 efforts via last5 check) ---
     const sortedByDate = [...allEfforts].sort(
       (a, b) => b.start_date_local.localeCompare(a.start_date_local)
     );
