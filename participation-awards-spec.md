@@ -135,7 +135,7 @@ Note: existing site uses `?external=preact` pattern instead of `*` prefix. Match
 2. Browser redirects to:
    ```
    https://www.strava.com/oauth/authorize?
-     client_id=<APP_CLIENT_ID>
+     client_id=69734 (from src/config.js)
      &redirect_uri=https://aeyu.io/callback.html
      &response_type=code
      &scope=activity:read_all
@@ -427,7 +427,7 @@ wrangler deploy
 ### GitHub Pages (aeyu.io)
 ```
 # Add files to existing repo: oaustegard/aeyu.io
-# Directory structure (new files alongside existing Bluesky tools):
+# Directory structure:
 #   /index.html       (import map + app shell)
 #   /callback.html    (OAuth redirect handler)
 #   /app.js           (main app component)
@@ -437,7 +437,7 @@ wrangler deploy
 #   /awards.js        (awards engine)
 #   /components/      (UI components)
 
-# Also update root index.html to add Participation Awards card to the utility hub landing page
+# index.html becomes the app shell (placeholder already deployed)
 ```
 
 Deploy is just a git push to `main` — GitHub Pages auto-publishes.
