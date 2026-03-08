@@ -8,6 +8,8 @@
  *   - Recent Best: Best time among last 5 attempts (requires 3+ history)
  *   - Beat Median: Faster than your median time on this segment
  *   - Top Quartile: In the top 25% of your own history
+ *   - Top 10%: In the top 10% of your own history
+ *     (Superseding: Top 10% > Top Quartile > Beat Median — only highest awarded)
  *   - Consistency (Metronome): Low variance across recent efforts (CV < 0.05)
  *   - Monthly Best: Fastest effort on a segment this calendar month (#36)
  *   - Improvement Streak: 3+ consecutive faster times ending now (#36)
@@ -235,33 +237,30 @@ export async function computeAwards(activity) {
       }
     }
 
-    // --- Beat Median (#29) ---
+    // --- Beat Median / Top Quartile / Top 10% (superseding hierarchy) ---
+    // Top 10% supersedes Top Quartile supersedes Beat Median.
+    // Only the highest-tier award is granted per segment.
     if (allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
       const sortedTimes = [...allTimes].sort((a, b) => a - b);
       const med = median(sortedTimes);
+      const q1Index = Math.floor(sortedTimes.length * 0.25);
+      const q1Threshold = sortedTimes[q1Index];
+      const d1Index = Math.floor(sortedTimes.length * 0.10);
+      const d1Threshold = sortedTimes[d1Index];
+      const pctile = percentileRank(allTimes, effort.elapsed_time);
+      const rank = sortedTimes.filter((t) => t < effort.elapsed_time).length + 1;
 
-      if (effort.elapsed_time < med) {
-        const pctile = percentileRank(allTimes, effort.elapsed_time);
+      if (effort.elapsed_time <= d1Threshold) {
         awards.push({
-          type: "beat_median",
+          type: "top_decile",
           segment: segment.name,
           segment_id: segment.id,
           time: effort.elapsed_time,
           comparison: null,
-          delta: Math.round(med - effort.elapsed_time),
-          message: `Beat your median on ${segment.name}! ${formatTime(effort.elapsed_time)} — ${formatTime(Math.round(med - effort.elapsed_time))} under median (top ${100 - pctile}% of ${allEfforts.length} efforts)`,
+          delta: null,
+          message: `Top 10% on ${segment.name}! #${rank} of ${allEfforts.length} efforts — ${formatTime(effort.elapsed_time)}`,
         });
-      }
-    }
-
-    // --- Top Quartile (#29) ---
-    if (allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
-      const sortedTimes = [...allTimes].sort((a, b) => a - b);
-      const q1Index = Math.floor(sortedTimes.length * 0.25);
-      const q1Threshold = sortedTimes[q1Index];
-
-      if (effort.elapsed_time <= q1Threshold) {
-        const rank = sortedTimes.filter((t) => t < effort.elapsed_time).length + 1;
+      } else if (effort.elapsed_time <= q1Threshold) {
         awards.push({
           type: "top_quartile",
           segment: segment.name,
@@ -270,6 +269,16 @@ export async function computeAwards(activity) {
           comparison: null,
           delta: null,
           message: `Top quartile on ${segment.name}! #${rank} of ${allEfforts.length} efforts — ${formatTime(effort.elapsed_time)}`,
+        });
+      } else if (effort.elapsed_time < med) {
+        awards.push({
+          type: "beat_median",
+          segment: segment.name,
+          segment_id: segment.id,
+          time: effort.elapsed_time,
+          comparison: null,
+          delta: Math.round(med - effort.elapsed_time),
+          message: `Beat your median on ${segment.name}! ${formatTime(effort.elapsed_time)} — ${formatTime(Math.round(med - effort.elapsed_time))} under median (top ${100 - pctile}% of ${allEfforts.length} efforts)`,
         });
       }
     }
@@ -371,7 +380,6 @@ export async function computeAwards(activity) {
     // --- Best Month Ever (#27) ---
     // Fastest effort in this calendar month across ALL years
     if (allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
-      const actMonth = activityDate.getMonth();
       const sameMonthEfforts = allEfforts.filter(
         (e) => new Date(e.start_date_local).getMonth() === actMonth
       );

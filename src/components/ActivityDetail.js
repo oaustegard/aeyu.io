@@ -52,6 +52,7 @@ const AWARD_LABELS = {
   recent_best: { label: "Recent Best", color: "bg-blue-100 text-blue-800", icon: "↑" },
   beat_median: { label: "Beat Median", color: "bg-purple-100 text-purple-800", icon: "◆" },
   top_quartile: { label: "Top Quartile", color: "bg-indigo-100 text-indigo-800", icon: "▲" },
+  top_decile: { label: "Top 10%", color: "bg-red-100 text-red-800", icon: "⬆" },
   consistency: { label: "Metronome", color: "bg-teal-100 text-teal-800", icon: "≡" },
   monthly_best: { label: "Monthly Best", color: "bg-orange-100 text-orange-800", icon: "◎" },
   improvement_streak: { label: "On a Roll", color: "bg-emerald-100 text-emerald-800", icon: "⟫" },
@@ -72,6 +73,7 @@ const AWARD_COLORS = {
   recent_best:        { bg: "#DBEAFE", text: "#1E40AF", accent: "#3B82F6" },
   beat_median:        { bg: "#F3E8FF", text: "#6B21A8", accent: "#A855F7" },
   top_quartile:       { bg: "#E0E7FF", text: "#3730A3", accent: "#6366F1" },
+  top_decile:         { bg: "#FEE2E2", text: "#991B1B", accent: "#EF4444" },
   consistency:        { bg: "#CCFBF1", text: "#115E59", accent: "#14B8A6" },
   monthly_best:       { bg: "#FFEDD5", text: "#9A3412", accent: "#F97316" },
   improvement_streak: { bg: "#D1FAE5", text: "#065F46", accent: "#10B981" },
@@ -255,7 +257,7 @@ function renderShareCard(canvas, act, awardsList) {
   if (awardsList.length > 0) {
     // Summary pills
     const counts = {};
-    const order = ["season_first", "year_best", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "beat_median", "top_quartile", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
+    const order = ["season_first", "year_best", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
     for (const a of awardsList) counts[a.type] = (counts[a.type] || 0) + 1;
 
     let pillX = left;
