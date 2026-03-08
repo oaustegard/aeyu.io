@@ -22,7 +22,6 @@ import { computeAwardsForActivities } from "../awards.js";
 import {
   getAllActivities,
   getAllSegments,
-  getActivitiesWithoutEfforts,
   getSyncState,
   clearAllData,
 } from "../db.js";
@@ -80,14 +79,14 @@ async function loadDashboard() {
     const recent = activities.slice(0, 20);
     recentActivities.value = recent;
 
-    // Check if initial sync is fully done (list + all details)
+    // Check if initial list sync is done (activity list fully fetched)
     const state = await getSyncState();
-    const pending = await getActivitiesWithoutEfforts();
-    const fullyLoaded = state.backfill_complete && pending.length === 0;
-    backfillComplete.value = fullyLoaded;
+    backfillComplete.value = state.backfill_complete;
 
-    // Only compute awards when we have complete data
-    if (fullyLoaded) {
+    // Compute awards once the activity list is complete — don't require
+    // every single activity to have details, since some may permanently
+    // fail (deleted, private, API errors). Work with what we have.
+    if (state.backfill_complete) {
       const withEfforts = recent.filter((a) => a.has_efforts);
       const awards = await computeAwardsForActivities(withEfforts);
       activityAwards.value = awards;
@@ -119,10 +118,9 @@ export function Dashboard() {
     async function init() {
       await loadDashboard();
 
-      // Auto-trigger backfill if initial sync isn't done
+      // Auto-trigger backfill if initial list sync isn't done
       const state = await getSyncState();
-      const pending = await getActivitiesWithoutEfforts();
-      if (!state.backfill_complete || pending.length > 0) {
+      if (!state.backfill_complete) {
         try {
           await startBackfill();
         } catch (err) {
