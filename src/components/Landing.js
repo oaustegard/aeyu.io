@@ -29,7 +29,7 @@ export function Landing() {
           </p>
 
           <button
-            onClick=${() => startOAuth()}
+            onClick=$${() => startOAuth()}
             class="inline-flex items-center gap-2 bg-[#FC4C02] hover:bg-[#e04400] text-white font-semibold px-6 py-3 rounded-lg transition-colors"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -39,9 +39,17 @@ export function Landing() {
           </button>
         </div>
 
-        <p class="text-xs text-gray-400">
-          Your data stays in your browser. We never store it on a server.
-        </p>
+        <div class="text-xs text-gray-400 space-y-1">
+          <p class="font-medium text-gray-500">
+            100% client-side — your data never touches our servers.
+          </p>
+          <p>
+            Strava's authorization screen asks to share data with this app,
+            but all data flows directly from Strava to your browser.
+            We have no server, no database, no analytics.
+            Nothing leaves your device.
+          </p>
+        </div>
       </div>
     </div>
   `;
