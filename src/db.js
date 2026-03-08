@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = "participation-awards";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise = null;
 
@@ -16,6 +16,7 @@ export function openDB() {
 
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
+      const oldVersion = event.oldVersion;
 
       if (!db.objectStoreNames.contains("auth")) {
         db.createObjectStore("auth");
@@ -25,6 +26,8 @@ export function openDB() {
         const activities = db.createObjectStore("activities", { keyPath: "id" });
         activities.createIndex("start_date_local", "start_date_local");
         activities.createIndex("sport_type", "sport_type");
+        activities.createIndex("device_watts", "device_watts");
+        activities.createIndex("trainer", "trainer");
       }
 
       if (!db.objectStoreNames.contains("segments")) {
@@ -34,6 +37,18 @@ export function openDB() {
 
       if (!db.objectStoreNames.contains("sync_state")) {
         db.createObjectStore("sync_state");
+      }
+
+      // Migration from v1 → v2: add power indexes to existing activities store
+      if (oldVersion < 2 && db.objectStoreNames.contains("activities")) {
+        const activitiesTx = event.target.transaction;
+        const activities = activitiesTx.objectStore("activities");
+        if (!activities.indexNames.contains("device_watts")) {
+          activities.createIndex("device_watts", "device_watts");
+        }
+        if (!activities.indexNames.contains("trainer")) {
+          activities.createIndex("trainer", "trainer");
+        }
       }
     };
 
@@ -133,6 +148,23 @@ export async function getActivitiesWithoutEfforts() {
       const results = req.result.filter((a) => !a.has_efforts);
       // Sort by start_date descending (newest first)
       results.sort((a, b) => b.start_date_local.localeCompare(a.start_date_local));
+      resolve(results);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/**
+ * Get activities that were stored before power fields were tracked.
+ * These lack the device_watts property entirely (not just false).
+ */
+export async function getActivitiesWithoutPower() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("activities", "readonly");
+    const req = tx.objectStore("activities").getAll();
+    req.onsuccess = () => {
+      const results = req.result.filter((a) => !("device_watts" in a));
       resolve(results);
     };
     req.onerror = () => reject(req.error);
@@ -311,6 +343,7 @@ const DEFAULT_SYNC_STATE = {
   fetched_activities: 0,
   detailed_activities: 0,
   last_sync: null,
+  power_backfill_complete: false,
 };
 
 export async function getSyncState() {

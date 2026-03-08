@@ -10,6 +10,7 @@ import {
   putActivities,
   putActivity,
   getActivitiesWithoutEfforts,
+  getActivitiesWithoutPower,
   getSyncState,
   updateSyncState,
   appendEffort,
@@ -149,6 +150,7 @@ async function fetchActivityList() {
       weighted_average_watts: a.weighted_average_watts || null,
       device_watts: a.device_watts || false,
       kilojoules: a.kilojoules || null,
+      trainer: a.trainer || false,
       has_efforts: false,
       segment_efforts: [],
     }));
@@ -249,6 +251,7 @@ async function fetchActivityDetails() {
         weighted_average_watts: full.weighted_average_watts || activity.weighted_average_watts || null,
         device_watts: full.device_watts || activity.device_watts || false,
         kilojoules: full.kilojoules || activity.kilojoules || null,
+        trainer: full.trainer || activity.trainer || false,
       };
 
       await putActivity(updated);
@@ -317,6 +320,84 @@ async function fetchActivityDetails() {
   return detailed;
 }
 
+// --- Phase 3: Power Fields Backfill ---
+
+/**
+ * Backfill power fields for activities stored before power tracking.
+ * Re-fetches the activity list (200/page) which includes power fields,
+ * then merges them into existing records. Only runs once.
+ */
+async function backfillPowerFields() {
+  const state = await getSyncState();
+  if (state.power_backfill_complete) return;
+
+  const legacy = await getActivitiesWithoutPower();
+  if (legacy.length === 0) {
+    await updateSyncState({ power_backfill_complete: true });
+    return;
+  }
+
+  syncProgress.value = {
+    ...syncProgress.value,
+    phase: "list",
+    message: `Backfilling power data for ${legacy.length} activities...`,
+  };
+
+  // Build a lookup of legacy activity IDs for fast matching
+  const legacyIds = new Set(legacy.map((a) => a.id));
+  let page = 1;
+  let updated = 0;
+
+  while (true) {
+    if (isRateLimited()) break;
+
+    const params = new URLSearchParams({
+      per_page: String(PAGE_SIZE),
+      page: String(page),
+      after: "0",
+    });
+
+    const activities = await stravaFetch(`/athlete/activities?${params}`);
+    if (activities.length === 0) break;
+
+    const patches = [];
+    for (const a of activities) {
+      if (legacyIds.has(a.id)) {
+        // Find existing record and merge power fields
+        const existing = legacy.find((l) => l.id === a.id);
+        patches.push({
+          ...existing,
+          average_watts: a.average_watts || null,
+          max_watts: a.max_watts || null,
+          weighted_average_watts: a.weighted_average_watts || null,
+          device_watts: a.device_watts || false,
+          kilojoules: a.kilojoules || null,
+          trainer: a.trainer || false,
+        });
+        legacyIds.delete(a.id);
+      }
+    }
+
+    if (patches.length > 0) {
+      await putActivities(patches);
+      updated += patches.length;
+    }
+
+    syncProgress.value = {
+      ...syncProgress.value,
+      message: `Backfilling power data: ${updated}/${legacy.length}...`,
+    };
+
+    page++;
+    if (activities.length < PAGE_SIZE) break;
+    if (legacyIds.size === 0) break;
+  }
+
+  if (legacyIds.size === 0) {
+    await updateSyncState({ power_backfill_complete: true });
+  }
+}
+
 // --- Public API ---
 
 /**
@@ -338,6 +419,7 @@ export async function startBackfill() {
     };
 
     await fetchActivityList();
+    await backfillPowerFields();
     const detailed = await fetchActivityDetails();
 
     const remaining = await getActivitiesWithoutEfforts();
