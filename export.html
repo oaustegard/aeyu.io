@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Export Token</title>
+<style>
+body { font-family: system-ui; max-width: 480px; margin: 2rem auto; padding: 1rem; background: #1a1a2e; color: #eee; }
+pre { background: #16213e; padding: 1rem; border-radius: 8px; word-break: break-all; white-space: pre-wrap; font-size: 14px; }
+button { background: #FC4C02; color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 1rem; }
+.label { color: #888; font-size: 12px; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<h2>🔑 Export Token</h2>
+<div id="output">Reading IndexedDB...</div>
+<script>
+async function getToken() {
+  const out = document.getElementById('output');
+  try {
+    const db = await new Promise((resolve, reject) => {
+      const req = indexedDB.open('participation-awards');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    const tx = db.transaction('auth', 'readonly');
+    const store = tx.objectStore('auth');
+    const data = await new Promise((resolve, reject) => {
+      const req = store.get('session');
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    if (!data) {
+      out.innerHTML = '<p>No session found in IndexedDB.</p>';
+      return;
+    }
+    const rt = data.refresh_token || data.refreshToken || '(not found)';
+    const at = data.access_token || data.accessToken || '(not found)';
+    const athlete = data.athlete ? JSON.stringify(data.athlete, null, 2) : '(none)';
+    out.innerHTML = `
+      <div class="label">Refresh Token (copy this):</div>
+      <pre id="rt">${rt}</pre>
+      <button onclick="navigator.clipboard.writeText(document.getElementById('rt').textContent).then(()=>this.textContent='Copied!')">Copy Refresh Token</button>
+      <br><br>
+      <div class="label">Access Token:</div>
+      <pre>${at}</pre>
+      <div class="label">Athlete:</div>
+      <pre>${athlete}</pre>
+      <div class="label">Raw data:</div>
+      <pre>${JSON.stringify(data, null, 2)}</pre>
+    `;
+  } catch(e) {
+    out.innerHTML = '<p>Error: ' + e.message + '</p><p>Make sure you completed OAuth first.</p>';
+  }
+}
+getToken();
+</script>
+</body>
+</html>
