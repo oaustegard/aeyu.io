@@ -33,14 +33,31 @@ export function SyncProgress() {
       ? Math.round((progress.detailed / progress.detailTotal) * 100)
       : 0;
 
+  const isThrottled = shortPct > 80 || dailyPct > 80;
+
   return html`
     <div class="min-h-screen bg-gray-50 flex items-center justify-center px-6">
       <div class="max-w-lg w-full">
-        <div class="text-center mb-8">
+        <div class="text-center mb-6">
           <h1 class="text-3xl font-bold text-gray-800 mb-1">Syncing your activities</h1>
           ${auth && html`
             <p class="text-gray-500">Welcome, ${auth.athlete.firstname}!</p>
           `}
+        </div>
+
+        <!-- Explainer header -->
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-sm text-amber-800">
+          <p class="font-medium mb-1">Why is this slow?</p>
+          <p class="text-amber-700">
+            Your activity data is stored entirely in your browser — we have
+            no server or database. That means we fetch everything directly
+            from Strava's API on your behalf, one page at a time.
+            Strava limits apps to
+            <strong>100 requests per 15 minutes</strong> and
+            <strong>1,000 per day</strong>, so a large history takes a
+            few sessions to fully load. You can close this page and come
+            back — we'll pick up where we left off.
+          </p>
         </div>
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-4">
@@ -83,8 +100,13 @@ export function SyncProgress() {
 
         <!-- Rate limit indicator -->
         ${(shortPct > 0 || dailyPct > 0) && html`
-          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-            <p class="text-xs text-gray-500 font-medium mb-2">Strava API usage</p>
+          <div class="bg-white rounded-xl shadow-sm border ${isThrottled ? 'border-amber-300' : 'border-gray-200'} p-4 mb-4">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs text-gray-500 font-medium">Strava API usage</p>
+              ${isThrottled && html`
+                <span class="text-xs text-amber-600 font-medium">Throttling to stay within limits</span>
+              `}
+            </div>
             <div class="flex gap-4 text-xs">
               <div class="flex-1">
                 <div class="flex justify-between text-gray-500 mb-1">
