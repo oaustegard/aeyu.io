@@ -130,7 +130,7 @@ async function fetchActivityList() {
 
     if (activities.length === 0) break;
 
-    // Mark as needing detail fetch
+    // Mark as needing detail fetch — include power fields from summary
     const summaries = activities.map((a) => ({
       id: a.id,
       name: a.name,
@@ -143,6 +143,12 @@ async function fetchActivityList() {
       total_elevation_gain: a.total_elevation_gain,
       average_speed: a.average_speed,
       max_speed: a.max_speed,
+      // Power fields (from activity summary)
+      average_watts: a.average_watts || null,
+      max_watts: a.max_watts || null,
+      weighted_average_watts: a.weighted_average_watts || null,
+      device_watts: a.device_watts || false,
+      kilojoules: a.kilojoules || null,
       has_efforts: false,
       segment_efforts: [],
     }));
@@ -228,17 +234,26 @@ async function fetchActivityDetails() {
         start_date_local: e.start_date_local,
         pr_rank: e.pr_rank || null,
         achievements: e.achievements || [],
+        // Power fields per segment effort
+        average_watts: e.average_watts || null,
+        device_watts: e.device_watts || false,
       }));
 
       const updated = {
         ...activity,
         has_efforts: true,
         segment_efforts: efforts,
+        // Update power fields from detail response (more complete than summary)
+        average_watts: full.average_watts || activity.average_watts || null,
+        max_watts: full.max_watts || activity.max_watts || null,
+        weighted_average_watts: full.weighted_average_watts || activity.weighted_average_watts || null,
+        device_watts: full.device_watts || activity.device_watts || false,
+        kilojoules: full.kilojoules || activity.kilojoules || null,
       };
 
       await putActivity(updated);
 
-      // Denormalize into segments store
+      // Denormalize into segments store — include power in effort record
       for (const effort of efforts) {
         await appendEffort(effort.segment.id, effort.segment, {
           effort_id: effort.id,
@@ -248,6 +263,8 @@ async function fetchActivityDetails() {
           start_date: effort.start_date,
           start_date_local: effort.start_date_local,
           pr_rank: effort.pr_rank,
+          average_watts: effort.average_watts,
+          device_watts: effort.device_watts,
         });
       }
 

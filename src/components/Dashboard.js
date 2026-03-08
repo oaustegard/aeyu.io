@@ -27,6 +27,16 @@ import {
   clearAllData,
 } from "../db.js";
 import { navigate } from "../app.js";
+import {
+  unitSystem,
+  loadUnitPreference,
+  setUnitPreference,
+  formatDistance,
+  formatTime,
+  formatDateWeekday,
+  formatElevation,
+  formatPower,
+} from "../units.js";
 
 const recentActivities = signal([]);
 const activityAwards = signal(new Map());
@@ -36,25 +46,6 @@ const backfillComplete = signal(false);
 const showFaq = signal(false);
 const deleteConfirmText = signal("");
 const showDeleteConfirm = signal(false);
-
-function formatTime(seconds) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
-}
-
-function formatDistance(meters) {
-  const km = meters / 1000;
-  return km >= 1 ? `${km.toFixed(1)} km` : `${Math.round(meters)} m`;
-}
-
-function formatDate(isoString) {
-  return new Date(isoString).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 const AWARD_LABELS = {
   year_best: { label: "Year Best", color: "bg-yellow-100 text-yellow-800" },
@@ -75,11 +66,14 @@ const AWARD_LABELS = {
   elevation_record: { label: "Most Climbing", color: "bg-sky-100 text-sky-800" },
   segment_count: { label: "Most Segments", color: "bg-lime-100 text-lime-800" },
   endurance_record: { label: "Longest by Time", color: "bg-slate-100 text-slate-800" },
+  ytd_best_time: { label: "YTD Best", color: "bg-amber-200 text-amber-900" },
+  ytd_best_power: { label: "YTD Power", color: "bg-red-200 text-red-900" },
 };
 
 async function loadDashboard() {
   loading.value = true;
   try {
+    await loadUnitPreference();
     const activities = await getAllActivities();
     // Sort by date descending, take recent 20
     activities.sort((a, b) => b.start_date_local.localeCompare(a.start_date_local));
@@ -119,6 +113,7 @@ export function Dashboard() {
   const progress = syncProgress.value;
   const syncing = isSyncing.value;
   const rateLimit = rateLimitStatus.value;
+  const units = unitSystem.value;
 
   useEffect(() => {
     async function init() {
@@ -157,6 +152,18 @@ export function Dashboard() {
     navigate("");
   }
 
+  async function handleUnitToggle() {
+    const next = units === "metric" ? "imperial" : "metric";
+    await setUnitPreference(next);
+    // Re-render by updating signal (already done in setUnitPreference)
+    // Recompute awards to update messages
+    if (backfillComplete.value) {
+      const withEfforts = recentActivities.value.filter((a) => a.has_efforts);
+      const awards = await computeAwardsForActivities(withEfforts);
+      activityAwards.value = awards;
+    }
+  }
+
   // Rate limit percentages for the inline indicator
   const shortPct = rateLimit.shortLimit
     ? Math.round((rateLimit.shortUsage / rateLimit.shortLimit) * 100)
@@ -183,6 +190,14 @@ export function Dashboard() {
             `}
           </div>
           <div class="flex items-center gap-3">
+            <!-- Unit toggle -->
+            <button
+              onClick=${handleUnitToggle}
+              class="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:text-gray-700 hover:border-gray-300 transition-colors"
+              title="Toggle metric/imperial"
+            >
+              ${units === "metric" ? "km" : "mi"}
+            </button>
             <button
               onClick=${handleSync}
               disabled=${syncing}
@@ -288,10 +303,15 @@ export function Dashboard() {
               for (const a of awards) {
                 typeCounts.set(a.type, (typeCounts.get(a.type) || 0) + 1);
               }
-              const typeOrder = ["season_first", "year_best", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
+              const typeOrder = ["season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
               const summary = typeOrder
                 .filter((t) => typeCounts.has(t))
                 .map((t) => ({ type: t, count: typeCounts.get(t) }));
+
+              // Power display — only for measured power
+              const powerLabel = activity.device_watts && activity.average_watts
+                ? formatPower(activity.average_watts)
+                : null;
 
               return html`
                 <button
@@ -301,9 +321,11 @@ export function Dashboard() {
                 >
                   <div class="font-medium text-gray-800">${activity.name}</div>
                   <div class="text-sm text-gray-500 mt-1">
-                    ${formatDate(activity.start_date_local)}
+                    ${formatDateWeekday(activity.start_date_local)}
                     · ${formatDistance(activity.distance)}
                     · ${formatTime(activity.moving_time)}
+                    ${activity.total_elevation_gain ? ` · ${formatElevation(activity.total_elevation_gain)}` : ""}
+                    ${powerLabel ? ` · ${powerLabel}` : ""}
                   </div>
                   ${summary.length > 0 && html`
                     <div class="flex flex-wrap gap-1.5 mt-2">
@@ -350,6 +372,14 @@ export function Dashboard() {
                   <div class="flex items-start gap-2">
                     <span class="text-xs px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800 whitespace-nowrap mt-0.5">Year Best</span>
                     <span>Fastest time on a segment this year (after March, with 3+ efforts).</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 whitespace-nowrap mt-0.5">YTD Best</span>
+                    <span>Fastest time by this date across multiple years — your best performance at this point in the season.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-red-200 text-red-900 whitespace-nowrap mt-0.5">YTD Power</span>
+                    <span>Highest measured power by this date across multiple years. Only counts power meter data.</span>
                   </div>
                   <div class="flex items-start gap-2">
                     <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 whitespace-nowrap mt-0.5">Recent Best</span>
@@ -455,6 +485,16 @@ export function Dashboard() {
                 </summary>
                 <div class="pt-3 pb-1 text-sm text-gray-600">
                   Segments dominated by traffic lights or stops produce wildly varying times. If your times on a segment vary by more than 50% (coefficient of variation), awards are suppressed since those times reflect traffic, not performance. Season First is the exception — it always counts.
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                  What about power data?
+                  <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 text-sm text-gray-600">
+                  Power is shown for rides with a power meter (measured watts only — estimated power is excluded). Average watts appear in ride summaries and per-segment details. YTD Power awards compare your power output by date across years.
                 </div>
               </details>
             </div>

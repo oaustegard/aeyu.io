@@ -10,6 +10,14 @@ import { useEffect, useRef } from "preact/hooks";
 import { getActivity, getSegment, getAllActivities } from "../db.js";
 import { computeAwards, computeRideLevelAwards } from "../awards.js";
 import { navigate } from "../app.js";
+import {
+  formatDistance,
+  formatTime,
+  formatDate,
+  formatDateFull,
+  formatElevation,
+  formatPower,
+} from "../units.js";
 
 const activity = signal(null);
 const awards = signal([]);
@@ -17,26 +25,6 @@ const segmentHistory = signal(new Map());
 const loading = signal(true);
 const copied = signal(false);
 const cardGenerated = signal(false);
-
-function formatTime(seconds) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
-}
-
-function formatDistance(meters) {
-  const km = meters / 1000;
-  return km >= 1 ? `${km.toFixed(1)} km` : `${Math.round(meters)} m`;
-}
-
-function formatDate(isoString) {
-  return new Date(isoString).toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
 
 function formatDateShort(isoString) {
   return new Date(isoString).toLocaleDateString("en-US", {
@@ -65,6 +53,8 @@ const AWARD_LABELS = {
   elevation_record: { label: "Most Climbing", color: "bg-sky-100 text-sky-800", icon: "⛰" },
   segment_count: { label: "Most Segments", color: "bg-lime-100 text-lime-800", icon: "#" },
   endurance_record: { label: "Longest by Time", color: "bg-slate-100 text-slate-800", icon: "⏱" },
+  ytd_best_time: { label: "YTD Best", color: "bg-amber-200 text-amber-900", icon: "📅" },
+  ytd_best_power: { label: "YTD Power", color: "bg-red-200 text-red-900", icon: "⚡" },
 };
 
 const AWARD_COLORS = {
@@ -86,6 +76,8 @@ const AWARD_COLORS = {
   elevation_record:   { bg: "#E0F2FE", text: "#075985", accent: "#0EA5E9" },
   segment_count:      { bg: "#ECFCCB", text: "#3F6212", accent: "#84CC16" },
   endurance_record:   { bg: "#F1F5F9", text: "#334155", accent: "#64748B" },
+  ytd_best_time:      { bg: "#FDE68A", text: "#78350F", accent: "#D97706" },
+  ytd_best_power:     { bg: "#FECACA", text: "#7F1D1D", accent: "#DC2626" },
 };
 
 async function loadActivity(id) {
@@ -122,7 +114,8 @@ function buildSummary(act, awardsList) {
   const lines = [];
   lines.push(act.name);
   let meta = `${formatDateShort(act.start_date_local)} · ${formatDistance(act.distance)} · ${formatTime(act.moving_time)}`;
-  if (act.total_elevation_gain) meta += ` · ${Math.round(act.total_elevation_gain)}m`;
+  if (act.total_elevation_gain) meta += ` · ${formatElevation(act.total_elevation_gain)}`;
+  if (act.device_watts && act.average_watts) meta += ` · ${formatPower(act.average_watts)}`;
   lines.push(meta);
 
   if (awardsList.length > 0) {
@@ -137,7 +130,9 @@ function buildSummary(act, awardsList) {
     const top = awardsList.slice(0, 3);
     for (const a of top) {
       const icon = AWARD_LABELS[a.type]?.icon || "•";
-      lines.push(`  ${icon} ${a.segment} — ${formatTime(a.time)}`);
+      let detail = a.time != null ? formatTime(a.time) : "";
+      if (a.power) detail += detail ? ` · ${formatPower(a.power)}` : formatPower(a.power);
+      lines.push(`  ${icon} ${a.segment || ""} ${detail ? "— " + detail : ""}`);
     }
     if (awardsList.length > 3) lines.push(`  + ${awardsList.length - 3} more`);
   }
@@ -161,7 +156,6 @@ function renderShareCard(canvas, act, awardsList) {
   const nameLines = wrapText(tmpCtx, act.name, maxTextW);
 
   const showCount = Math.min(awardsList.length, 6);
-  const hasDeltas = awardsList.slice(0, showCount).some(a => a.delta && a.delta > 0);
 
   // Calculate height
   let contentH = 60;  // top padding in card
@@ -247,7 +241,8 @@ function renderShareCard(canvas, act, awardsList) {
 
   // Meta
   const meta = [formatDateShort(act.start_date_local), formatDistance(act.distance), formatTime(act.moving_time)];
-  if (act.total_elevation_gain) meta.push(`${Math.round(act.total_elevation_gain)}m`);
+  if (act.total_elevation_gain) meta.push(formatElevation(act.total_elevation_gain));
+  if (act.device_watts && act.average_watts) meta.push(formatPower(act.average_watts));
   ctx.font = "400 30px -apple-system, BlinkMacSystemFont, sans-serif";
   ctx.fillStyle = "#94A3B8";
   ctx.fillText(meta.join("  ·  "), left, y);
@@ -257,7 +252,7 @@ function renderShareCard(canvas, act, awardsList) {
   if (awardsList.length > 0) {
     // Summary pills
     const counts = {};
-    const order = ["season_first", "year_best", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
+    const order = ["season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
     for (const a of awardsList) counts[a.type] = (counts[a.type] || 0) + 1;
 
     let pillX = left;
@@ -268,6 +263,7 @@ function renderShareCard(canvas, act, awardsList) {
         ? `${counts[type]}× ${AWARD_LABELS[type].label}`
         : AWARD_LABELS[type].label;
       const colors = AWARD_COLORS[type];
+      if (!colors) continue;
       const tw = ctx.measureText(label).width + 32;
       ctx.fillStyle = colors.bg;
       roundRect(ctx, pillX, y - 28, tw, 40, 20);
@@ -290,6 +286,7 @@ function renderShareCard(canvas, act, awardsList) {
     const show = awardsList.slice(0, 6);
     for (const award of show) {
       const colors = AWARD_COLORS[award.type];
+      if (!colors) continue;
 
       // Accent bar
       ctx.fillStyle = colors.accent;
@@ -299,13 +296,14 @@ function renderShareCard(canvas, act, awardsList) {
       // Segment name
       ctx.font = "500 28px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.fillStyle = "#E2E8F0";
-      ctx.fillText(award.segment, left + 20, y + 4);
+      ctx.fillText(award.segment || "", left + 20, y + 4);
 
-      // Time
+      // Time + power
+      const rightLabel = award.time != null ? formatTime(award.time) : (award.power ? `${Math.round(award.power)}W` : "");
       ctx.font = "600 28px -apple-system, BlinkMacSystemFont, sans-serif";
       ctx.fillStyle = colors.accent;
       ctx.textAlign = "right";
-      ctx.fillText(formatTime(award.time), W - pad - 48, y + 4);
+      ctx.fillText(rightLabel, W - pad - 48, y + 4);
       ctx.textAlign = "left";
 
       // Delta
@@ -446,6 +444,9 @@ export function ActivityDetail({ id }) {
     URL.revokeObjectURL(url);
   }
 
+  // Ride-level power display
+  const ridePower = act.device_watts && act.average_watts ? formatPower(act.average_watts) : null;
+
   return html`
     <div class="min-h-screen bg-gray-50">
       <header class="bg-white border-b border-gray-200 px-6 py-4">
@@ -455,10 +456,11 @@ export function ActivityDetail({ id }) {
           </button>
           <h1 class="text-xl font-bold text-gray-800">${act.name}</h1>
           <p class="text-sm text-gray-500">
-            ${formatDate(act.start_date_local)}
+            ${formatDateFull(act.start_date_local)}
             · ${formatDistance(act.distance)}
             · ${formatTime(act.moving_time)}
-            ${act.total_elevation_gain ? ` · ${Math.round(act.total_elevation_gain)}m elevation` : ""}
+            ${act.total_elevation_gain ? ` · ${formatElevation(act.total_elevation_gain)} elevation` : ""}
+            ${ridePower ? ` · ${ridePower} avg` : ""}
           </p>
         </div>
       </header>
@@ -532,6 +534,9 @@ export function ActivityDetail({ id }) {
               const seg = segmentHistory.value.get(effort.segment.id);
               const segAwards = effortAwards.get(effort.segment.id) || [];
               const effortCount = seg ? seg.efforts.length : 0;
+              const effortPower = effort.device_watts && effort.average_watts
+                ? formatPower(effort.average_watts)
+                : null;
 
               return html`
                 <div class="bg-white rounded-xl border border-gray-200 p-4">
@@ -542,6 +547,7 @@ export function ActivityDetail({ id }) {
                         ${formatDistance(effort.segment.distance)}
                         · ${effort.segment.average_grade}% grade
                         · ${formatTime(effort.elapsed_time)}
+                        ${effortPower ? ` · ${effortPower}` : ""}
                       </div>
                       ${effortCount > 1 && html`
                         <div class="text-xs text-gray-400 mt-1">

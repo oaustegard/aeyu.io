@@ -18,6 +18,8 @@
  *   - Best Month Ever: Fastest effort on segment in this calendar month across all years (#27)
  *   - Closing In: Within 10% of all-time PR on a segment (#28)
  *   - Anniversary: Rode this segment on same date N years ago (#30)
+ *   - YTD Best Time: Fastest time by this date across all years
+ *   - YTD Best Power: Highest power by this date across all years
  *
  * Ride-level awards (computed per-activity, not per-segment):
  *   - Distance Record: Longest ride this year (#36)
@@ -27,14 +29,16 @@
  *
  * Data quality rules:
  *   - Minimum effort threshold: comparative awards (Year Best, Recent Best,
- *     Beat Median, Top Quartile, Monthly Best) require ≥3 total efforts.
+ *     Beat Median, Top Quartile, Monthly Best, YTD Best) require ≥3 total efforts.
  *     Season First and Milestone exempt.
  *   - Calendar gate: Year Best suppressed before March 1.
  *   - High-variance filter: segments with CV > 0.5 (≥5 efforts) are
  *     traffic-dominated — all awards suppressed except Season First and Milestone.
+ *   - Power awards require device_watts === true (measured, not estimated).
  */
 
 import { getSegment } from "./db.js";
+import { formatTime, formatDistance } from "./units.js";
 
 /** Minimum total efforts on a segment before comparative awards apply */
 const MIN_EFFORTS_FOR_AWARDS = 3;
@@ -63,11 +67,8 @@ const COMEBACK_MIN_SLUMP = 3;
 /** Effort counts that earn a milestone award */
 const MILESTONE_COUNTS = [10, 25, 50, 100, 250, 500, 1000];
 
-function formatTime(seconds) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
-}
+/** Minimum prior years needed for YTD comparison */
+const YTD_MIN_PRIOR_YEARS = 1;
 
 function formatDate(isoString) {
   return new Date(isoString).toLocaleDateString("en-US", {
@@ -117,6 +118,85 @@ function median(sortedValues) {
   return n % 2 === 0 ? (sortedValues[mid - 1] + sortedValues[mid]) / 2 : sortedValues[mid];
 }
 
+/** Day of year (0-indexed) for a Date */
+function dayOfYear(date) {
+  const start = new Date(date.getFullYear(), 0, 1);
+  return Math.floor((date - start) / 86400000);
+}
+
+/**
+ * Compute YTD comparison for a segment effort.
+ * Returns the earliest year the current effort beats (contiguous from most recent),
+ * or null if no YTD record.
+ *
+ * @param {number} currentValue - Current effort value (time in seconds, or watts)
+ * @param {Array} allEfforts - All efforts on this segment
+ * @param {Date} activityDate - Date of the current activity
+ * @param {string} field - "elapsed_time" (lower=better) or "average_watts" (higher=better)
+ * @returns {{ sinceYear: number, span: number } | null}
+ */
+function computeYtdComparison(currentValue, allEfforts, activityDate, field) {
+  if (currentValue == null) return null;
+
+  const currentYear = activityDate.getFullYear();
+  const currentDoy = dayOfYear(activityDate);
+  const lowerIsBetter = field === "elapsed_time";
+
+  // Group efforts by year, filtering to YTD window (day-of-year <= current)
+  const ytdByYear = {};
+  for (const e of allEfforts) {
+    const d = new Date(e.start_date_local);
+    const year = d.getFullYear();
+    const doy = dayOfYear(d);
+    if (doy <= currentDoy) {
+      const val = e[field];
+      if (val != null && val > 0) {
+        if (!ytdByYear[year]) ytdByYear[year] = [];
+        ytdByYear[year].push(val);
+      }
+    }
+  }
+
+  // Best per year in YTD window
+  const bestByYear = {};
+  for (const [year, values] of Object.entries(ytdByYear)) {
+    bestByYear[year] = lowerIsBetter
+      ? Math.min(...values)
+      : Math.max(...values);
+  }
+
+  // Check current year's best matches this effort
+  const currentYearBest = bestByYear[currentYear];
+  if (currentYearBest == null) return null;
+  if (lowerIsBetter && currentValue > currentYearBest) return null;
+  if (!lowerIsBetter && currentValue < currentYearBest) return null;
+
+  // Walk prior years from most recent backward, find contiguous span we beat
+  const priorYears = Object.keys(bestByYear)
+    .map(Number)
+    .filter((y) => y < currentYear)
+    .sort((a, b) => b - a); // newest first
+
+  if (priorYears.length < YTD_MIN_PRIOR_YEARS) return null;
+
+  let sinceYear = null;
+  for (const year of priorYears) {
+    const priorBest = bestByYear[year];
+    const beats = lowerIsBetter
+      ? currentValue <= priorBest
+      : currentValue >= priorBest;
+    if (beats) {
+      sinceYear = year;
+    } else {
+      break; // contiguous chain broken
+    }
+  }
+
+  if (sinceYear == null) return null;
+  return { sinceYear, span: currentYear - sinceYear };
+}
+
+
 /**
  * Compute awards for a single activity's segment efforts.
  * @param {Object} activity — Activity with segment_efforts populated
@@ -154,6 +234,7 @@ export async function computeAwards(activity) {
         segment: segment.name,
         segment_id: segment.id,
         time: effort.elapsed_time,
+        power: effort.average_watts || null,
         comparison: null,
         delta: null,
         message: `${ordinal(allEfforts.length)} effort on ${segment.name}!`,
@@ -173,6 +254,7 @@ export async function computeAwards(activity) {
         segment: segment.name,
         segment_id: segment.id,
         time: effort.elapsed_time,
+        power: effort.average_watts || null,
         comparison: previousEfforts.length > 0 ? previousEfforts[0] : null,
         delta: null,
         message: previousEfforts.length > 0
@@ -185,8 +267,9 @@ export async function computeAwards(activity) {
     // All remaining awards are suppressed on high-variance segments
     if (isHighVariance) continue;
 
-    // --- Year Best ---
     const activityDate = new Date(activity.start_date_local);
+
+    // --- Year Best ---
     const afterCalendarGate = (activityDate.getMonth() + 1) >= YEAR_BEST_CALENDAR_GATE_MONTH;
     if (thisYearEfforts.length > 1 && allEfforts.length >= MIN_EFFORTS_FOR_AWARDS && afterCalendarGate) {
       const bestThisYear = Math.min(
@@ -204,6 +287,7 @@ export async function computeAwards(activity) {
           segment: segment.name,
           segment_id: segment.id,
           time: effort.elapsed_time,
+          power: effort.average_watts || null,
           comparison: previousBest,
           delta: previousBest
             ? previousBest.elapsed_time - effort.elapsed_time
@@ -230,6 +314,7 @@ export async function computeAwards(activity) {
           segment: segment.name,
           segment_id: segment.id,
           time: effort.elapsed_time,
+          power: effort.average_watts || null,
           comparison: null,
           delta: null,
           message: `Best of your last ${last5.length} on ${segment.name}! ${formatTime(effort.elapsed_time)}`,
@@ -256,6 +341,7 @@ export async function computeAwards(activity) {
           segment: segment.name,
           segment_id: segment.id,
           time: effort.elapsed_time,
+          power: effort.average_watts || null,
           comparison: null,
           delta: null,
           message: `Top 10% on ${segment.name}! #${rank} of ${allEfforts.length} efforts — ${formatTime(effort.elapsed_time)}`,
@@ -266,6 +352,7 @@ export async function computeAwards(activity) {
           segment: segment.name,
           segment_id: segment.id,
           time: effort.elapsed_time,
+          power: effort.average_watts || null,
           comparison: null,
           delta: null,
           message: `Top quartile on ${segment.name}! #${rank} of ${allEfforts.length} efforts — ${formatTime(effort.elapsed_time)}`,
@@ -276,6 +363,7 @@ export async function computeAwards(activity) {
           segment: segment.name,
           segment_id: segment.id,
           time: effort.elapsed_time,
+          power: effort.average_watts || null,
           comparison: null,
           delta: Math.round(med - effort.elapsed_time),
           message: `Beat your median on ${segment.name}! ${formatTime(effort.elapsed_time)} — ${formatTime(Math.round(med - effort.elapsed_time))} under median (top ${100 - pctile}% of ${allEfforts.length} efforts)`,
@@ -295,6 +383,7 @@ export async function computeAwards(activity) {
           segment: segment.name,
           segment_id: segment.id,
           time: effort.elapsed_time,
+          power: effort.average_watts || null,
           comparison: null,
           delta: null,
           message: `Metronome on ${segment.name}! ${spread}s spread across last ${last5.length} efforts (CV: ${(recentCV * 100).toFixed(1)}%)`,
@@ -317,6 +406,7 @@ export async function computeAwards(activity) {
           segment: segment.name,
           segment_id: segment.id,
           time: effort.elapsed_time,
+          power: effort.average_watts || null,
           comparison: null,
           delta: null,
           message: `${monthName} Best on ${segment.name}! ${formatTime(effort.elapsed_time)} — fastest of ${thisMonthEfforts.length} efforts this month`,
@@ -341,6 +431,7 @@ export async function computeAwards(activity) {
           segment: segment.name,
           segment_id: segment.id,
           time: effort.elapsed_time,
+          power: effort.average_watts || null,
           comparison: null,
           delta: sortedByDate[streak - 1].elapsed_time - effort.elapsed_time,
           message: `${streak}-effort improvement streak on ${segment.name}! Each ride faster than the last — ${formatTime(effort.elapsed_time)}`,
@@ -369,6 +460,7 @@ export async function computeAwards(activity) {
             segment: segment.name,
             segment_id: segment.id,
             time: effort.elapsed_time,
+            power: effort.average_watts || null,
             comparison: null,
             delta: Math.round(med - effort.elapsed_time),
             message: `Comeback on ${segment.name}! Beat your median after ${slumpLength} slower efforts — ${formatTime(effort.elapsed_time)}`,
@@ -397,6 +489,7 @@ export async function computeAwards(activity) {
               segment: segment.name,
               segment_id: segment.id,
               time: effort.elapsed_time,
+              power: effort.average_watts || null,
               comparison: null,
               delta: null,
               message: `Best ${monthName} ever on ${segment.name}! ${formatTime(effort.elapsed_time)} — fastest across ${yearsSpanned} years`,
@@ -419,6 +512,7 @@ export async function computeAwards(activity) {
             segment: segment.name,
             segment_id: segment.id,
             time: effort.elapsed_time,
+            power: effort.average_watts || null,
             comparison: null,
             delta: effort.elapsed_time - allTimeBest,
             message: `Within ${pctLabel} of your PR on ${segment.name}! ${formatTime(effort.elapsed_time)} — just ${formatTime(effort.elapsed_time - allTimeBest)} off your best`,
@@ -445,10 +539,65 @@ export async function computeAwards(activity) {
         segment: segment.name,
         segment_id: segment.id,
         time: effort.elapsed_time,
+        power: effort.average_watts || null,
         comparison: anniversaryEfforts[0],
         delta: anniversaryEfforts[0].elapsed_time - effort.elapsed_time,
         message: `Anniversary on ${segment.name}! Also rode this segment on this date ${span} year${span > 1 ? "s" : ""} ago`,
       });
+    }
+
+    // --- YTD Best Time ---
+    // Fastest time on this segment by this date (day-of-year) across all years
+    if (allEfforts.length >= MIN_EFFORTS_FOR_AWARDS && afterCalendarGate) {
+      const ytdTime = computeYtdComparison(
+        effort.elapsed_time, allEfforts, activityDate, "elapsed_time"
+      );
+      if (ytdTime && ytdTime.span >= 1) {
+        const monthDay = activityDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        awards.push({
+          type: "ytd_best_time",
+          segment: segment.name,
+          segment_id: segment.id,
+          time: effort.elapsed_time,
+          power: effort.average_watts || null,
+          comparison: null,
+          delta: null,
+          message: `Fastest by ${monthDay} since ${ytdTime.sinceYear}! ${formatTime(effort.elapsed_time)} on ${segment.name} — best YTD across ${ytdTime.span + 1} years`,
+        });
+      }
+    }
+
+    // --- YTD Best Power ---
+    // Highest average watts on this segment by this date across all years
+    // Only when power is measured (device_watts)
+    if (
+      allEfforts.length >= MIN_EFFORTS_FOR_AWARDS &&
+      effort.device_watts &&
+      effort.average_watts &&
+      effort.average_watts > 0
+    ) {
+      // Filter to efforts with measured power
+      const poweredEfforts = allEfforts.filter(
+        (e) => e.device_watts && e.average_watts && e.average_watts > 0
+      );
+      if (poweredEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
+        const ytdPower = computeYtdComparison(
+          effort.average_watts, poweredEfforts, activityDate, "average_watts"
+        );
+        if (ytdPower && ytdPower.span >= 1) {
+          const monthDay = activityDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+          awards.push({
+            type: "ytd_best_power",
+            segment: segment.name,
+            segment_id: segment.id,
+            time: effort.elapsed_time,
+            power: effort.average_watts,
+            comparison: null,
+            delta: null,
+            message: `Best power by ${monthDay} since ${ytdPower.sinceYear}! ${Math.round(effort.average_watts)}W on ${segment.name} — best YTD across ${ytdPower.span + 1} years`,
+          });
+        }
+      }
     }
   }
 
@@ -488,6 +637,7 @@ export function computeRideLevelAwards(activity, allActivities) {
         segment: null,
         segment_id: null,
         time: null,
+        power: null,
         comparison: null,
         delta: null,
         message: `Longest ${activity.sport_type === "Ride" ? "ride" : "activity"} this year! ${formatDistance(activity.distance)}`,
@@ -506,9 +656,10 @@ export function computeRideLevelAwards(activity, allActivities) {
         segment: null,
         segment_id: null,
         time: null,
+        power: null,
         comparison: null,
         delta: null,
-        message: `Most climbing in a ${activity.sport_type === "Ride" ? "ride" : "activity"} this year! ${Math.round(activity.total_elevation_gain)}m elevation`,
+        message: `Most climbing in a ${activity.sport_type === "Ride" ? "ride" : "activity"} this year! ${formatDistance(activity.total_elevation_gain)} elevation`,
       });
     }
   }
@@ -525,6 +676,7 @@ export function computeRideLevelAwards(activity, allActivities) {
         segment: null,
         segment_id: null,
         time: null,
+        power: null,
         comparison: null,
         delta: null,
         message: `Most segments in a single ${activity.sport_type === "Ride" ? "ride" : "activity"} this year! ${segCount} segments`,
@@ -542,6 +694,7 @@ export function computeRideLevelAwards(activity, allActivities) {
         segment: null,
         segment_id: null,
         time: null,
+        power: null,
         comparison: null,
         delta: null,
         message: `Longest ${label} by time this year! ${formatTime(activity.moving_time)} moving time`,
@@ -550,11 +703,6 @@ export function computeRideLevelAwards(activity, allActivities) {
   }
 
   return awards;
-}
-
-function formatDistance(meters) {
-  const km = meters / 1000;
-  return km >= 1 ? `${km.toFixed(1)} km` : `${Math.round(meters)} m`;
 }
 
 /**
