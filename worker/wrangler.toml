@@ -1,0 +1,11 @@
+name = "participation-awards-worker"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Secrets (set via `wrangler secret put`):
+#   STRAVA_CLIENT_ID
+#   STRAVA_CLIENT_SECRET
+
+# Optional: custom domain
+# [routes]
+# { pattern = "api.aeyu.io/*", zone_name = "aeyu.io" }
