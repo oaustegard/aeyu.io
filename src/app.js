@@ -8,7 +8,6 @@ import { render } from "preact";
 import { signal, effect } from "@preact/signals";
 import { authState, initAuth } from "./auth.js";
 import { Landing } from "./components/Landing.js";
-import { SyncProgress } from "./components/SyncProgress.js";
 import { Dashboard } from "./components/Dashboard.js";
 import { ActivityDetail } from "./components/ActivityDetail.js";
 
@@ -47,10 +46,9 @@ function App() {
 
   // Route based on hash
   switch (currentRoute) {
-    case "sync":
-      return html`<${SyncProgress} />`;
     case "activity":
       return html`<${ActivityDetail} id=${routeParams.value.id} />`;
+    case "sync": // legacy — now handled by dashboard
     case "dashboard":
     default:
       return auth ? html`<${Dashboard} />` : html`<${Landing} />`;

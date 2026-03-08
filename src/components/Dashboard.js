@@ -1,21 +1,37 @@
 /**
  * Dashboard Screen
- * Main screen after sync — shows recent activities, awards, and sync controls.
+ * Main screen after login — shows recent activities, awards, sync controls,
+ * and inline sync progress. Auto-triggers backfill for new users.
+ *
+ * Awards are deferred until initial backfill is complete so that comparative
+ * awards (Year Best, Recent Best) have full segment history to work with.
  */
 
 import { html } from "htm/preact";
 import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { authState, disconnect } from "../auth.js";
-import { incrementalSync, syncProgress, isSyncing } from "../sync.js";
+import {
+  startBackfill,
+  incrementalSync,
+  syncProgress,
+  rateLimitStatus,
+  isSyncing,
+} from "../sync.js";
 import { computeAwardsForActivities } from "../awards.js";
-import { getAllActivities, getAllSegments, getSyncState } from "../db.js";
+import {
+  getAllActivities,
+  getAllSegments,
+  getActivitiesWithoutEfforts,
+  getSyncState,
+} from "../db.js";
 import { navigate } from "../app.js";
 
 const recentActivities = signal([]);
 const activityAwards = signal(new Map());
 const stats = signal({ segments: 0, awards: 0 });
 const loading = signal(true);
+const backfillComplete = signal(false);
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
@@ -51,18 +67,29 @@ async function loadDashboard() {
     const recent = activities.slice(0, 20);
     recentActivities.value = recent;
 
-    // Compute awards for recent activities with efforts
-    const withEfforts = recent.filter((a) => a.has_efforts);
-    const awards = await computeAwardsForActivities(withEfforts);
-    activityAwards.value = awards;
+    // Check if initial sync is fully done (list + all details)
+    const state = await getSyncState();
+    const pending = await getActivitiesWithoutEfforts();
+    const fullyLoaded = state.backfill_complete && pending.length === 0;
+    backfillComplete.value = fullyLoaded;
 
-    // Stats
-    const segments = await getAllSegments();
-    let totalAwards = 0;
-    for (const [, awardList] of awards) {
-      totalAwards += awardList.length;
+    // Only compute awards when we have complete data
+    if (fullyLoaded) {
+      const withEfforts = recent.filter((a) => a.has_efforts);
+      const awards = await computeAwardsForActivities(withEfforts);
+      activityAwards.value = awards;
+
+      const segments = await getAllSegments();
+      let totalAwards = 0;
+      for (const [, awardList] of awards) {
+        totalAwards += awardList.length;
+      }
+      stats.value = { segments: segments.length, awards: totalAwards };
+    } else {
+      activityAwards.value = new Map();
+      const segments = await getAllSegments();
+      stats.value = { segments: segments.length, awards: 0 };
     }
-    stats.value = { segments: segments.length, awards: totalAwards };
   } finally {
     loading.value = false;
   }
@@ -72,13 +99,37 @@ export function Dashboard() {
   const auth = authState.value;
   const progress = syncProgress.value;
   const syncing = isSyncing.value;
+  const rateLimit = rateLimitStatus.value;
 
   useEffect(() => {
-    loadDashboard();
+    async function init() {
+      await loadDashboard();
+
+      // Auto-trigger backfill if initial sync isn't done
+      const state = await getSyncState();
+      const pending = await getActivitiesWithoutEfforts();
+      if (!state.backfill_complete || pending.length > 0) {
+        try {
+          await startBackfill();
+        } catch (err) {
+          console.error("Backfill error:", err);
+        }
+        await loadDashboard();
+      }
+    }
+    init();
   }, []);
 
   async function handleSync() {
-    await incrementalSync();
+    if (backfillComplete.value) {
+      await incrementalSync();
+    } else {
+      try {
+        await startBackfill();
+      } catch (err) {
+        console.error("Backfill error:", err);
+      }
+    }
     await loadDashboard();
   }
 
@@ -86,6 +137,20 @@ export function Dashboard() {
     await disconnect();
     navigate("");
   }
+
+  // Rate limit percentages for the inline indicator
+  const shortPct = rateLimit.shortLimit
+    ? Math.round((rateLimit.shortUsage / rateLimit.shortLimit) * 100)
+    : 0;
+  const dailyPct = rateLimit.dailyLimit
+    ? Math.round((rateLimit.dailyUsage / rateLimit.dailyLimit) * 100)
+    : 0;
+  const isThrottled = shortPct > 80 || dailyPct > 80;
+
+  const detailPct =
+    progress.detailTotal && progress.detailTotal > 0
+      ? Math.round((progress.detailed / progress.detailTotal) * 100)
+      : 0;
 
   return html`
     <div class="min-h-screen bg-gray-50">
@@ -120,10 +185,46 @@ export function Dashboard() {
       </header>
 
       <main class="max-w-3xl mx-auto px-6 py-6">
-        <!-- Sync status -->
+        <!-- Inline sync progress -->
         ${syncing && html`
-          <div class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-6 text-sm text-blue-700">
-            ${progress.message}
+          <div class="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+            <div class="flex items-center gap-3 mb-2">
+              <div class="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
+              <p class="text-sm font-medium text-gray-700">${progress.message || "Starting sync..."}</p>
+            </div>
+
+            ${progress.phase === "detail" && progress.detailTotal > 0 && html`
+              <div class="mb-2">
+                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>Loading activity details</span>
+                  <span>${progress.detailed} / ${progress.detailTotal}</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-1.5">
+                  <div
+                    class="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
+                    style="width: ${detailPct}%"
+                  ></div>
+                </div>
+              </div>
+            `}
+
+            ${isThrottled && html`
+              <p class="text-xs text-amber-600 mt-1">
+                Approaching Strava rate limit — sync will pause and resume next session.
+              </p>
+            `}
+          </div>
+        `}
+
+        <!-- Sync paused banner (not actively syncing, but backfill incomplete) -->
+        ${!syncing && !backfillComplete.value && !loading.value && html`
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800">
+            <p class="font-medium mb-1">Initial sync paused</p>
+            <p class="text-amber-700">
+              Your full activity history is still loading. Strava limits API requests,
+              so this happens over a few sessions. Tap <strong>Sync Now</strong> to continue,
+              or it will resume automatically next time you visit.
+            </p>
           </div>
         `}
 
@@ -135,7 +236,12 @@ export function Dashboard() {
           </div>
           <div class="bg-white rounded-xl border border-gray-200 p-4 text-center">
             <div class="text-3xl font-bold text-gray-800">${stats.value.awards}</div>
-            <div class="text-sm text-gray-500">Awards (recent 20)</div>
+            <div class="text-sm text-gray-500">
+              ${backfillComplete.value ? "Awards (recent 20)" : "Awards"}
+            </div>
+            ${!backfillComplete.value && !loading.value && html`
+              <div class="text-xs text-gray-400 mt-1">Available after sync</div>
+            `}
           </div>
         </div>
 
@@ -148,6 +254,11 @@ export function Dashboard() {
         ${!loading.value && html`
           <div class="space-y-3">
             <h2 class="text-lg font-semibold text-gray-800">Recent Activities</h2>
+            ${recentActivities.value.length === 0 && html`
+              <p class="text-center py-8 text-gray-400">
+                ${syncing ? "Activities will appear here as they sync..." : "No activities yet. Tap Sync Now to get started."}
+              </p>
+            `}
             ${recentActivities.value.map((activity) => {
               const awards = activityAwards.value.get(activity.id) || [];
               // Summarize awards by type: [{type, count}] ordered season_first > year_best > recent_best
