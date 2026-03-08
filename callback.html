@@ -36,10 +36,6 @@
       const error = params.get("error");
       const statusEl = document.getElementById("status");
 
-      // Remove callback page from browser history so back button
-      // doesn't return here with a stale authorization code
-      history.replaceState(null, "", "/");
-
       if (error) {
         statusEl.innerHTML = `
           <p class="text-xl text-red-600">Authorization denied</p>
