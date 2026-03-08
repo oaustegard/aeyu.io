@@ -153,6 +153,140 @@ const ICON_DEFS = {
     { type: "circle", cx: 12, cy: 12, r: 9 },
     { type: "polygon", points: [[12,6],[13.8,10.2],[18,10.8],[14.8,13.5],[15.6,18],[12,15.8],[8.4,18],[9.2,13.5],[6,10.8],[10.2,10.2]] },
   ],
+
+
+  // ── Power Awards (Epic #43) ────────────────────────────────────
+
+  // 🏠 Indoor/Trainer — house outline with wheel
+  indoor: [
+    { type: "polyline", points: [[2,12],[12,3],[22,12]] },                // roof
+    { type: "polyline", points: [[5,12],[5,21],[19,21],[19,12]] },        // walls
+    { type: "circle", cx: 12, cy: 16, r: 3 },                            // wheel
+    { type: "line", x1: 12, y1: 13, x2: 12, y2: 16 },                   // spoke
+    { type: "line", x1: 9, y1: 16, x2: 12, y2: 16 },                    // spoke
+    { type: "line", x1: 12, y1: 16, x2: 15, y2: 16 },                   // spoke
+  ],
+
+  // ⊙ Work/Energy (kJ) — gauge/meter dial
+  work_energy: [
+    { type: "circle", cx: 12, cy: 13, r: 9 },                            // outer ring
+    { type: "path", d: "M12 13L16 8" },                                   // needle
+    { type: "circle", cx: 12, cy: 13, r: 1.5 },                          // center dot
+    { type: "line", x1: 5, y1: 18, x2: 7, y2: 16 },                     // low tick
+    { type: "line", x1: 17, y1: 16, x2: 19, y2: 18 },                   // high tick
+  ],
+
+  // ⚡⚡ Peak Power — lightning bolt with burst lines
+  peak_power: [
+    { type: "polygon", points: [[13,2],[3,14],[12,14],[11,22],[21,10],[12,10]] },  // bolt
+    { type: "line", x1: 16, y1: 2, x2: 18, y2: 1 },                     // burst
+    { type: "line", x1: 19, y1: 4, x2: 21, y2: 3 },                     // burst
+    { type: "line", x1: 20, y1: 7, x2: 22, y2: 7 },                     // burst
+  ],
+
+  // ✦ Power Sprint (5s) — starburst, explosive
+  power_sprint: [
+    { type: "line", x1: 12, y1: 2, x2: 12, y2: 6 },
+    { type: "line", x1: 12, y1: 18, x2: 12, y2: 22 },
+    { type: "line", x1: 2, y1: 12, x2: 6, y2: 12 },
+    { type: "line", x1: 18, y1: 12, x2: 22, y2: 12 },
+    { type: "line", x1: 5, y1: 5, x2: 8, y2: 8 },
+    { type: "line", x1: 16, y1: 16, x2: 19, y2: 19 },
+    { type: "line", x1: 19, y1: 5, x2: 16, y2: 8 },
+    { type: "line", x1: 5, y1: 19, x2: 8, y2: 16 },
+  ],
+
+  // ↑ Power Short (1min) — bold upward block arrow
+  power_short: [
+    { type: "polygon", points: [[12,3],[19,12],[15,12],[15,21],[9,21],[9,12],[5,12]] },
+  ],
+
+  // ♥↑ Power VO2max (5min) — heart with upward arrow
+  power_vo2max: [
+    { type: "path", d: "M12 21C12 21 4 15 4 9.5a4.5 4.5 0 0 1 8-2.9 4.5 4.5 0 0 1 8 2.9C20 15 12 21 12 21z" },
+    { type: "line", x1: 12, y1: 16, x2: 12, y2: 10 },                   // arrow shaft
+    { type: "polyline", points: [[9,13],[12,10],[15,13]] },               // arrow head
+  ],
+
+  // ━↗ Power Threshold/FTP (20min) — bar with steady trend above
+  power_threshold: [
+    { type: "rect", x: 3, y: 18, w: 18, h: 3, rx: 1 },                  // base bar
+    { type: "polyline", points: [[4,14],[8,12],[12,10],[16,8],[20,6]] },  // trend line
+    { type: "polyline", points: [[17,3],[20,6],[17,9]] },                 // arrow tip
+  ],
+
+  // ∞ Power Endurance (60min) — infinity / sustained output
+  power_endurance: [
+    { type: "path", d: "M12 12c-2-3-4-5-7-5s-4 2-4 5 1.5 5 4 5 7-5 7-5z" },
+    { type: "path", d: "M12 12c2 3 4 5 7 5s4-2 4-5-1.5-5-4-5-7 5-7 5z" },
+  ],
+
+  // ≋ NP Year Best — star inside a power ring (Normalized Power, top annual)
+  np_year_best: [
+    { type: "circle", cx: 12, cy: 12, r: 9 },
+    { type: "polygon", points: [[12,5],[13.8,9.5],[18,10],[15,13],[16,18],[12,15.5],[8,18],[9,13],[6,10],[10.2,9.5]] },
+  ],
+
+  // ↗≋ NP Recent Best — power symbol with trend
+  np_recent_best: [
+    { type: "polygon", points: [[13,6],[7,14],[11,14],[10,19],[16,11],[12,11]] },  // small bolt
+    { type: "polyline", points: [[16,5],[22,5],[22,11]] },                         // trend corner
+    { type: "line", x1: 22, y1: 5, x2: 16, y2: 11 },                             // trend diagonal
+  ],
+
+  // 🔋 Work Year Best — gauge with star
+  work_year_best: [
+    { type: "circle", cx: 12, cy: 13, r: 9 },
+    { type: "path", d: "M12 13L17 7" },                                   // needle high
+    { type: "circle", cx: 12, cy: 13, r: 1.5 },
+    { type: "line", x1: 12, y1: 1, x2: 12, y2: 4 },                     // top tick (max)
+  ],
+
+  // 🏠⚡ Indoor NP Best — house with bolt
+  indoor_power: [
+    { type: "polyline", points: [[2,12],[12,3],[22,12]] },
+    { type: "polyline", points: [[5,12],[5,21],[19,21],[19,12]] },
+    { type: "polygon", points: [[13,10],[9,16],[12,16],[11,20],[15,14],[12,14]] },  // small bolt inside
+  ],
+
+  // 📅⚡ Trainer Streak — house with horizontal streak lines
+  trainer_streak: [
+    { type: "polyline", points: [[2,12],[12,3],[22,12]] },
+    { type: "polyline", points: [[5,12],[5,21],[19,21],[19,12]] },
+    { type: "line", x1: 8, y1: 14, x2: 16, y2: 14 },
+    { type: "line", x1: 8, y1: 17, x2: 16, y2: 17 },
+    { type: "line", x1: 8, y1: 20, x2: 16, y2: 20 },
+  ],
+
+  // 📈W Watt Milestone — lightning bolt on a pedestal
+  watt_milestone: [
+    { type: "polygon", points: [[13,2],[7,12],[11,12],[10,18],[16,8],[12,8]] },
+    { type: "line", x1: 5, y1: 21, x2: 19, y2: 21 },
+    { type: "line", x1: 12, y1: 18, x2: 12, y2: 21 },
+  ],
+
+  // kJ Milestone — energy ring with number placeholder
+  kj_milestone: [
+    { type: "circle", cx: 12, cy: 12, r: 9 },
+    { type: "path", d: "M12 13L8 8" },                                    // needle
+    { type: "circle", cx: 12, cy: 13, r: 1.5 },
+    { type: "line", x1: 6, y1: 21, x2: 18, y2: 21 },                    // milestone base
+  ],
+
+  // ≈W Power Progression — watts trending up over time
+  power_progression: [
+    { type: "polyline", points: [[2,18],[6,16],[10,13],[14,11],[18,7],[22,4]] },
+    { type: "polyline", points: [[18,4],[22,4],[22,8]] },
+    { type: "polygon", points: [[4,20],[3,22],[5,22]] },                  // small bolt at origin
+  ],
+
+  // ≡W Power Consistency — steady watt lines (low variance)
+  power_consistency: [
+    { type: "path", d: "M2 10c2-1 4-1 6 0s4 1 6 0 4-1 6 0" },           // gentle wave
+    { type: "path", d: "M2 14c2-1 4-1 6 0s4 1 6 0 4-1 6 0" },           // gentle wave
+    { type: "circle", cx: 22, cy: 10, r: 0.8 },                           // dot
+    { type: "circle", cx: 22, cy: 14, r: 0.8 },                           // dot
+  ],
 };
 
 
