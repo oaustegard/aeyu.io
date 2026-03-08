@@ -1,0 +1,4 @@
+vendor/
+mock-data.json
+screenshots/
+node_modules/
