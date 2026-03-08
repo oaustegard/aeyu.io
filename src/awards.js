@@ -13,11 +13,15 @@
  *   - Improvement Streak: 3+ consecutive faster times ending now (#36)
  *   - Comeback: Beat median after 3+ sub-median efforts in a row (#36)
  *   - Milestone: Round-number attempt count on a segment (#36)
+ *   - Best Month Ever: Fastest effort on segment in this calendar month across all years (#27)
+ *   - Closing In: Within 10% of all-time PR on a segment (#28)
+ *   - Anniversary: Rode this segment on same date N years ago (#30)
  *
  * Ride-level awards (computed per-activity, not per-segment):
  *   - Distance Record: Longest ride this year (#36)
  *   - Elevation Record: Most climbing in a ride this year (#36)
  *   - Segment Count: Most segments in a ride this year (#36)
+ *   - Endurance Record: Longest moving time this year (#31)
  *
  * Data quality rules:
  *   - Minimum effort threshold: comparative awards (Year Best, Recent Best,
@@ -363,6 +367,81 @@ export async function computeAwards(activity) {
         }
       }
     }
+
+    // --- Best Month Ever (#27) ---
+    // Fastest effort in this calendar month across ALL years
+    if (allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
+      const actMonth = activityDate.getMonth();
+      const sameMonthEfforts = allEfforts.filter(
+        (e) => new Date(e.start_date_local).getMonth() === actMonth
+      );
+      if (sameMonthEfforts.length >= 2) {
+        const bestEver = Math.min(...sameMonthEfforts.map((e) => e.elapsed_time));
+        if (effort.elapsed_time === bestEver) {
+          const priorBests = sameMonthEfforts
+            .filter((e) => e.effort_id !== effort.id && new Date(e.start_date_local).getFullYear() !== currentYear);
+          const hasPriorYears = priorBests.length > 0;
+          if (hasPriorYears) {
+            const monthName = activityDate.toLocaleDateString("en-US", { month: "long" });
+            const yearsSpanned = new Set(sameMonthEfforts.map((e) => new Date(e.start_date_local).getFullYear())).size;
+            awards.push({
+              type: "best_month_ever",
+              segment: segment.name,
+              segment_id: segment.id,
+              time: effort.elapsed_time,
+              comparison: null,
+              delta: null,
+              message: `Best ${monthName} ever on ${segment.name}! ${formatTime(effort.elapsed_time)} — fastest across ${yearsSpanned} years`,
+            });
+          }
+        }
+      }
+    }
+
+    // --- Closing In on PR (#28) ---
+    // Within 10% of all-time best (but not the best itself)
+    if (allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
+      const allTimeBest = Math.min(...allTimes);
+      if (effort.elapsed_time > allTimeBest) {
+        const gap = (effort.elapsed_time - allTimeBest) / allTimeBest;
+        if (gap <= 0.10) {
+          const pctLabel = gap <= 0.05 ? "5%" : "10%";
+          awards.push({
+            type: "closing_in",
+            segment: segment.name,
+            segment_id: segment.id,
+            time: effort.elapsed_time,
+            comparison: null,
+            delta: effort.elapsed_time - allTimeBest,
+            message: `Within ${pctLabel} of your PR on ${segment.name}! ${formatTime(effort.elapsed_time)} — just ${formatTime(effort.elapsed_time - allTimeBest)} off your best`,
+          });
+        }
+      }
+    }
+
+    // --- Anniversary (#30) ---
+    // Rode this segment on same month+day in a previous year
+    const actMonthDay = `${String(activityDate.getMonth() + 1).padStart(2, "0")}-${String(activityDate.getDate()).padStart(2, "0")}`;
+    const anniversaryEfforts = allEfforts.filter((e) => {
+      const d = new Date(e.start_date_local);
+      if (d.getFullYear() === currentYear) return false;
+      const md = `${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      return md === actMonthDay;
+    });
+    if (anniversaryEfforts.length > 0) {
+      const years = anniversaryEfforts.map((e) => new Date(e.start_date_local).getFullYear()).sort();
+      const oldestYear = years[0];
+      const span = currentYear - oldestYear;
+      awards.push({
+        type: "anniversary",
+        segment: segment.name,
+        segment_id: segment.id,
+        time: effort.elapsed_time,
+        comparison: anniversaryEfforts[0],
+        delta: anniversaryEfforts[0].elapsed_time - effort.elapsed_time,
+        message: `Anniversary on ${segment.name}! Also rode this segment on this date ${span} year${span > 1 ? "s" : ""} ago`,
+      });
+    }
   }
 
   return awards;
@@ -441,6 +520,23 @@ export function computeRideLevelAwards(activity, allActivities) {
         comparison: null,
         delta: null,
         message: `Most segments in a single ${activity.sport_type === "Ride" ? "ride" : "activity"} this year! ${segCount} segments`,
+      });
+    }
+  }
+
+  // --- Endurance Record (#31) ---
+  if (activity.moving_time > 0) {
+    const maxPriorMovingTime = Math.max(...sameTypeThisYear.map((a) => a.moving_time || 0));
+    if (activity.moving_time > maxPriorMovingTime) {
+      const label = activity.sport_type === "Ride" ? "ride" : "activity";
+      awards.push({
+        type: "endurance_record",
+        segment: null,
+        segment_id: null,
+        time: null,
+        comparison: null,
+        delta: null,
+        message: `Longest ${label} by time this year! ${formatTime(activity.moving_time)} moving time`,
       });
     }
   }
