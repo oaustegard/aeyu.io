@@ -1,10 +1,10 @@
 /**
  * aeyu.io Service Worker
- * Strategy: Cache app shell aggressively, network-first for API calls.
+ * Strategy: Network-first for app shell (fast deploys), cache-first for CDN assets.
  * All Strava data lives in IndexedDB — SW just needs to serve the app offline.
  */
 
-const CACHE_NAME = "aeyu-v2";
+const CACHE_NAME = "aeyu-v3";
 
 const APP_SHELL = [
   "/",
@@ -24,7 +24,6 @@ const APP_SHELL = [
   "/icons/icon-512.png",
 ];
 
-// CDN dependencies — cache on first use
 const CDN_HOSTS = ["cdn.tailwindcss.com", "esm.sh"];
 
 self.addEventListener("install", (event) => {
@@ -58,7 +57,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // CDN assets: stale-while-revalidate
+  // CDN assets: cache-first (these are versioned by URL, rarely change)
   if (CDN_HOSTS.some((h) => url.hostname.includes(h))) {
     event.respondWith(
       caches.open(CACHE_NAME).then((cache) =>
@@ -74,11 +73,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // App shell: cache-first, fallback to network
+  // App shell: network-first, cache fallback (deploys are immediately visible)
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
+    fetch(event.request)
+      .then((response) => {
         if (response.ok && event.request.method === "GET") {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) =>
@@ -86,7 +84,7 @@ self.addEventListener("fetch", (event) => {
           );
         }
         return response;
-      });
-    })
+      })
+      .catch(() => caches.match(event.request))
   );
 });
