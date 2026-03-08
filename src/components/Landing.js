@@ -29,7 +29,7 @@ export function Landing() {
           </p>
 
           <button
-            onClick=$${() => startOAuth()}
+            onClick=${() => startOAuth()}
             class="inline-flex items-center gap-2 bg-[#FC4C02] hover:bg-[#e04400] text-white font-semibold px-6 py-3 rounded-lg transition-colors"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
