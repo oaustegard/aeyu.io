@@ -77,6 +77,22 @@ export function Landing() {
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h3 class="text-lg font-semibold text-gray-800 mb-2">FAQ</h3>
 
+          <${FaqItem} q="How is this different from Strava's medals and achievements?">
+            <p class="mb-2">
+              Strava celebrates peak performance — all-time PRs, KOM/QOM
+              leaderboard positions, and Local Legend streaks. If you're not
+              setting a personal record or topping a leaderboard, Strava has
+              nothing to say.
+            </p>
+            <p>
+              Participation Awards celebrates the rest — coming back to a
+              favorite climb after the off-season, quietly beating last month's
+              time on your commute segment, being more consistent than fast.
+              These are temporal, personal patterns that Strava ignores entirely
+              but that make up the majority of your riding life.
+            </p>
+          <//>
+
           <${FaqItem} q="How does this work without a server?">
             <p>
               Everything runs in your browser. When you connect Strava, your
