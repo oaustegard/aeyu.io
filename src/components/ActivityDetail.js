@@ -7,7 +7,7 @@
 import { html } from "htm/preact";
 import { signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
-import { getActivity, getSegment, getAllActivities } from "../db.js";
+import { getActivity, getSegment, getAllActivities, getResetEvent } from "../db.js";
 import { computeAwards, computeRideLevelAwards } from "../awards.js";
 import { navigate } from "../app.js";
 import {
@@ -55,6 +55,13 @@ const AWARD_LABELS = {
   endurance_record: { label: "Longest by Time", color: "bg-slate-100 text-slate-800", icon: "⏱" },
   ytd_best_time: { label: "YTD Best", color: "bg-amber-200 text-amber-900", icon: "📅" },
   ytd_best_power: { label: "YTD Power", color: "bg-red-200 text-red-900", icon: "⚡" },
+  // Comeback mode (#60)
+  comeback_pb: { label: "Comeback PB", color: "bg-rose-200 text-rose-900", icon: "🔄" },
+  recovery_milestone: { label: "Recovery", color: "bg-orange-200 text-orange-900", icon: "📈" },
+  comeback_full: { label: "You're Back!", color: "bg-green-200 text-green-900", icon: "🎉" },
+  comeback_distance: { label: "Comeback Distance", color: "bg-rose-100 text-rose-800", icon: "→" },
+  comeback_elevation: { label: "Comeback Climbing", color: "bg-rose-100 text-rose-800", icon: "⛰" },
+  comeback_endurance: { label: "Comeback Endurance", color: "bg-rose-100 text-rose-800", icon: "⏱" },
 };
 
 const AWARD_COLORS = {
@@ -78,6 +85,13 @@ const AWARD_COLORS = {
   endurance_record:   { bg: "#F1F5F9", text: "#334155", accent: "#64748B" },
   ytd_best_time:      { bg: "#FDE68A", text: "#78350F", accent: "#D97706" },
   ytd_best_power:     { bg: "#FECACA", text: "#7F1D1D", accent: "#DC2626" },
+  // Comeback mode (#60)
+  comeback_pb:        { bg: "#FECDD3", text: "#881337", accent: "#E11D48" },
+  recovery_milestone: { bg: "#FED7AA", text: "#7C2D12", accent: "#EA580C" },
+  comeback_full:      { bg: "#BBF7D0", text: "#14532D", accent: "#16A34A" },
+  comeback_distance:  { bg: "#FFE4E6", text: "#9F1239", accent: "#F43F5E" },
+  comeback_elevation: { bg: "#FFE4E6", text: "#9F1239", accent: "#F43F5E" },
+  comeback_endurance: { bg: "#FFE4E6", text: "#9F1239", accent: "#F43F5E" },
 };
 
 async function loadActivity(id) {
@@ -89,9 +103,10 @@ async function loadActivity(id) {
     activity.value = act;
 
     if (act.has_efforts) {
-      const segmentAwards = await computeAwards(act);
+      const resetEvent = await getResetEvent();
+      const segmentAwards = await computeAwards(act, resetEvent);
       const allActivities = await getAllActivities();
-      const rideAwards = computeRideLevelAwards(act, allActivities);
+      const rideAwards = computeRideLevelAwards(act, allActivities, resetEvent);
       const awardsList = [...segmentAwards, ...rideAwards];
       awards.value = awardsList;
 
