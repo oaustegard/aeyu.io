@@ -57,9 +57,13 @@ const AWARD_LABELS = {
   improvement_streak: { label: "On a Roll", color: "bg-emerald-100 text-emerald-800", icon: "⟫" },
   comeback: { label: "Comeback", color: "bg-rose-100 text-rose-800", icon: "↺" },
   milestone: { label: "Milestone", color: "bg-amber-100 text-amber-800", icon: "⬡" },
+  best_month_ever: { label: "Best Month Ever", color: "bg-fuchsia-100 text-fuchsia-800", icon: "◉" },
+  closing_in: { label: "Closing In", color: "bg-pink-100 text-pink-800", icon: "◈" },
+  anniversary: { label: "Anniversary", color: "bg-violet-100 text-violet-800", icon: "↻" },
   distance_record: { label: "Longest Ride", color: "bg-cyan-100 text-cyan-800", icon: "→" },
   elevation_record: { label: "Most Climbing", color: "bg-sky-100 text-sky-800", icon: "⛰" },
   segment_count: { label: "Most Segments", color: "bg-lime-100 text-lime-800", icon: "#" },
+  endurance_record: { label: "Longest by Time", color: "bg-slate-100 text-slate-800", icon: "⏱" },
 };
 
 const AWARD_COLORS = {
@@ -73,9 +77,13 @@ const AWARD_COLORS = {
   improvement_streak: { bg: "#D1FAE5", text: "#065F46", accent: "#10B981" },
   comeback:           { bg: "#FFE4E6", text: "#9F1239", accent: "#F43F5E" },
   milestone:          { bg: "#FEF3C7", text: "#92400E", accent: "#F59E0B" },
+  best_month_ever:    { bg: "#FAE8FF", text: "#86198F", accent: "#D946EF" },
+  closing_in:         { bg: "#FCE7F3", text: "#9D174D", accent: "#EC4899" },
+  anniversary:        { bg: "#EDE9FE", text: "#5B21B6", accent: "#8B5CF6" },
   distance_record:    { bg: "#CFFAFE", text: "#155E75", accent: "#06B6D4" },
   elevation_record:   { bg: "#E0F2FE", text: "#075985", accent: "#0EA5E9" },
   segment_count:      { bg: "#ECFCCB", text: "#3F6212", accent: "#84CC16" },
+  endurance_record:   { bg: "#F1F5F9", text: "#334155", accent: "#64748B" },
 };
 
 async function loadActivity(id) {
@@ -247,7 +255,7 @@ function renderShareCard(canvas, act, awardsList) {
   if (awardsList.length > 0) {
     // Summary pills
     const counts = {};
-    const order = ["season_first", "year_best", "monthly_best", "recent_best", "improvement_streak", "comeback", "beat_median", "top_quartile", "consistency", "milestone", "distance_record", "elevation_record", "segment_count"];
+    const order = ["season_first", "year_best", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "beat_median", "top_quartile", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
     for (const a of awardsList) counts[a.type] = (counts[a.type] || 0) + 1;
 
     let pillX = left;

@@ -67,9 +67,13 @@ const AWARD_LABELS = {
   improvement_streak: { label: "On a Roll", color: "bg-emerald-100 text-emerald-800" },
   comeback: { label: "Comeback", color: "bg-rose-100 text-rose-800" },
   milestone: { label: "Milestone", color: "bg-amber-100 text-amber-800" },
+  best_month_ever: { label: "Best Month Ever", color: "bg-fuchsia-100 text-fuchsia-800" },
+  closing_in: { label: "Closing In", color: "bg-pink-100 text-pink-800" },
+  anniversary: { label: "Anniversary", color: "bg-violet-100 text-violet-800" },
   distance_record: { label: "Longest Ride", color: "bg-cyan-100 text-cyan-800" },
   elevation_record: { label: "Most Climbing", color: "bg-sky-100 text-sky-800" },
   segment_count: { label: "Most Segments", color: "bg-lime-100 text-lime-800" },
+  endurance_record: { label: "Longest by Time", color: "bg-slate-100 text-slate-800" },
 };
 
 async function loadDashboard() {
@@ -283,7 +287,7 @@ export function Dashboard() {
               for (const a of awards) {
                 typeCounts.set(a.type, (typeCounts.get(a.type) || 0) + 1);
               }
-              const typeOrder = ["season_first", "year_best", "monthly_best", "recent_best", "improvement_streak", "comeback", "beat_median", "top_quartile", "consistency", "milestone", "distance_record", "elevation_record", "segment_count"];
+              const typeOrder = ["season_first", "year_best", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "beat_median", "top_quartile", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
               const summary = typeOrder
                 .filter((t) => typeCounts.has(t))
                 .map((t) => ({ type: t, count: typeCounts.get(t) }));
@@ -379,6 +383,18 @@ export function Dashboard() {
                     <span>Round-number attempt on a segment (10th, 25th, 50th, 100th, etc.).</span>
                   </div>
                   <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-fuchsia-100 text-fuchsia-800 whitespace-nowrap mt-0.5">Best Month Ever</span>
+                    <span>Fastest time in this calendar month across all years — your best March ever, for example.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-pink-100 text-pink-800 whitespace-nowrap mt-0.5">Closing In</span>
+                    <span>Within 10% of your all-time PR on a segment — you're close to a personal best.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-violet-100 text-violet-800 whitespace-nowrap mt-0.5">Anniversary</span>
+                    <span>Rode this segment on the same date in a previous year.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
                     <span class="text-xs px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-800 whitespace-nowrap mt-0.5">Longest Ride</span>
                     <span>Your longest ride of the year by distance.</span>
                   </div>
@@ -389,6 +405,10 @@ export function Dashboard() {
                   <div class="flex items-start gap-2">
                     <span class="text-xs px-2 py-0.5 rounded-full bg-lime-100 text-lime-800 whitespace-nowrap mt-0.5">Most Segments</span>
                     <span>Most segments hit in a single ride this year.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 whitespace-nowrap mt-0.5">Longest by Time</span>
+                    <span>Longest ride by moving time this year — your biggest endurance effort.</span>
                   </div>
                 </div>
               </details>
