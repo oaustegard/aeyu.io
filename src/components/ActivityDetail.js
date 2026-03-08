@@ -50,12 +50,18 @@ const AWARD_LABELS = {
   year_best: { label: "Year Best", color: "bg-yellow-100 text-yellow-800", icon: "★" },
   season_first: { label: "Season First", color: "bg-green-100 text-green-800", icon: "🌱" },
   recent_best: { label: "Recent Best", color: "bg-blue-100 text-blue-800", icon: "↑" },
+  beat_median: { label: "Beat Median", color: "bg-purple-100 text-purple-800", icon: "◆" },
+  top_quartile: { label: "Top Quartile", color: "bg-indigo-100 text-indigo-800", icon: "▲" },
+  consistency: { label: "Metronome", color: "bg-teal-100 text-teal-800", icon: "≡" },
 };
 
 const AWARD_COLORS = {
   year_best:    { bg: "#FEF9C3", text: "#854D0E", accent: "#EAB308" },
   season_first: { bg: "#DCFCE7", text: "#166534", accent: "#22C55E" },
   recent_best:  { bg: "#DBEAFE", text: "#1E40AF", accent: "#3B82F6" },
+  beat_median:  { bg: "#F3E8FF", text: "#6B21A8", accent: "#A855F7" },
+  top_quartile: { bg: "#E0E7FF", text: "#3730A3", accent: "#6366F1" },
+  consistency:  { bg: "#CCFBF1", text: "#115E59", accent: "#14B8A6" },
 };
 
 async function loadActivity(id) {
@@ -224,7 +230,7 @@ function renderShareCard(canvas, act, awardsList) {
   if (awardsList.length > 0) {
     // Summary pills
     const counts = {};
-    const order = ["season_first", "year_best", "recent_best"];
+    const order = ["season_first", "year_best", "recent_best", "beat_median", "top_quartile", "consistency"];
     for (const a of awardsList) counts[a.type] = (counts[a.type] || 0) + 1;
 
     let pillX = left;

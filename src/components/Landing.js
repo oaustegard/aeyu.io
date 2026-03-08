@@ -163,9 +163,24 @@ export function Landing() {
               </div>
               <div class="flex items-start gap-2">
                 <span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 whitespace-nowrap mt-0.5">Recent Best</span>
-                <span>Your fastest time among your last 5 attempts on a segment, regardless of year. Requires at least 3 prior efforts — it's meaningless without enough history.</span>
+                <span>Your fastest time among your last 5 attempts on a segment, regardless of year. Requires at least 3 prior efforts.</span>
+              </div>
+              <div class="flex items-start gap-2">
+                <span class="text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 whitespace-nowrap mt-0.5">Beat Median</span>
+                <span>Faster than your median time on this segment. Shows how you compare to your own typical performance.</span>
+              </div>
+              <div class="flex items-start gap-2">
+                <span class="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 whitespace-nowrap mt-0.5">Top Quartile</span>
+                <span>In the top 25% of your own history on this segment. A genuinely strong effort by your standards.</span>
+              </div>
+              <div class="flex items-start gap-2">
+                <span class="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 whitespace-nowrap mt-0.5">Metronome</span>
+                <span>Remarkably consistent — your last 5 efforts have very low variance. Not getting faster, but repeatable.</span>
               </div>
             </div>
+            <p class="mt-3 text-xs text-gray-400">
+              Segments with highly variable times (traffic lights, stops) have most awards suppressed automatically — those times reflect traffic, not performance.
+            </p>
           <//>
 
           <${FaqItem} q="Why 'Participation Awards'?">
