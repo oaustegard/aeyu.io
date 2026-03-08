@@ -28,6 +28,8 @@ import {
   getResetEvent,
   setResetEvent,
   clearResetEvent,
+  getUserConfig,
+  setUserConfig,
 } from "../db.js";
 import { navigate } from "../app.js";
 import {
@@ -53,6 +55,14 @@ const activeResetEvent = signal(null);
 const showResetForm = signal(false);
 const resetName = signal("");
 const resetDate = signal("");
+const referencePoints = signal([]);
+const showRefForm = signal(false);
+const refType = signal("since_date");
+const refLabel = signal("");
+const refDate = signal("");
+const refCount = signal(10);
+const refBirthday = signal("");
+const refAge = signal(40);
 
 const AWARD_LABELS = {
   year_best: { label: "Year Best", color: "bg-yellow-100 text-yellow-800" },
@@ -82,6 +92,7 @@ const AWARD_LABELS = {
   comeback_distance: { label: "Comeback Distance", color: "bg-rose-100 text-rose-800" },
   comeback_elevation: { label: "Comeback Climbing", color: "bg-rose-100 text-rose-800" },
   comeback_endurance: { label: "Comeback Endurance", color: "bg-rose-100 text-rose-800" },
+  reference_best: { label: "Reference Best", color: "bg-teal-200 text-teal-900" },
 };
 
 async function loadDashboard() {
@@ -89,6 +100,8 @@ async function loadDashboard() {
   try {
     await loadUnitPreference();
     activeResetEvent.value = await getResetEvent();
+    const userConfig = await getUserConfig();
+    referencePoints.value = userConfig.referencePoints || [];
     const activities = await getAllActivities();
     // Sort by date descending, take recent 20
     activities.sort((a, b) => b.start_date_local.localeCompare(a.start_date_local));
@@ -349,7 +362,7 @@ export function Dashboard() {
               for (const a of awards) {
                 typeCounts.set(a.type, (typeCounts.get(a.type) || 0) + 1);
               }
-              const typeOrder = ["season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
+              const typeOrder = ["season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "reference_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
               const summary = typeOrder
                 .filter((t) => typeCounts.has(t))
                 .map((t) => ({ type: t, count: typeCounts.get(t) }));
@@ -491,6 +504,10 @@ export function Dashboard() {
                     <span class="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 whitespace-nowrap mt-0.5">Longest by Time</span>
                     <span>Longest ride by moving time this year — your biggest endurance effort.</span>
                   </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-teal-200 text-teal-900 whitespace-nowrap mt-0.5">Reference Best</span>
+                    <span>Best effort within a user-defined window — since a date, in last N rides, or since turning an age. Configure in settings below.</span>
+                  </div>
                 </div>
               </details>
 
@@ -620,6 +637,167 @@ export function Dashboard() {
                     </button>
                     <p class="text-xs text-gray-300 mt-1">Awards will adjust to celebrate your recovery progress instead of comparing to pre-injury bests.</p>
                   `}
+                `}
+              </div>
+            </div>
+
+            <div class="mt-4 pt-4 border-t border-gray-100 space-y-3">
+              <!-- Reference Points Settings -->
+              <div>
+                <p class="text-xs font-medium text-gray-600 mb-1.5">Reference Points</p>
+                <p class="text-xs text-gray-400 mb-2">Custom "best since" awards — compare your efforts within a personal time window.</p>
+
+                ${referencePoints.value.length > 0 && html`
+                  <div class="space-y-1.5 mb-2">
+                    ${referencePoints.value.map((rp) => html`
+                      <div key=${rp.id} class="flex items-center justify-between bg-teal-50 rounded-lg px-3 py-2">
+                        <div>
+                          <p class="text-xs font-medium text-teal-800">${rp.label}</p>
+                          <p class="text-xs text-teal-600">
+                            ${rp.type === "since_date" ? `Since ${new Date(rp.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : ""}
+                            ${rp.type === "last_n" ? `Last ${rp.count} rides` : ""}
+                            ${rp.type === "since_age" ? `Since turning ${rp.age} (${new Date(rp.birthday).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })})` : ""}
+                          </p>
+                        </div>
+                        <button
+                          onClick=${async () => {
+                            const updated = referencePoints.value.filter((r) => r.id !== rp.id);
+                            referencePoints.value = updated;
+                            await setUserConfig({ referencePoints: updated });
+                            await loadDashboard();
+                          }}
+                          class="text-xs text-teal-400 hover:text-teal-600 px-2 py-1 rounded transition-colors"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    `)}
+                  </div>
+                `}
+
+                ${showRefForm.value ? html`
+                  <div class="bg-gray-50 rounded-lg p-3 space-y-2">
+                    <select
+                      value=${refType.value}
+                      onChange=${(e) => {
+                        refType.value = e.target.value;
+                        // Set default labels
+                        if (e.target.value === "since_date") refLabel.value = "";
+                        if (e.target.value === "last_n") refLabel.value = "last " + refCount.value + " rides";
+                        if (e.target.value === "since_age") refLabel.value = "";
+                      }}
+                      class="w-full text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400 bg-white"
+                    >
+                      <option value="since_date">Best since date</option>
+                      <option value="last_n">Best in last N rides</option>
+                      <option value="since_age">Best since turning age</option>
+                    </select>
+
+                    <input
+                      type="text"
+                      placeholder=${refType.value === "since_date" ? "Label (e.g. Since new bike)" : refType.value === "last_n" ? "Label (e.g. Last 10 rides)" : "Label (e.g. Since turning 40)"}
+                      value=${refLabel.value}
+                      onInput=${(e) => { refLabel.value = e.target.value; }}
+                      class="w-full text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400"
+                    />
+
+                    ${refType.value === "since_date" && html`
+                      <input
+                        type="date"
+                        value=${refDate.value}
+                        onInput=${(e) => { refDate.value = e.target.value; }}
+                        class="w-full text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400"
+                      />
+                    `}
+
+                    ${refType.value === "last_n" && html`
+                      <div class="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="2"
+                          max="100"
+                          value=${refCount.value}
+                          onInput=${(e) => { refCount.value = parseInt(e.target.value) || 10; }}
+                          class="w-20 text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400"
+                        />
+                        <span class="text-xs text-gray-500">rides per segment</span>
+                      </div>
+                    `}
+
+                    ${refType.value === "since_age" && html`
+                      <div class="space-y-2">
+                        <div>
+                          <label class="text-xs text-gray-500 block mb-0.5">Birthday</label>
+                          <input
+                            type="date"
+                            value=${refBirthday.value}
+                            onInput=${(e) => { refBirthday.value = e.target.value; }}
+                            class="w-full text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400"
+                          />
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <label class="text-xs text-gray-500">Age</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="120"
+                            value=${refAge.value}
+                            onInput=${(e) => { refAge.value = parseInt(e.target.value) || 40; }}
+                            class="w-20 text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400"
+                          />
+                        </div>
+                      </div>
+                    `}
+
+                    <div class="flex gap-2">
+                      <button
+                        onClick=${async () => {
+                          const label = refLabel.value.trim();
+                          if (!label) return;
+                          const rp = { id: Date.now().toString(), type: refType.value, label };
+                          if (refType.value === "since_date") {
+                            if (!refDate.value) return;
+                            rp.date = refDate.value;
+                          } else if (refType.value === "last_n") {
+                            rp.count = refCount.value;
+                          } else if (refType.value === "since_age") {
+                            if (!refBirthday.value || !refAge.value) return;
+                            rp.birthday = refBirthday.value;
+                            rp.age = refAge.value;
+                          }
+                          const updated = [...referencePoints.value, rp];
+                          referencePoints.value = updated;
+                          await setUserConfig({ referencePoints: updated });
+                          showRefForm.value = false;
+                          refLabel.value = "";
+                          refDate.value = "";
+                          refType.value = "since_date";
+                          await loadDashboard();
+                        }}
+                        disabled=${!refLabel.value.trim() || (refType.value === "since_date" && !refDate.value) || (refType.value === "since_age" && (!refBirthday.value || !refAge.value))}
+                        class="text-xs px-3 py-1.5 rounded font-medium transition-colors ${
+                          refLabel.value.trim() && (refType.value !== "since_date" || refDate.value) && (refType.value !== "since_age" || (refBirthday.value && refAge.value))
+                            ? "bg-teal-600 text-white hover:bg-teal-700"
+                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        }"
+                      >
+                        Add reference point
+                      </button>
+                      <button
+                        onClick=${() => { showRefForm.value = false; refLabel.value = ""; refDate.value = ""; refType.value = "since_date"; }}
+                        class="text-xs px-3 py-1.5 rounded text-gray-500 hover:text-gray-700 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ` : html`
+                  <button
+                    onClick=${() => { showRefForm.value = true; }}
+                    class="text-xs text-gray-400 hover:text-teal-500 transition-colors"
+                  >
+                    Add a reference point
+                  </button>
                 `}
               </div>
             </div>

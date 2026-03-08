@@ -50,7 +50,7 @@
  *   - Recovered (at or better than pre-injury): normal awards + "You're Back!"
  */
 
-import { getSegment, getResetEvent, recordRecoveryMilestone } from "./db.js";
+import { getSegment, getResetEvent, recordRecoveryMilestone, getUserConfig } from "./db.js";
 import { formatTime, formatDistance } from "./units.js";
 
 /** Minimum total efforts on a segment before comparative awards apply */
@@ -224,6 +224,82 @@ function computeYtdComparison(currentValue, allEfforts, activityDate, field) {
 
 
 /**
+ * Resolve a reference point to a cutoff date or effort count.
+ * @param {Object} refPoint - Reference point config
+ * @returns {{ type: "date", date: Date, label: string } | { type: "count", count: number, label: string }}
+ */
+function resolveReferencePoint(refPoint) {
+  if (refPoint.type === "since_date") {
+    return { type: "date", date: new Date(refPoint.date), label: refPoint.label };
+  }
+  if (refPoint.type === "last_n") {
+    return { type: "count", count: refPoint.count, label: refPoint.label };
+  }
+  if (refPoint.type === "since_age") {
+    const birthday = new Date(refPoint.birthday);
+    const ageDate = new Date(birthday);
+    ageDate.setFullYear(ageDate.getFullYear() + refPoint.age);
+    return { type: "date", date: ageDate, label: refPoint.label };
+  }
+  return null;
+}
+
+/**
+ * Compute reference_best awards for a segment effort against user-defined reference points.
+ * @param {Object} effort - Current segment effort
+ * @param {Array} allEfforts - All efforts on this segment
+ * @param {Object} segment - Segment data
+ * @param {Array} referencePoints - User-defined reference points
+ * @returns {Array} - Awards for this effort
+ */
+function computeReferenceAwards(effort, allEfforts, segment, referencePoints) {
+  const awards = [];
+  for (const refPoint of referencePoints) {
+    const resolved = resolveReferencePoint(refPoint);
+    if (!resolved) continue;
+
+    let windowEfforts;
+    if (resolved.type === "date") {
+      windowEfforts = allEfforts.filter(
+        (e) => new Date(e.start_date_local) >= resolved.date
+      );
+    } else {
+      // Last N efforts by date (most recent N)
+      const sorted = [...allEfforts].sort(
+        (a, b) => b.start_date_local.localeCompare(a.start_date_local)
+      );
+      windowEfforts = sorted.slice(0, resolved.count);
+    }
+
+    // Need at least 2 efforts in the window to make comparison meaningful
+    if (windowEfforts.length < 2) continue;
+
+    const bestInWindow = Math.min(...windowEfforts.map((e) => e.elapsed_time));
+    if (effort.elapsed_time === bestInWindow) {
+      const others = windowEfforts
+        .filter((e) => e.effort_id !== effort.id)
+        .sort((a, b) => a.elapsed_time - b.elapsed_time);
+      const previousBest = others.length > 0 ? others[0] : null;
+
+      awards.push({
+        type: "reference_best",
+        segment: segment.name,
+        segment_id: segment.id,
+        time: effort.elapsed_time,
+        power: effort.average_watts || null,
+        comparison: previousBest,
+        delta: previousBest ? previousBest.elapsed_time - effort.elapsed_time : null,
+        reference_label: resolved.label,
+        message: previousBest
+          ? `Best ${resolved.label} on ${segment.name}! ${formatTime(effort.elapsed_time)} (previous: ${formatTime(previousBest.elapsed_time)})`
+          : `Best ${resolved.label} on ${segment.name}! ${formatTime(effort.elapsed_time)}`,
+      });
+    }
+  }
+  return awards;
+}
+
+/**
  * Compute comeback context for a segment effort given an active reset event.
  * @param {Object} effort - Current segment effort
  * @param {Array} allEfforts - All efforts on this segment
@@ -259,7 +335,7 @@ function computeComebackContext(effort, allEfforts, resetEvent) {
  * @param {Object|null} resetEvent — Active reset event, if any
  * @returns {Array} — Array of award objects
  */
-export async function computeAwards(activity, resetEvent = null) {
+export async function computeAwards(activity, resetEvent = null, referencePoints = []) {
   if (!activity.segment_efforts || activity.segment_efforts.length === 0) {
     return [];
   }
@@ -666,6 +742,12 @@ export async function computeAwards(activity, resetEvent = null) {
       }
     }
 
+    // --- Reference Point Awards (user-defined "best since" comparisons) ---
+    if (referencePoints.length > 0 && !isHighVariance && allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
+      const refAwards = computeReferenceAwards(effort, allEfforts, segment, referencePoints);
+      awards.push(...refAwards);
+    }
+
     // --- Comeback Awards (#60) ---
     if (comebackCtx && comebackCtx.preInjuryBest != null) {
       const { preInjuryBest, recoveryRatio, postResetEfforts } = comebackCtx;
@@ -940,9 +1022,11 @@ export function computeRideLevelAwards(activity, allActivities, resetEvent = nul
  */
 export async function computeAwardsForActivities(activities) {
   const resetEvent = await getResetEvent();
+  const userConfig = await getUserConfig();
+  const referencePoints = userConfig.referencePoints || [];
   const result = new Map();
   for (const activity of activities) {
-    const segmentAwards = await computeAwards(activity, resetEvent);
+    const segmentAwards = await computeAwards(activity, resetEvent, referencePoints);
     const rideAwards = computeRideLevelAwards(activity, activities, resetEvent);
     const allAwards = [...segmentAwards, ...rideAwards];
 
