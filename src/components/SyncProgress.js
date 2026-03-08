@@ -55,8 +55,8 @@ export function SyncProgress() {
             Strava limits apps to${" "}
             <strong>100 requests per 15 minutes</strong> and${" "}
             <strong>1,000 per day</strong>, so a large history takes a
-            few sessions to fully load. You can close this page and come
-            back — we'll pick up where we left off.
+            few sessions to fully load. You can close this page any time
+            — next session will resume where this one stopped.
           </p>
         </div>
 
@@ -137,7 +137,7 @@ export function SyncProgress() {
         `}
 
         <p class="text-center text-sm text-gray-400 mb-4">
-          You can close this tab — we'll pick up where we left off.
+          Sync pauses when you leave — next time, it resumes where it stopped.
         </p>
 
         ${progress.phase === "done" && html`
