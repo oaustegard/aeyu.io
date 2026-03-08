@@ -103,7 +103,7 @@ For local dev, also allow `http://localhost:*`.
 
 **Stack:** Preact + HTM + Signals, zero-build (CDN imports via esm.sh), hosted on GitHub Pages
 **Domain:** `aeyu.io` (existing site — "the sound you make at the top of the climb")
-**Path:** `aeyu.io/awards/` (standalone page within existing utility hub)
+**Path:** Root — the app IS the site
 **Repo:** `oaustegard/aeyu.io` (GitHub Pages, deploys from `main` branch root)
 
 **Existing infrastructure:** The site already uses the exact stack — Preact 10.23.1, HTM 3.1.1, Signals 1.3.0 via esm.sh import maps, Tailwind via CDN. Currently hosts Bluesky utilities as standalone HTML pages linked from a landing page. Participation Awards follows the same pattern.
@@ -125,7 +125,7 @@ Note: existing site uses `?external=preact` pattern instead of `*` prefix. Match
 
 **State management:** Signals for all shared state (sync progress, current awards, auth state). Each module exports signals that components subscribe to reactively. No prop drilling, no context boilerplate.
 
-**Code organization:** ES modules loaded via `<script type="module">`. No bundler, no transpiler. Hash-based routing within the awards page for the 4-5 screens.
+**Code organization:** ES modules loaded via `<script type="module">`. No bundler, no transpiler. Hash-based routing for the 4-5 screens.
 
 **Easter egg:** The domain name explanation — "it's the sound you make at the top of the climb" — dynamically injects the name of the user's hardest segment (highest avg grade or most elevation gain).
 
@@ -136,7 +136,7 @@ Note: existing site uses `?external=preact` pattern instead of `*` prefix. Match
    ```
    https://www.strava.com/oauth/authorize?
      client_id=<APP_CLIENT_ID>
-     &redirect_uri=https://aeyu.io/awards/callback.html
+     &redirect_uri=https://aeyu.io/callback.html
      &response_type=code
      &scope=activity:read_all
      &approval_prompt=auto
@@ -406,7 +406,7 @@ Oskar needs to register at https://www.strava.com/settings/api:
 - **Application Name:** Participation Awards
 - **Category:** Training
 - **Club:** (optional)
-- **Website:** https://aeyu.io/awards/
+- **Website:** https://aeyu.io/
 - **Authorization Callback Domain:** aeyu.io
 - **Description:** Surfaces meaningful achievements from your Strava history that Strava's built-in system misses.
 
@@ -428,14 +428,14 @@ wrangler deploy
 ```
 # Add files to existing repo: oaustegard/aeyu.io
 # Directory structure (new files alongside existing Bluesky tools):
-#   /awards/index.html       (import map + app shell)
-#   /awards/callback.html    (OAuth redirect handler)
-#   /awards/app.js           (main app component)
-#   /awards/auth.js          (OAuth flow)
-#   /awards/sync.js          (Strava API client + backfill)
-#   /awards/db.js            (IndexedDB wrapper)
-#   /awards/awards.js        (awards engine)
-#   /awards/components/      (UI components)
+#   /index.html       (import map + app shell)
+#   /callback.html    (OAuth redirect handler)
+#   /app.js           (main app component)
+#   /auth.js          (OAuth flow)
+#   /sync.js          (Strava API client + backfill)
+#   /db.js            (IndexedDB wrapper)
+#   /awards.js        (awards engine)
+#   /components/      (UI components)
 
 # Also update root index.html to add Participation Awards card to the utility hub landing page
 ```
