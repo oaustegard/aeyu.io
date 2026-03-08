@@ -150,33 +150,39 @@ export function Dashboard() {
             <h2 class="text-lg font-semibold text-gray-800">Recent Activities</h2>
             ${recentActivities.value.map((activity) => {
               const awards = activityAwards.value.get(activity.id) || [];
+              // Summarize awards by type: [{type, count}] ordered season_first > year_best > recent_best
+              const typeCounts = new Map();
+              for (const a of awards) {
+                typeCounts.set(a.type, (typeCounts.get(a.type) || 0) + 1);
+              }
+              const typeOrder = ["season_first", "year_best", "recent_best"];
+              const summary = typeOrder
+                .filter((t) => typeCounts.has(t))
+                .map((t) => ({ type: t, count: typeCounts.get(t) }));
+
               return html`
                 <button
                   key=${activity.id}
                   onClick=${() => navigate(`activity/${activity.id}`)}
                   class="w-full text-left bg-white rounded-xl border border-gray-200 p-4 hover:border-gray-300 transition-colors"
                 >
-                  <div class="flex items-start justify-between">
-                    <div>
-                      <div class="font-medium text-gray-800">${activity.name}</div>
-                      <div class="text-sm text-gray-500 mt-1">
-                        ${formatDate(activity.start_date_local)}
-                        · ${formatDistance(activity.distance)}
-                        · ${formatTime(activity.moving_time)}
-                      </div>
-                    </div>
-                    ${awards.length > 0 && html`
-                      <div class="flex flex-wrap gap-1 ml-3">
-                        ${awards.map(
-                          (a) => html`
-                            <span class="text-xs px-2 py-0.5 rounded-full ${AWARD_LABELS[a.type]?.color || 'bg-gray-100 text-gray-600'}">
-                              ${AWARD_LABELS[a.type]?.label || a.type}
-                            </span>
-                          `
-                        )}
-                      </div>
-                    `}
+                  <div class="font-medium text-gray-800">${activity.name}</div>
+                  <div class="text-sm text-gray-500 mt-1">
+                    ${formatDate(activity.start_date_local)}
+                    · ${formatDistance(activity.distance)}
+                    · ${formatTime(activity.moving_time)}
                   </div>
+                  ${summary.length > 0 && html`
+                    <div class="flex flex-wrap gap-1.5 mt-2">
+                      ${summary.map(
+                        (s) => html`
+                          <span class="text-xs px-2 py-0.5 rounded-full ${AWARD_LABELS[s.type]?.color || 'bg-gray-100 text-gray-600'}">
+                            ${s.count > 1 ? `${s.count}× ` : ""}${AWARD_LABELS[s.type]?.label || s.type}
+                          </span>
+                        `
+                      )}
+                    </div>
+                  `}
                   ${!activity.has_efforts && html`
                     <div class="text-xs text-gray-400 mt-2">Details not yet loaded</div>
                   `}
