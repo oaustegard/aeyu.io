@@ -24,6 +24,7 @@ import {
   getAllSegments,
   getActivitiesWithoutEfforts,
   getSyncState,
+  clearAllData,
 } from "../db.js";
 import { navigate } from "../app.js";
 
@@ -33,6 +34,8 @@ const stats = signal({ segments: 0, awards: 0 });
 const loading = signal(true);
 const backfillComplete = signal(false);
 const showFaq = signal(false);
+const deleteConfirmText = signal("");
+const showDeleteConfirm = signal(false);
 
 function formatTime(seconds) {
   const m = Math.floor(seconds / 60);
@@ -396,14 +399,62 @@ export function Dashboard() {
               </details>
             </div>
 
-            <div class="mt-4 pt-4 border-t border-gray-100">
-              <button
-                onClick=${handleDisconnect}
-                class="text-xs text-gray-400 hover:text-red-500 transition-colors"
-              >
-                Disconnect Strava
-              </button>
-              <p class="text-xs text-gray-300 mt-1">Removes your login session. Synced data stays in your browser until you clear it.</p>
+            <div class="mt-4 pt-4 border-t border-gray-100 space-y-3">
+              <div>
+                <button
+                  onClick=${handleDisconnect}
+                  class="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  Disconnect Strava
+                </button>
+                <p class="text-xs text-gray-300 mt-1">Removes your login session. Synced data stays in your browser.</p>
+              </div>
+              <div>
+                <button
+                  onClick=${() => { showDeleteConfirm.value = !showDeleteConfirm.value; deleteConfirmText.value = ""; }}
+                  class="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  Delete all data
+                </button>
+                <p class="text-xs text-gray-300 mt-1">Permanently removes all synced activities, segments, and login from this browser.</p>
+                ${showDeleteConfirm.value && html`
+                  <div class="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p class="text-xs text-red-700 mb-2">
+                      This will delete all your data from this browser. To confirm, type <span class="font-mono font-bold">delete my data</span> below.
+                    </p>
+                    <input
+                      type="text"
+                      value=${deleteConfirmText.value}
+                      onInput=${(e) => { deleteConfirmText.value = e.target.value; }}
+                      placeholder="delete my data"
+                      class="w-full text-xs border border-red-300 rounded px-2 py-1.5 mb-2 focus:outline-none focus:ring-1 focus:ring-red-400"
+                    />
+                    <div class="flex gap-2">
+                      <button
+                        onClick=${async () => {
+                          await clearAllData();
+                          navigate("");
+                          window.location.reload();
+                        }}
+                        disabled=${deleteConfirmText.value !== "delete my data"}
+                        class="text-xs px-3 py-1.5 rounded font-medium transition-colors ${
+                          deleteConfirmText.value === "delete my data"
+                            ? "bg-red-600 text-white hover:bg-red-700"
+                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        }"
+                      >
+                        Delete everything
+                      </button>
+                      <button
+                        onClick=${() => { showDeleteConfirm.value = false; deleteConfirmText.value = ""; }}
+                        class="text-xs px-3 py-1.5 rounded text-gray-500 hover:text-gray-700 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                `}
+              </div>
             </div>
           </div>
         `}
