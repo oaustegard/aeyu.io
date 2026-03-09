@@ -12,8 +12,8 @@ import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { authState, disconnect } from "../auth.js";
 import {
-  startBackfill,
-  incrementalSync,
+  startAutoSync,
+  stopAutoSync,
   syncProgress,
   rateLimitStatus,
   isSyncing,
@@ -122,44 +122,16 @@ export function Dashboard() {
   const units = unitSystem.value;
 
   useEffect(() => {
-    async function init() {
-      await loadDashboard();
+    loadDashboard();
 
-      // Auto-trigger backfill if initial list sync isn't done
-      const state = await getSyncState();
-      if (!state.backfill_complete) {
-        try {
-          await startBackfill();
-        } catch (err) {
-          console.error("Backfill error:", err);
-        }
-        await loadDashboard();
-      }
+    // Start automatic background sync — handles backfill, incremental,
+    // rate limit cooldowns, and periodic checks for new activities.
+    if (!isDemo.value) {
+      startAutoSync(() => loadDashboard());
     }
-    init();
+
+    return () => stopAutoSync();
   }, []);
-
-  async function handleSync() {
-    if (backfillComplete.value) {
-      await incrementalSync();
-      // Also resume any pending detail fetches from prior rate-limited sessions
-      const pending = await getActivitiesWithoutEfforts();
-      if (pending.length > 0) {
-        try {
-          await startBackfill();
-        } catch (err) {
-          console.error("Detail resume error:", err);
-        }
-      }
-    } else {
-      try {
-        await startBackfill();
-      } catch (err) {
-        console.error("Backfill error:", err);
-      }
-    }
-    await loadDashboard();
-  }
 
   async function handleDisconnect() {
     await disconnect();
@@ -221,21 +193,12 @@ export function Dashboard() {
                 class="text-xs font-medium transition-colors"
                 style="color: var(--accent);"
               >Exit Demo</button>
-            ` : html`
-              <button
-                onClick=${handleSync}
-                disabled=${syncing}
-                class="inline-flex items-center gap-2 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-60"
-                style="background: var(--strava); font-family: var(--font-body);"
-                onMouseOver=${(e) => { if (!syncing) e.currentTarget.style.background = 'var(--strava-hover)'; }}
-                onMouseOut=${(e) => e.currentTarget.style.background = 'var(--strava)'}
-              >
-                ${syncing && html`
-                  <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                `}
-                ${syncing ? "Syncing..." : html`Sync Now${pendingCount.value > 0 ? html`\u00a0<span class="bg-blue-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">${pendingCount.value}</span>` : ""}`}
-              </button>
-            `}
+            ` : syncing ? html`
+              <div class="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg" style="font-family: var(--font-body); color: var(--text-secondary);">
+                <div class="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin flex-shrink-0" style="border-color: var(--strava); border-top-color: transparent;"></div>
+                <span>Syncing</span>
+              </div>
+            ` : ""}
             <button
               onClick=${() => { showFaq.value = !showFaq.value; }}
               class="transition-colors"
@@ -288,8 +251,7 @@ export function Dashboard() {
             <p class="font-medium mb-1">Initial sync paused</p>
             <p>
               Your full activity history is still loading. Strava limits API requests,
-              so this happens over a few sessions. Tap <strong>Sync Now</strong> to continue,
-              or it will resume automatically next time you visit.
+              so this happens over a few sessions. Sync will resume automatically.
             </p>
           </div>
         `}
