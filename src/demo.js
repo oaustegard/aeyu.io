@@ -87,7 +87,7 @@ export async function startDemo() {
         detailed_activities: data.activities.length,
         last_sync: new Date().toISOString(),
         power_backfill_complete: true,
-        schema_version: 0,
+        schema_version: 2,
       },
       "state"
     );
