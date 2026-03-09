@@ -136,7 +136,7 @@ async function fetchActivityListPage(page, afterEpoch) {
     page: String(page),
   });
 
-  if (afterEpoch !== undefined) {
+  if (afterEpoch) {
     params.set("after", String(afterEpoch));
   }
 
@@ -149,7 +149,7 @@ async function fetchActivityListPage(page, afterEpoch) {
   const summaries = activities.map(toActivitySummary);
   await putActivities(summaries);
 
-  // Strava returns newest first; track the most recent date
+  // Strava returns newest first (when no `after` param); track the most recent date
   const newestDate = activities[0].start_date;
 
   return {
@@ -418,7 +418,7 @@ export async function startBackfill() {
           message: `Fetching activities (page ${page})...`,
         };
 
-        const result = await fetchActivityListPage(page, 0);
+        const result = await fetchActivityListPage(page);
 
         if (result.summaries.length === 0) break;
 
