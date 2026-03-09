@@ -474,12 +474,19 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards) {
   contentH += nameLines.length * 62 + 8; // segment name
   contentH += metaLines.length * 38 + 26; // meta
 
+  // Pre-wrap award messages for height calculation
+  const awardMsgMaxW = maxTextW - 28; // account for icon + gap
+  tmpCtx.font = '400 26px "DM Sans", sans-serif';
+  const displayAwards = segAwards.slice(0, 5);
+  const wrappedAwardMsgs = displayAwards.map(a => {
+    const msg = a.message || (AWARD_LABELS[a.type]?.label || "");
+    return wrapText(tmpCtx, msg, awardMsgMaxW);
+  });
+
   if (segAwards.length > 0) {
     contentH += pillRows.length * 52 + 20 + 36; // pills + gap + divider
-    // Award details — show all (segment cards are focused)
-    const displayAwards = segAwards.slice(0, 5);
-    for (const a of displayAwards) {
-      contentH += 56; // message line
+    for (const lines of wrappedAwardMsgs) {
+      contentH += lines.length * 32 + 16; // wrapped lines + gap between awards
     }
     if (segAwards.length > displayAwards.length) contentH += 40;
   }
@@ -612,23 +619,22 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards) {
     ctx.stroke();
     y += 36;
 
-    // Award details
-    const displayAwards = segAwards.slice(0, 5);
-    for (const award of displayAwards) {
+    // Award details — wrapped text
+    for (let i = 0; i < displayAwards.length; i++) {
+      const award = displayAwards[i];
       const colors = AWARD_COLORS[award.type];
       if (!colors) continue;
+      const msgLines = wrappedAwardMsgs[i];
 
       drawIcon(ctx, award.type, left, y - 14, 20, colors.accent, 2);
 
       ctx.font = '400 26px "DM Sans", sans-serif';
       ctx.fillStyle = "#5C5548";
-      let msg = award.message || (AWARD_LABELS[award.type]?.label || "");
-      // Truncate long messages
-      while (ctx.measureText(msg).width > maxTextW - 28 && msg.length > 3) {
-        msg = msg.slice(0, -4) + "…";
+      for (const line of msgLines) {
+        ctx.fillText(line, left + 28, y + 4);
+        y += 32;
       }
-      ctx.fillText(msg, left + 28, y + 4);
-      y += 56;
+      y += 16; // gap between awards
     }
 
     const remaining = segAwards.length - displayAwards.length;
