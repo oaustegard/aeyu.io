@@ -1,5 +1,5 @@
 # src/
-*Files: 11 | Subdirectories: 1*
+*Files: 12 | Subdirectories: 1*
 
 ## Subdirectories
 
@@ -63,7 +63,8 @@
 - **getActivitiesByYear** (f) `(year)` :128
 - **getActivitiesWithoutEfforts** (f) `()` :142
 - **getActivitiesWithoutPower** (f) `()` :161
-- **getAllActivities** (f) `()` :174
+- **getActivitiesWithoutHeartRate** (f) `()` :174
+- **getAllActivities** (f) `()` :191
 - **putSegment** (f) `(segment)` :186
 - **getSegment** (f) `(id)` :196
 - **getAllSegments** (f) `()` :206
@@ -77,6 +78,12 @@
 - **getSyncState** (f) `()` :350
 - **updateSyncState** (f) `(updates)` :360
 - **clearAllData** (f) `()` :372
+
+### fitness.js
+> Imports: `db.js`
+- **computePerformanceCapacity** (f) `()` :69
+- **computeAerobicEfficiency** (f) `()` :169
+- **computeFitnessSummary** (f) `()` :237
 
 ### demo.js
 > Imports: `signals, db.js`

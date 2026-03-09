@@ -46,6 +46,7 @@ import {
 import { isDemo, exitDemo } from "../demo.js";
 import { renderIconSVG } from "../icons.js";
 import { AWARD_LABELS } from "../award-config.js";
+import { computeFitnessSummary } from "../fitness.js";
 
 const recentActivities = signal([]);
 const activityAwards = signal(new Map());
@@ -69,6 +70,7 @@ const refCount = signal("10");
 const refBirthday = signal("");
 const refAge = signal("40");
 const streakData = signal(null);
+const fitnessData = signal(null);
 
 async function loadDashboard() {
   loading.value = true;
@@ -115,6 +117,13 @@ async function loadDashboard() {
       activityAwards.value = new Map();
       const segments = await getAllSegments();
       stats.value = { segments: segments.length, awards: 0 };
+    }
+
+    // Compute fitness indicators (#106)
+    try {
+      fitnessData.value = await computeFitnessSummary();
+    } catch (e) {
+      console.warn("Fitness computation failed:", e);
     }
   } finally {
     loading.value = false;
@@ -394,6 +403,110 @@ export function Dashboard() {
           </div>
         </div>
 
+        <!-- Fitness Indicators (#106) -->
+        ${!loading.value && fitnessData.value && (fitnessData.value.performanceCapacity.hasData || fitnessData.value.aerobicEfficiency.hasData) && html`
+          <div class="mb-6 rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
+            <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin-bottom: 1rem;">Fitness Indicators</h2>
+
+            <div class="grid grid-cols-1 gap-4" style="${fitnessData.value.performanceCapacity.hasData && fitnessData.value.aerobicEfficiency.hasData ? 'display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;' : ''}">
+
+              <!-- Performance Capacity -->
+              ${fitnessData.value.performanceCapacity.hasData && html`
+                <div class="rounded-lg p-4" style="background: var(--bg); border: 1px solid var(--border);">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary);">Performance Capacity</span>
+                    ${fitnessData.value.performanceCapacity.trend != null && html`
+                      <span style="font-size: 0.75rem; color: ${fitnessData.value.performanceCapacity.trend > 2 ? '#3D7A4A' : fitnessData.value.performanceCapacity.trend < -2 ? '#A05060' : 'var(--text-tertiary)'};">
+                        ${fitnessData.value.performanceCapacity.trend > 2 ? '\u2191' : fitnessData.value.performanceCapacity.trend < -2 ? '\u2193' : '\u2192'}
+                      </span>
+                    `}
+                  </div>
+                  <div style="font-family: var(--font-display); font-size: 2rem; color: var(--text);">${fitnessData.value.performanceCapacity.score}</div>
+                  <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem;">
+                    from ${fitnessData.value.performanceCapacity.segments.length} climb${fitnessData.value.performanceCapacity.segments.length !== 1 ? 's' : ''}
+                  </div>
+                  <!-- Mini segment breakdown -->
+                  ${fitnessData.value.performanceCapacity.segments.slice(0, 3).map((seg) => html`
+                    <div class="mt-2 flex justify-between items-center" style="font-size: 0.75rem; color: var(--text-secondary);">
+                      <span class="truncate" style="max-width: 70%;">${seg.segmentName}</span>
+                      <span style="font-family: var(--font-mono); color: var(--text);">${Math.round(seg.score)}</span>
+                    </div>
+                  `)}
+                </div>
+              `}
+
+              <!-- Aerobic Efficiency -->
+              ${fitnessData.value.aerobicEfficiency.hasData && html`
+                <div class="rounded-lg p-4" style="background: var(--bg); border: 1px solid var(--border);">
+                  <div class="flex items-center gap-2 mb-2">
+                    <span style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary);">Aerobic Efficiency</span>
+                    ${fitnessData.value.aerobicEfficiency.ef.trend != null && html`
+                      <span style="font-size: 0.75rem; color: ${fitnessData.value.aerobicEfficiency.ef.trend > 2 ? '#3D7A4A' : fitnessData.value.aerobicEfficiency.ef.trend < -2 ? '#A05060' : 'var(--text-tertiary)'};">
+                        ${fitnessData.value.aerobicEfficiency.ef.trend > 2 ? '\u2191' : fitnessData.value.aerobicEfficiency.ef.trend < -2 ? '\u2193' : '\u2192'}
+                        ${fitnessData.value.aerobicEfficiency.ef.trend != null ? ` ${Math.abs(fitnessData.value.aerobicEfficiency.ef.trend).toFixed(1)}%` : ''}
+                      </span>
+                    `}
+                  </div>
+                  <div style="font-family: var(--font-display); font-size: 2rem; color: var(--text);">${fitnessData.value.aerobicEfficiency.ef.current}</div>
+                  <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem;">
+                    EF ${fitnessData.value.aerobicEfficiency.ef.hasPowerData ? '(W/bpm)' : '(speed/bpm)'}
+                    \u2022 ${fitnessData.value.aerobicEfficiency.ef.recentCount} recent rides
+                  </div>
+                  <!-- Monthly EF trend (last 6 months) -->
+                  ${fitnessData.value.aerobicEfficiency.ef.monthlyHistory.length > 1 && html`
+                    <div class="mt-3" style="display: flex; align-items: flex-end; gap: 2px; height: 40px;">
+                      ${fitnessData.value.aerobicEfficiency.ef.monthlyHistory.slice(-6).map((m) => {
+                        const allEf = fitnessData.value.aerobicEfficiency.ef.monthlyHistory;
+                        const maxEf = Math.max(...allEf.map((x) => x.ef));
+                        const minEf = Math.min(...allEf.map((x) => x.ef));
+                        const range = maxEf - minEf || 1;
+                        const pct = ((m.ef - minEf) / range) * 100;
+                        return html`
+                          <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                            <div style="width: 100%; background: #4882A8; border-radius: 2px; min-height: 4px; height: ${Math.max(15, pct)}%;" title="${m.month}: EF ${m.ef}"></div>
+                            <span style="font-size: 0.5625rem; color: var(--text-tertiary); font-family: var(--font-mono);">${m.month.slice(5)}</span>
+                          </div>
+                        `;
+                      })}
+                    </div>
+                  `}
+                </div>
+              `}
+            </div>
+
+            <!-- Interpretation -->
+            ${fitnessData.value.interpretation && html`
+              <div class="mt-3 px-3 py-2 rounded-lg" style="background: ${
+                fitnessData.value.interpretation === 'ideal' ? '#E8F2E6' :
+                fitnessData.value.interpretation === 'overreaching' ? '#F4E4E8' :
+                fitnessData.value.interpretation === 'detraining' ? '#F4E4E8' :
+                'var(--bg)'
+              }; border: 1px solid ${
+                fitnessData.value.interpretation === 'ideal' ? '#C0D8B8' :
+                fitnessData.value.interpretation === 'overreaching' ? '#DCC0C8' :
+                fitnessData.value.interpretation === 'detraining' ? '#DCC0C8' :
+                'var(--border)'
+              };">
+                <span style="font-family: var(--font-body); font-size: 0.8125rem; color: ${
+                  fitnessData.value.interpretation === 'ideal' ? '#1E4D28' :
+                  fitnessData.value.interpretation === 'overreaching' ? '#6E2E3C' :
+                  fitnessData.value.interpretation === 'detraining' ? '#6E2E3C' :
+                  'var(--text-secondary)'
+                };">
+                  ${{
+                    ideal: "Getting stronger and more efficient",
+                    pushing: "Pushing harder \u2014 output up, economy steady",
+                    building: "Base building \u2014 economy improving, capacity stable",
+                    overreaching: "Watch out \u2014 output up but costing more",
+                    detraining: "Both capacity and efficiency declining",
+                    maintaining: "Maintaining current fitness level",
+                  }[fitnessData.value.interpretation]}
+                </span>
+              </div>
+            `}
+          </div>
+        `}
+
         <!-- Loading -->
         ${loading.value && html`
           <div class="text-center py-12" style="color: var(--text-tertiary);">Loading activities...</div>
@@ -551,6 +664,18 @@ export function Dashboard() {
                       </div>
                     `;
                   })}
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  What are the Fitness Indicators?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  <p><strong>Performance Capacity</strong> (0-100) measures what your body can produce. It tracks your climb segment times, converts them to estimated power-to-weight (VAM/Ferrari formula), and ranks recent efforts against your own history. Requires at least 3 climb segments with 3+ efforts each.</p>
+                  <p><strong>Aerobic Efficiency</strong> measures output per heartbeat (Efficiency Factor = power/HR or speed/HR). Higher is better. Only appears when your activities include heart rate data.</p>
+                  <p>Together they tell a training story: rising capacity + rising efficiency = ideal. Rising capacity + falling efficiency = possible overreaching.</p>
                 </div>
               </details>
 

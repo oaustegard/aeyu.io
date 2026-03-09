@@ -181,6 +181,23 @@ export async function getActivitiesWithoutPower() {
   });
 }
 
+/**
+ * Get activities that were stored before HR fields were tracked.
+ * These lack the has_heartrate property entirely.
+ */
+export async function getActivitiesWithoutHeartRate() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("activities", "readonly");
+    const req = tx.objectStore("activities").getAll();
+    req.onsuccess = () => {
+      const results = req.result.filter((a) => !("has_heartrate" in a));
+      resolve(results);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
 export async function getAllActivities() {
   const db = await openDB();
   return new Promise((resolve, reject) => {
