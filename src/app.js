@@ -7,6 +7,7 @@ import { html } from "htm/preact";
 import { render } from "preact";
 import { signal, effect } from "@preact/signals";
 import { authState, initAuth } from "./auth.js";
+import { checkDemo, isDemo } from "./demo.js";
 import { Landing } from "./components/Landing.js";
 import { Dashboard } from "./components/Dashboard.js";
 import { ActivityDetail } from "./components/ActivityDetail.js";
@@ -59,6 +60,7 @@ function App() {
 
 async function init() {
   await initAuth();
+  await checkDemo();
   render(html`<${App} />`, document.getElementById("app"));
 
   // Re-render on auth and route changes
@@ -66,6 +68,7 @@ async function init() {
     const _ = authState.value;
     const __ = route.value;
     const ___ = routeParams.value;
+    const ____ = isDemo.value;
     render(html`<${App} />`, document.getElementById("app"));
   });
 }
