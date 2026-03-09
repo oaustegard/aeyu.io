@@ -59,6 +59,7 @@ const resetDate = signal("");
 const referencePoints = signal([]);
 const showRefForm = signal(false);
 const refType = signal("since_date");
+const pendingCount = signal(0);
 const refLabel = signal("");
 const refDate = signal("");
 const refCount = signal(10);
@@ -127,6 +128,10 @@ async function loadDashboard() {
     // Check sync completion state
     const state = await getSyncState();
     backfillComplete.value = state.backfill_complete;
+
+    // Count activities awaiting detail fetch (no efforts yet)
+    const pending = await getActivitiesWithoutEfforts();
+    pendingCount.value = pending.length;
 
     // Always compute awards for activities that have efforts — even during
     // backfill. As more data syncs across sessions, segment histories grow
@@ -267,7 +272,7 @@ export function Dashboard() {
                 ${syncing && html`
                   <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 `}
-                ${syncing ? "Syncing..." : "Sync Now"}
+                ${syncing ? "Syncing..." : html`Sync Now${pendingCount.value > 0 ? html`\u00a0<span class="bg-blue-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">${pendingCount.value}</span>` : ""}`}
               </button>
             `}
             <button
