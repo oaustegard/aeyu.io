@@ -344,6 +344,7 @@ const DEFAULT_SYNC_STATE = {
   detailed_activities: 0,
   last_sync: null,
   power_backfill_complete: false,
+  schema_version: 0,
 };
 
 export async function getSyncState() {
