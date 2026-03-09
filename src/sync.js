@@ -40,7 +40,7 @@ export const isSyncing = signal(false);
 
 const BATCH_SIZE = 80;
 const RATE_LIMIT_THRESHOLD = 0.8;
-const PAGE_SIZE = 200;
+const LIST_PAGE_SIZE = 100; // Smaller pages for interleaved list+detail sync
 
 // --- Rate Limit Tracking ---
 
@@ -92,99 +92,112 @@ class RateLimitError extends Error {
   }
 }
 
-// --- Phase 1: Activity List Backfill ---
+// --- Phase 1: Activity List (page-at-a-time) ---
 
-async function fetchActivityList() {
-  const state = await getSyncState();
-  let page = state.backfill_complete ? 1 : state.backfill_page;
+function toActivitySummary(a) {
+  return {
+    id: a.id,
+    name: a.name,
+    sport_type: a.sport_type,
+    start_date: a.start_date,
+    start_date_local: a.start_date_local,
+    distance: a.distance,
+    moving_time: a.moving_time,
+    elapsed_time: a.elapsed_time,
+    total_elevation_gain: a.total_elevation_gain,
+    average_speed: a.average_speed,
+    max_speed: a.max_speed,
+    // Power fields (from activity summary)
+    average_watts: a.average_watts || null,
+    max_watts: a.max_watts || null,
+    weighted_average_watts: a.weighted_average_watts || null,
+    device_watts: a.device_watts || false,
+    kilojoules: a.kilojoules || null,
+    trainer: a.trainer || false,
+    has_efforts: false,
+    segment_efforts: [],
+  };
+}
+
+/**
+ * Fetch a single page of activities from the Strava API.
+ * Returns { summaries, hasMore, newestDate }.
+ */
+async function fetchActivityListPage(page, afterEpoch) {
+  if (isRateLimited()) {
+    throw new RateLimitError(900);
+  }
+
+  const params = new URLSearchParams({
+    per_page: String(LIST_PAGE_SIZE),
+    page: String(page),
+  });
+
+  if (afterEpoch !== undefined) {
+    params.set("after", String(afterEpoch));
+  }
+
+  const activities = await stravaFetch(`/athlete/activities?${params}`);
+
+  if (activities.length === 0) {
+    return { summaries: [], hasMore: false, newestDate: null };
+  }
+
+  const summaries = activities.map(toActivitySummary);
+  await putActivities(summaries);
+
+  // Strava returns newest first; track the most recent date
+  const newestDate = activities[0].start_date;
+
+  return {
+    summaries,
+    hasMore: activities.length >= LIST_PAGE_SIZE,
+    newestDate,
+  };
+}
+
+/**
+ * Fetch ALL pages of new activities (used for incremental sync).
+ * Returns all new activity summaries.
+ */
+async function fetchAllNewActivities(lastActivityDate) {
+  let page = 1;
   let allNew = [];
-  let lastActivityDate = state.last_activity_fetch;
+  const afterEpoch = lastActivityDate
+    ? Math.floor(new Date(lastActivityDate).getTime() / 1000)
+    : undefined;
 
   syncProgress.value = {
     ...syncProgress.value,
     phase: "list",
-    message: "Fetching activity list...",
+    message: "Checking for new activities...",
   };
 
   while (true) {
-    if (isRateLimited()) {
-      await updateSyncState({ backfill_page: page });
-      throw new RateLimitError(900);
-    }
+    const result = await fetchActivityListPage(page, afterEpoch);
+    if (result.summaries.length === 0) break;
 
-    const params = new URLSearchParams({
-      per_page: String(PAGE_SIZE),
-      page: String(page),
-    });
-
-    // For incremental sync, only fetch after last known activity
-    if (state.backfill_complete && lastActivityDate) {
-      params.set(
-        "after",
-        String(Math.floor(new Date(lastActivityDate).getTime() / 1000))
-      );
-    } else if (!state.backfill_complete) {
-      params.set("after", "0");
-    }
-
-    const activities = await stravaFetch(
-      `/athlete/activities?${params}`
-    );
-
-    if (activities.length === 0) break;
-
-    // Mark as needing detail fetch — include power fields from summary
-    const summaries = activities.map((a) => ({
-      id: a.id,
-      name: a.name,
-      sport_type: a.sport_type,
-      start_date: a.start_date,
-      start_date_local: a.start_date_local,
-      distance: a.distance,
-      moving_time: a.moving_time,
-      elapsed_time: a.elapsed_time,
-      total_elevation_gain: a.total_elevation_gain,
-      average_speed: a.average_speed,
-      max_speed: a.max_speed,
-      // Power fields (from activity summary)
-      average_watts: a.average_watts || null,
-      max_watts: a.max_watts || null,
-      weighted_average_watts: a.weighted_average_watts || null,
-      device_watts: a.device_watts || false,
-      kilojoules: a.kilojoules || null,
-      trainer: a.trainer || false,
-      has_efforts: false,
-      segment_efforts: [],
-    }));
-
-    await putActivities(summaries);
-    allNew.push(...summaries);
+    allNew.push(...result.summaries);
 
     syncProgress.value = {
       ...syncProgress.value,
-      fetched: syncProgress.value.fetched + activities.length,
-      message: `Fetched ${syncProgress.value.fetched + activities.length} activities...`,
+      fetched: syncProgress.value.fetched + result.summaries.length,
+      message: `Found ${syncProgress.value.fetched + result.summaries.length} new activities...`,
     };
 
-    // Track the most recent activity date
-    if (activities.length > 0) {
-      const newest = activities[0].start_date;
-      if (!lastActivityDate || newest > lastActivityDate) {
-        lastActivityDate = newest;
-      }
-    }
-
+    if (!result.hasMore) break;
     page++;
-
-    if (activities.length < PAGE_SIZE) break;
   }
 
-  await updateSyncState({
-    backfill_page: page,
-    backfill_complete: true,
-    fetched_activities: (await getSyncState()).fetched_activities + allNew.length,
-    last_activity_fetch: lastActivityDate,
-  });
+  // Update last_activity_fetch if we found newer activities
+  if (allNew.length > 0) {
+    const newestDate = allNew[0].start_date; // Strava returns newest first
+    const state = await getSyncState();
+    const currentNewest = state.last_activity_fetch;
+    if (!currentNewest || newestDate > currentNewest) {
+      await updateSyncState({ last_activity_fetch: newestDate });
+    }
+  }
 
   return allNew;
 }
@@ -360,7 +373,9 @@ async function runPowerMigration() {
 // --- Public API ---
 
 /**
- * Start full backfill — list all activities, then fetch details.
+ * Start full backfill — interleaves activity list and detail fetching.
+ * Fetches one page of activities (~100), then their details, then the next page.
+ * This gives users visible data much faster than loading all activities first.
  * Resumable: checks has_efforts flag and sync_state on restart.
  */
 export async function startBackfill() {
@@ -374,12 +389,78 @@ export async function startBackfill() {
       total: null,
       detailed: 0,
       detailTotal: null,
-      message: "Starting backfill...",
+      message: "Starting sync...",
     };
 
-    await fetchActivityList();
-    await runPowerMigration();
-    const detailed = await fetchActivityDetails();
+    const state = await getSyncState();
+
+    // If backfill was already completed, this is a resume for pending details
+    if (state.backfill_complete) {
+      await runPowerMigration();
+      await fetchActivityDetails();
+    } else {
+      // Interleaved backfill: fetch page → detail → fetch page → detail
+      let page = state.backfill_page || 1;
+      let lastActivityDate = state.last_activity_fetch;
+      let totalFetched = 0;
+
+      while (true) {
+        // Fetch one page of activity summaries
+        syncProgress.value = {
+          ...syncProgress.value,
+          phase: "list",
+          message: `Fetching activities (page ${page})...`,
+        };
+
+        const result = await fetchActivityListPage(page, 0);
+
+        if (result.summaries.length === 0) break;
+
+        totalFetched += result.summaries.length;
+
+        // Track newest activity date
+        if (result.newestDate && (!lastActivityDate || result.newestDate > lastActivityDate)) {
+          lastActivityDate = result.newestDate;
+        }
+
+        syncProgress.value = {
+          ...syncProgress.value,
+          fetched: totalFetched,
+          message: `Fetched ${totalFetched} activities. Loading details...`,
+        };
+
+        // Save progress so we can resume if interrupted
+        await updateSyncState({
+          backfill_page: page + 1,
+          fetched_activities: (await getSyncState()).fetched_activities + result.summaries.length,
+          last_activity_fetch: lastActivityDate,
+        });
+
+        // Detail-fetch everything pending (includes this page + any prior)
+        await fetchActivityDetails();
+
+        if (!result.hasMore) break;
+
+        // Check rate limit before continuing to next page
+        if (isRateLimited()) {
+          syncProgress.value = {
+            ...syncProgress.value,
+            message: `Rate limit approaching — pausing after ${totalFetched} activities.`,
+          };
+          break;
+        }
+
+        page++;
+      }
+
+      // If we got through all pages without being rate-limited, mark complete
+      if (!isRateLimited()) {
+        await updateSyncState({ backfill_complete: true });
+        await runPowerMigration();
+        // Final detail pass for any remaining from power migration
+        await fetchActivityDetails();
+      }
+    }
 
     const remaining = await getActivitiesWithoutEfforts();
 
@@ -397,8 +478,6 @@ export async function startBackfill() {
         message: `Paused — ${remaining.length} activities still need details. Re-open to continue.`,
       };
     }
-
-    return detailed;
   } catch (err) {
     syncProgress.value = {
       ...syncProgress.value,
@@ -412,7 +491,8 @@ export async function startBackfill() {
 }
 
 /**
- * Incremental sync — fetch only new activities since last sync.
+ * Incremental sync — fetch new activities since last sync, detail them first,
+ * then continue any pending detail backfill from prior sessions.
  */
 export async function incrementalSync() {
   if (isSyncing.value) return;
@@ -428,22 +508,37 @@ export async function incrementalSync() {
       message: "Checking for new activities...",
     };
 
-    const newActivities = await fetchActivityList();
+    const state = await getSyncState();
+    const newActivities = await fetchAllNewActivities(state.last_activity_fetch);
 
     if (newActivities.length > 0) {
       syncProgress.value = {
         ...syncProgress.value,
         message: `Found ${newActivities.length} new activities. Fetching details...`,
       };
+      // Detail-fetch prioritizes newest first (getActivitiesWithoutEfforts sorts desc)
       await fetchActivityDetails();
     }
 
+    // Resume any pending details from prior rate-limited sessions
+    const pending = await getActivitiesWithoutEfforts();
+    if (pending.length > 0) {
+      syncProgress.value = {
+        ...syncProgress.value,
+        message: `Resuming detail fetch for ${pending.length} remaining activities...`,
+      };
+      await fetchActivityDetails();
+    }
+
+    const stillPending = await getActivitiesWithoutEfforts();
     syncProgress.value = {
       ...syncProgress.value,
       phase: "done",
-      message: newActivities.length
-        ? `Synced ${newActivities.length} new activities.`
-        : "Already up to date.",
+      message: stillPending.length > 0
+        ? `Synced ${newActivities.length} new. ${stillPending.length} activities still need details.`
+        : newActivities.length
+          ? `Synced ${newActivities.length} new activities.`
+          : "Already up to date.",
     };
 
     await updateSyncState({ last_sync: new Date().toISOString() });
@@ -457,6 +552,91 @@ export async function incrementalSync() {
     throw err;
   } finally {
     isSyncing.value = false;
+  }
+}
+
+// --- Auto-Sync Scheduler ---
+
+const SYNC_INTERVAL = 5 * 60 * 1000;       // 5 min between incremental checks
+const RATE_LIMIT_COOLDOWN = 16 * 60 * 1000; // 16 min cooldown after hitting rate limit
+const BACKFILL_PAUSE = 2 * 1000;            // 2s pause between backfill rounds
+
+let autoSyncTimer = null;
+let autoSyncCallback = null;
+
+/**
+ * Start automatic background syncing. Runs immediately, then schedules
+ * repeats based on sync state and rate limits.
+ * @param {Function} onComplete - called after each sync cycle (e.g. to reload UI)
+ */
+export function startAutoSync(onComplete) {
+  if (autoSyncTimer) return;
+  autoSyncCallback = onComplete || null;
+  scheduleNext(0); // run immediately
+}
+
+/**
+ * Stop the auto-sync scheduler.
+ */
+export function stopAutoSync() {
+  if (autoSyncTimer) {
+    clearTimeout(autoSyncTimer);
+    autoSyncTimer = null;
+  }
+  autoSyncCallback = null;
+}
+
+function scheduleNext(delayMs) {
+  if (autoSyncTimer) clearTimeout(autoSyncTimer);
+  autoSyncTimer = setTimeout(runAutoSyncCycle, delayMs);
+}
+
+async function runAutoSyncCycle() {
+  autoSyncTimer = null;
+
+  // Don't run if already syncing (e.g. resyncActivity in progress)
+  if (isSyncing.value) {
+    scheduleNext(SYNC_INTERVAL);
+    return;
+  }
+
+  try {
+    const state = await getSyncState();
+
+    if (!state.backfill_complete) {
+      // Initial backfill — interleaved list+detail
+      await startBackfill();
+    } else {
+      // Incremental — check for new activities, resume pending details
+      await incrementalSync();
+    }
+
+    // Notify UI to reload
+    if (autoSyncCallback) autoSyncCallback();
+
+    // Decide next interval
+    const pending = await getActivitiesWithoutEfforts();
+
+    if (pending.length > 0 && !isRateLimited()) {
+      // More work to do and we have budget — continue soon
+      scheduleNext(BACKFILL_PAUSE);
+    } else if (isRateLimited()) {
+      // Rate limited — wait for 15-min window to reset
+      scheduleNext(RATE_LIMIT_COOLDOWN);
+    } else {
+      // Fully synced — check periodically for new activities
+      scheduleNext(SYNC_INTERVAL);
+    }
+  } catch (err) {
+    console.error("Auto-sync error:", err);
+    if (autoSyncCallback) autoSyncCallback();
+
+    if (err instanceof RateLimitError) {
+      scheduleNext(RATE_LIMIT_COOLDOWN);
+    } else {
+      // Back off on unexpected errors
+      scheduleNext(SYNC_INTERVAL);
+    }
   }
 }
 
