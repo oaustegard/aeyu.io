@@ -50,6 +50,9 @@ export const AWARD_LABELS = {
   indoor_work_year_best:{ label: "Indoor Work Best",  dot: "#B85A28", bg: "#F8E4D4", text: "#7A3418", border: "#E8C0A4" },
   trainer_streak:       { label: "Trainer Streak",    dot: "#B85A28", bg: "#F8E4D4", text: "#7A3418", border: "#E8C0A4" },
   indoor_vs_outdoor:    { label: "Indoor vs Outdoor", dot: "#4882A8", bg: "#E4EEF6", text: "#2A5470", border: "#B8D0E4" },
+  // Streak & consistency awards (#58)
+  weekly_streak:        { label: "Ride Streak",       dot: "#3D7A4A", bg: "#E8F2E6", text: "#1E4D28", border: "#C0D8B8" },
+  group_consistency:    { label: "Group Ride",        dot: "#5B6CA0", bg: "#E4E8F2", text: "#34406A", border: "#BCC4DC" },
 };
 
 // Share card colors derived from AWARD_LABELS

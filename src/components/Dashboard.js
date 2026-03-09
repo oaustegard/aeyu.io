@@ -18,7 +18,7 @@ import {
   rateLimitStatus,
   isSyncing,
 } from "../sync.js";
-import { computeAwardsForActivities } from "../awards.js";
+import { computeAwardsForActivities, computeStreakData } from "../awards.js";
 import {
   getAllActivities,
   getAllSegments,
@@ -67,6 +67,7 @@ const refDate = signal("");
 const refCount = signal("10");
 const refBirthday = signal("");
 const refAge = signal("40");
+const streakData = signal(null);
 
 async function loadDashboard() {
   loading.value = true;
@@ -80,6 +81,11 @@ async function loadDashboard() {
     activities.sort((a, b) => b.start_date_local.localeCompare(a.start_date_local));
     const recent = activities.slice(0, 20);
     recentActivities.value = recent;
+
+    // Compute streak data (#58) — uses all activities, not just recent 20
+    if (activities.length > 0) {
+      streakData.value = computeStreakData(activities);
+    }
 
     // Check sync completion state
     const state = await getSyncState();
@@ -292,6 +298,86 @@ export function Dashboard() {
           </div>
         `}
 
+        <!-- Streak Danger Warning (#58) -->
+        ${streakData.value?.weeklyStreak?.danger && html`
+          <div class="rounded-xl p-4 mb-6" style="background: ${streakData.value.weeklyStreak.danger.level === 'critical' ? '#F6DED4' : '#FBF0D8'}; border: 1px solid ${streakData.value.weeklyStreak.danger.level === 'critical' ? '#E4B8A4' : '#E8D4A0'};">
+            <div class="flex items-center gap-2">
+              ${renderIconSVG("weekly_streak", { size: 20, color: streakData.value.weeklyStreak.danger.level === "critical" ? "#7A3418" : "#6E5010" })}
+              <p style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: ${streakData.value.weeklyStreak.danger.level === 'critical' ? '#7A3418' : '#6E5010'};">
+                ${streakData.value.weeklyStreak.danger.message}
+              </p>
+            </div>
+          </div>
+        `}
+
+        <!-- Streak Cards (#58) -->
+        ${streakData.value?.weeklyStreak?.current >= 4 && html`
+          <div class="grid gap-4 mb-6" style="grid-template-columns: ${streakData.value.groupRides?.length > 0 ? '1fr 1fr' : '1fr'};">
+            <!-- Weekly Ride Streak -->
+            <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
+              <div class="flex items-center gap-2 mb-2">
+                ${renderIconSVG("weekly_streak", { size: 18, color: "#3D7A4A" })}
+                <span style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">Ride Streak</span>
+                ${streakData.value.weeklyStreak.mulliganUsed && html`
+                  <span class="text-xs px-1.5 py-0.5 rounded-full" style="background: #FBF0D8; color: #6E5010; font-family: var(--font-mono);">mulligan</span>
+                `}
+              </div>
+              <div style="font-family: var(--font-display); font-size: 2rem; color: #3D7A4A;">${streakData.value.weeklyStreak.current}</div>
+              <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-secondary);">
+                consecutive weeks${streakData.value.weeklyStreak.streakStart ? ` since ${streakData.value.weeklyStreak.streakStart.replace("-W", " W")}` : ""}
+              </div>
+              ${streakData.value.weeklyStreak.longest > streakData.value.weeklyStreak.current && html`
+                <div class="mt-1" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-tertiary);">
+                  Best: ${streakData.value.weeklyStreak.longest} weeks
+                </div>
+              `}
+            </div>
+
+            <!-- Top Group Ride -->
+            ${streakData.value.groupRides?.length > 0 && (() => {
+              const topGroup = streakData.value.groupRides[0];
+              return html`
+                <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
+                  <div class="flex items-center gap-2 mb-2">
+                    ${renderIconSVG("group_consistency", { size: 18, color: "#5B6CA0" })}
+                    <span style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">Group Ride</span>
+                  </div>
+                  <div style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: #34406A;">${topGroup.name}</div>
+                  <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary);">
+                    ${topGroup.totalRides} rides total${topGroup.attendanceStreak >= 3 ? ` · ${topGroup.attendanceStreak}-week streak` : ""}
+                  </div>
+                  ${topGroup.attendanceMulligan && topGroup.attendanceStreak >= 3 && html`
+                    <span class="text-xs px-1.5 py-0.5 rounded-full mt-1 inline-block" style="background: #FBF0D8; color: #6E5010; font-family: var(--font-mono);">mulligan used</span>
+                  `}
+                </div>
+              `;
+            })()}
+          </div>
+        `}
+
+        <!-- Additional Group Rides (if streak < 4 but groups exist) -->
+        ${streakData.value && !(streakData.value.weeklyStreak?.current >= 4) && streakData.value.groupRides?.length > 0 && html`
+          <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+            <div class="flex items-center gap-2 mb-2">
+              ${renderIconSVG("group_consistency", { size: 18, color: "#5B6CA0" })}
+              <span style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">Recurring Rides</span>
+            </div>
+            <div class="space-y-2">
+              ${streakData.value.groupRides.slice(0, 3).map((g) => html`
+                <div class="flex items-center justify-between">
+                  <div>
+                    <span style="font-family: var(--font-body); font-size: 0.875rem; color: #34406A;">${g.name}</span>
+                    <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-tertiary);"> · ${g.totalRides} rides</span>
+                  </div>
+                  ${g.attendanceStreak >= 3 && html`
+                    <span class="text-xs px-2 py-0.5 rounded-full" style="background: #E4E8F2; color: #34406A; border: 1px solid #BCC4DC;">${g.attendanceStreak}w streak</span>
+                  `}
+                </div>
+              `)}
+            </div>
+          </div>
+        `}
+
         <!-- Stats -->
         <div class="grid grid-cols-2 gap-4 mb-6">
           <div class="rounded-xl p-4 text-center" style="background: var(--surface); border: 1px solid var(--border);">
@@ -327,7 +413,7 @@ export function Dashboard() {
               for (const a of awards) {
                 typeCounts.set(a.type, (typeCounts.get(a.type) || 0) + 1);
               }
-              const typeOrder = ["route_season_first", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "reference_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
+              const typeOrder = ["route_season_first", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "reference_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record", "weekly_streak", "group_consistency"];
               const summary = typeOrder
                 .filter((t) => typeCounts.has(t))
                 .map((t) => ({ type: t, count: typeCounts.get(t) }));
@@ -443,6 +529,8 @@ export function Dashboard() {
                     ["comeback_pb", "Comeback PB", "Post-injury personal best on a segment. Only appears when Comeback Mode is active."],
                     ["recovery_milestone", "Recovery", "You've reached 80%, 90%, or 95% of your pre-injury best on a segment."],
                     ["comeback_full", "You're Back!", "You've matched or beaten your pre-injury best. Full recovery on this segment."],
+                    ["weekly_streak", "Ride Streak", "Consecutive weeks with at least one ride. One missed week is forgiven (mulligan) — two consecutive misses break the streak."],
+                    ["group_consistency", "Group Ride", "Detects recurring rides by day, time, and location. Tracks your attendance streak on each group ride."],
                   ].map(([type, label, desc]) => {
                     const al = AWARD_LABELS[type];
                     return html`

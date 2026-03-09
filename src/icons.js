@@ -309,6 +309,22 @@ const ICON_DEFS = {
     { type: "circle", cx: 22, cy: 10, r: 0.8 },                           // dot
     { type: "circle", cx: 22, cy: 14, r: 0.8 },                           // dot
   ],
+
+  // ── Streak & Consistency Awards (#58) ──────────────────────────────
+
+  // 🔥 Weekly Ride Streak — flame
+  weekly_streak: [
+    { type: "path", d: "M12 22c-4 0-7-3-7-7 0-3 2-5 4-8 1 2 2 3 2 5 0-3 2-5 3-7 1 3 2 6 2 8 0 3-1.5 5.5-4 9" },
+    { type: "path", d: "M12 22c-2 0-3.5-1.5-3.5-3.5C8.5 16 10 14 12 13c2 1 3.5 3 3.5 5.5 0 2-1.5 3.5-3.5 3.5z" },
+  ],
+
+  // 👥 Group Ride Consistency — two cyclists
+  group_consistency: [
+    { type: "circle", cx: 8, cy: 7, r: 3 },                              // person 1 head
+    { type: "path", d: "M2 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" },        // person 1 body
+    { type: "circle", cx: 16, cy: 7, r: 3 },                              // person 2 head
+    { type: "path", d: "M16 15h4a4 4 0 014 4v2" },                       // person 2 body
+  ],
 };
 
 

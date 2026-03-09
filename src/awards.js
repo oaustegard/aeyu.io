@@ -48,6 +48,11 @@
  *   - Trainer Streak: Consecutive weeks with at least one indoor ride
  *   - Indoor vs Outdoor: NP comparison when outdoor ride follows indoor training
  *
+ * Streak & consistency awards (#58):
+ *   - Weekly Ride Streak: Consecutive weeks with at least one ride (mulligan support)
+ *   - Group Ride Consistency: Attendance tracking on recurring group rides
+ *   - Streak Danger: Warning when active streak is at risk
+ *
  * Data quality rules:
  *   - Minimum effort threshold: comparative awards (Year Best, Recent Best,
  *     Beat Median, Top Quartile, Monthly Best, YTD Best) require ≥3 total efforts.
@@ -1545,4 +1550,322 @@ export async function computeAwardsForActivities(activities) {
     }
   }
   return result;
+}
+
+// ── Streak & Consistency Awards (#58) ──────────────────────────────
+
+/** Weekly streak tier thresholds */
+const STREAK_TIERS = [4, 8, 12, 26, 52];
+
+/** Minimum consecutive weeks for a weekly ride streak award */
+const WEEKLY_STREAK_MIN = 4;
+
+/** Haversine distance in km between two [lat, lng] coordinates */
+function haversineKm(a, b) {
+  if (!a || !b || a.length < 2 || b.length < 2) return Infinity;
+  const R = 6371;
+  const dLat = (b[0] - a[0]) * Math.PI / 180;
+  const dLng = (b[1] - a[1]) * Math.PI / 180;
+  const sinLat = Math.sin(dLat / 2);
+  const sinLng = Math.sin(dLng / 2);
+  const h = sinLat * sinLat + Math.cos(a[0] * Math.PI / 180) * Math.cos(b[0] * Math.PI / 180) * sinLng * sinLng;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/**
+ * Get ISO week string "YYYY-WNN" for a date.
+ * Uses ISO week number (Monday-start weeks).
+ */
+function isoWeekKey(dateStr) {
+  const d = new Date(dateStr);
+  // Thursday of the same ISO week determines the year
+  const thu = new Date(d);
+  thu.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 3);
+  const yearStart = new Date(thu.getFullYear(), 0, 1);
+  const weekNum = Math.ceil(((thu - yearStart) / 86400000 + 1) / 7);
+  return `${thu.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+}
+
+/**
+ * Compute weekly ride streaks from all activities.
+ * Returns { current, longest, mulliganUsed, streakStart, lastRideDate, danger }.
+ *
+ * Mulligan rule: one missed week is forgiven, but two consecutive misses
+ * break the streak. An assisted streak is flagged with mulliganUsed=true.
+ *
+ * @param {Array} allActivities — All activities sorted by date
+ * @returns {Object} Streak data
+ */
+export function computeWeeklyStreaks(allActivities) {
+  // Filter to cycling activities only
+  const rides = allActivities
+    .filter((a) => a.sport_type === "Ride" || a.sport_type === "VirtualRide")
+    .sort((a, b) => a.start_date_local.localeCompare(b.start_date_local));
+
+  if (rides.length === 0) {
+    return { current: 0, longest: 0, mulliganUsed: false, streakStart: null, lastRideDate: null, danger: null };
+  }
+
+  // Collect unique weeks that have rides
+  const rideWeeks = new Set();
+  for (const ride of rides) {
+    rideWeeks.add(isoWeekKey(ride.start_date_local));
+  }
+
+  // Build sorted list of all weeks from first ride to now
+  const firstRide = new Date(rides[0].start_date_local);
+  const now = new Date();
+  const allWeeks = [];
+  const d = new Date(firstRide);
+  // Move to Monday of first ride's week
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  while (d <= now) {
+    allWeeks.push(isoWeekKey(d.toISOString()));
+    d.setDate(d.getDate() + 7);
+  }
+
+  // Compute streaks with mulligan support
+  let currentStreak = 0;
+  let currentMulligan = false;
+  let currentStart = null;
+  let longestStreak = 0;
+  let longestMulligan = false;
+  let longestStart = null;
+  let consecutiveMisses = 0;
+
+  for (let i = 0; i < allWeeks.length; i++) {
+    const week = allWeeks[i];
+    if (rideWeeks.has(week)) {
+      if (currentStreak === 0) {
+        currentStart = week;
+        currentMulligan = false;
+      }
+      currentStreak++;
+      consecutiveMisses = 0;
+    } else {
+      consecutiveMisses++;
+      if (consecutiveMisses === 1 && currentStreak > 0) {
+        // First miss — use mulligan
+        currentStreak++;
+        currentMulligan = true;
+      } else {
+        // Two consecutive misses or no active streak — break
+        if (currentStreak > longestStreak) {
+          longestStreak = currentStreak;
+          longestMulligan = currentMulligan;
+          longestStart = currentStart;
+        }
+        currentStreak = 0;
+        currentMulligan = false;
+        currentStart = null;
+        consecutiveMisses = 0;
+      }
+    }
+  }
+  if (currentStreak > longestStreak) {
+    longestStreak = currentStreak;
+    longestMulligan = currentMulligan;
+    longestStart = currentStart;
+  }
+
+  // Determine danger state for current streak
+  const currentWeek = isoWeekKey(now.toISOString());
+  const thisWeekHasRide = rideWeeks.has(currentWeek);
+  let danger = null;
+  if (currentStreak >= WEEKLY_STREAK_MIN && !thisWeekHasRide) {
+    danger = currentMulligan
+      ? { level: "critical", message: `You used your mulligan last week — ride this week to keep your ${currentStreak}-week streak alive!` }
+      : { level: "warning", message: `Your ${currentStreak}-week streak is in danger! Get out there this week.` };
+  }
+
+  // Find highest tier reached by current streak
+  const tier = STREAK_TIERS.filter((t) => currentStreak >= t).pop() || 0;
+
+  const lastRideDate = rides[rides.length - 1].start_date_local;
+
+  return {
+    current: currentStreak,
+    longest: longestStreak,
+    mulliganUsed: currentMulligan,
+    streakStart: currentStart,
+    lastRideDate,
+    danger,
+    tier,
+  };
+}
+
+/**
+ * Detect recurring group rides by clustering activities by:
+ *   - Day of week
+ *   - Similar start time (±1hr)
+ *   - Similar start location (within 1km)
+ *   - Activity name patterns
+ *
+ * @param {Array} allActivities — All activities
+ * @returns {Array} Detected group rides with attendance data
+ */
+export function detectGroupRides(allActivities) {
+  const rides = allActivities
+    .filter((a) => (a.sport_type === "Ride" || a.sport_type === "VirtualRide") && a.has_efforts)
+    .sort((a, b) => a.start_date_local.localeCompare(b.start_date_local));
+
+  if (rides.length < 4) return [];
+
+  // Group rides by day-of-week
+  const byDow = {};
+  for (const ride of rides) {
+    const d = new Date(ride.start_date_local);
+    const dow = d.getDay(); // 0=Sun..6=Sat
+    if (!byDow[dow]) byDow[dow] = [];
+    byDow[dow].push(ride);
+  }
+
+  const groups = [];
+
+  for (const [dow, dowRides] of Object.entries(byDow)) {
+    if (dowRides.length < 3) continue;
+
+    // Cluster by start time and location
+    const clusters = [];
+    for (const ride of dowRides) {
+      const rideTime = new Date(ride.start_date_local);
+      const minuteOfDay = rideTime.getHours() * 60 + rideTime.getMinutes();
+      const latlng = ride.start_latlng || null;
+
+      let matched = false;
+      for (const cluster of clusters) {
+        // Check time proximity (within 60 min)
+        const timeDiff = Math.abs(cluster.avgMinute - minuteOfDay);
+        if (timeDiff > 60) continue;
+
+        // Check location proximity (within 1km) if both have coords
+        if (cluster.latlng && latlng) {
+          const dist = haversineKm(cluster.latlng, latlng);
+          if (dist > 1) continue;
+        }
+
+        // Match — add to cluster
+        cluster.rides.push(ride);
+        cluster.avgMinute = Math.round(
+          cluster.rides.reduce((sum, r) => {
+            const t = new Date(r.start_date_local);
+            return sum + t.getHours() * 60 + t.getMinutes();
+          }, 0) / cluster.rides.length
+        );
+        matched = true;
+        break;
+      }
+
+      if (!matched) {
+        clusters.push({
+          rides: [ride],
+          avgMinute: minuteOfDay,
+          latlng,
+          dow: parseInt(dow),
+        });
+      }
+    }
+
+    // Only keep clusters with 3+ rides
+    for (const cluster of clusters) {
+      if (cluster.rides.length < 3) continue;
+
+      // Determine group name from most common activity name pattern
+      const nameCounts = {};
+      for (const r of cluster.rides) {
+        // Normalize name: remove dates, numbers, trim
+        const normalized = r.name
+          .replace(/\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, "")
+          .replace(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/gi, "")
+          .replace(/\d+/g, "")
+          .trim();
+        if (normalized.length > 2) {
+          nameCounts[normalized] = (nameCounts[normalized] || 0) + 1;
+        }
+      }
+
+      // Use the most common name, or fall back to day-of-week
+      const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      let groupName;
+      const topName = Object.entries(nameCounts).sort((a, b) => b[1] - a[1])[0];
+      if (topName && topName[1] >= 2) {
+        groupName = topName[0];
+      } else {
+        const h = Math.floor(cluster.avgMinute / 60);
+        const period = h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening";
+        groupName = `${dayNames[cluster.dow]} ${period} Ride`;
+      }
+
+      // Check if most rides have athlete_count > 1 (group indication)
+      const groupCount = cluster.rides.filter((r) => (r.athlete_count || 1) > 1).length;
+      const isGroupRide = groupCount > cluster.rides.length * 0.5;
+
+      // Compute attendance streaks
+      const rideWeeks = cluster.rides.map((r) => isoWeekKey(r.start_date_local));
+      const uniqueWeeks = [...new Set(rideWeeks)].sort();
+
+      // Find current consecutive attendance
+      let attendanceStreak = 0;
+      let attendanceMulligan = false;
+      if (uniqueWeeks.length >= 2) {
+        // Check from most recent backwards
+        const now = new Date();
+        const currentWeek = isoWeekKey(now.toISOString());
+        let weekPtr = currentWeek;
+        let misses = 0;
+
+        // Walk backwards from current week
+        const weekSet = new Set(uniqueWeeks);
+        const checkDate = new Date(now);
+        // Go to Monday of current week
+        checkDate.setDate(checkDate.getDate() - ((checkDate.getDay() + 6) % 7));
+
+        for (let i = 0; i < 52; i++) {
+          const wk = isoWeekKey(checkDate.toISOString());
+          if (weekSet.has(wk)) {
+            attendanceStreak++;
+            misses = 0;
+          } else {
+            misses++;
+            if (misses === 1 && attendanceStreak > 0) {
+              attendanceStreak++;
+              attendanceMulligan = true;
+            } else {
+              break;
+            }
+          }
+          checkDate.setDate(checkDate.getDate() - 7);
+        }
+      }
+
+      groups.push({
+        name: groupName,
+        dow: cluster.dow,
+        avgMinute: cluster.avgMinute,
+        totalRides: cluster.rides.length,
+        isGroupRide,
+        attendanceStreak,
+        attendanceMulligan,
+        lastRideDate: cluster.rides[cluster.rides.length - 1].start_date_local,
+        rides: cluster.rides.map((r) => ({ id: r.id, date: r.start_date_local, name: r.name })),
+      });
+    }
+  }
+
+  // Sort by total rides descending
+  groups.sort((a, b) => b.totalRides - a.totalRides);
+  return groups;
+}
+
+/**
+ * Compute all streak and consistency data for the dashboard.
+ * Called once from loadDashboard, not per-activity.
+ *
+ * @param {Array} allActivities — All activities from IndexedDB
+ * @returns {Object} { weeklyStreak, groupRides }
+ */
+export function computeStreakData(allActivities) {
+  const weeklyStreak = computeWeeklyStreaks(allActivities);
+  const groupRides = detectGroupRides(allActivities);
+  return { weeklyStreak, groupRides };
 }
