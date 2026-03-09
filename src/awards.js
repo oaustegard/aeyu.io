@@ -42,6 +42,12 @@
  *   - Peak Power: Highest max watts recorded this year
  *   - Peak Power Recent: Best peak power among last 5 powered rides
  *
+ * Indoor training awards (#46):
+ *   - Indoor NP Year Best: Highest NP on trainer rides this year
+ *   - Indoor Work Year Best: Most kilojoules in a single indoor session this year
+ *   - Trainer Streak: Consecutive weeks with at least one indoor ride
+ *   - Indoor vs Outdoor: NP comparison when outdoor ride follows indoor training
+ *
  * Data quality rules:
  *   - Minimum effort threshold: comparative awards (Year Best, Recent Best,
  *     Beat Median, Top Quartile, Monthly Best, YTD Best) require ≥3 total efforts.
@@ -50,6 +56,7 @@
  *   - High-variance filter: segments with CV > 0.5 (≥5 efforts) are
  *     traffic-dominated — all awards suppressed except Season First and Milestone.
  *   - Power awards require device_watts === true (measured, not estimated).
+ *   - Indoor awards require trainer === true && device_watts === true.
  *
  * Comeback mode (#60):
  *   When a reset event is active, the engine uses smart fading:
@@ -91,6 +98,15 @@ const MILESTONE_COUNTS = [10, 25, 50, 100, 250, 500, 1000];
 
 /** Minimum prior years needed for YTD comparison */
 const YTD_MIN_PRIOR_YEARS = 1;
+
+/** Minimum prior indoor rides this year for indoor comparative awards */
+const MIN_INDOOR_RIDES_FOR_AWARDS = 3;
+
+/** Minimum consecutive weeks for a trainer streak award */
+const TRAINER_STREAK_MIN_WEEKS = 3;
+
+/** Minimum recent indoor rides to compute indoor vs outdoor comparison */
+const INDOOR_VS_OUTDOOR_MIN_INDOOR = 3;
 
 /** Recovery ratio above which normal comparative awards are suppressed */
 const RECOVERY_ZONE_THRESHOLD = 1.15;
@@ -151,6 +167,17 @@ function median(sortedValues) {
   if (n === 0) return 0;
   const mid = Math.floor(n / 2);
   return n % 2 === 0 ? (sortedValues[mid - 1] + sortedValues[mid]) / 2 : sortedValues[mid];
+}
+
+/** ISO week key (YYYY-Www) for a Date — used for trainer streak calculation */
+function isoWeekKey(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  // Thursday in current week decides the year
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const yearStart = new Date(d.getFullYear(), 0, 4);
+  const weekNo = 1 + Math.round(((d - yearStart) / 86400000 - 3 + ((yearStart.getDay() + 6) % 7)) / 7);
+  return `${d.getFullYear()}-W${String(weekNo).padStart(2, "0")}`;
 }
 
 /** Day of year (0-indexed) for a Date */
@@ -1125,6 +1152,148 @@ export function computeRideLevelAwards(activity, allActivities, resetEvent = nul
             message: `Best peak power of your last ${recentWithMax.length + 1} powered ${activity.sport_type === "Ride" ? "rides" : "activities"}! ${activity.max_watts}W`,
           });
         }
+      }
+    }
+  }
+
+  // ── Indoor Training Awards (#46) ─────────────────────────────────
+  // All require trainer === true && device_watts === true.
+  // Indoor rides lack segments/KOMs, so these activity-level awards provide
+  // recognition for trainer efforts that would otherwise go unnoticed.
+  if (activity.trainer && activity.device_watts && activity.weighted_average_watts > 0) {
+    const indoorSameTypeThisYear = sameTypeThisYear.filter(
+      (a) => a.trainer && a.device_watts && a.weighted_average_watts > 0
+    );
+
+    const activityDate = new Date(activity.start_date_local);
+    const afterCalendarGate = (activityDate.getMonth() + 1) >= YEAR_BEST_CALENDAR_GATE_MONTH;
+
+    // --- Indoor NP Year Best ---
+    // Highest weighted average watts among trainer rides this year
+    if (afterCalendarGate && indoorSameTypeThisYear.length >= MIN_INDOOR_RIDES_FOR_AWARDS) {
+      const maxPriorIndoorNP = Math.max(
+        ...indoorSameTypeThisYear.map((a) => a.weighted_average_watts)
+      );
+      if (activity.weighted_average_watts > maxPriorIndoorNP) {
+        awards.push({
+          type: "indoor_np_year_best",
+          segment: null,
+          segment_id: null,
+          time: null,
+          power: activity.weighted_average_watts,
+          comparison: null,
+          delta: Math.round(activity.weighted_average_watts - maxPriorIndoorNP),
+          message: `Indoor NP record! ${Math.round(activity.weighted_average_watts)}W — ${Math.round(activity.weighted_average_watts - maxPriorIndoorNP)}W above your previous indoor best this year`,
+        });
+      }
+    }
+
+    // --- Indoor Work Year Best ---
+    // Highest kilojoules in a single indoor session this year
+    if (afterCalendarGate && activity.kilojoules > 0) {
+      const indoorWithKJ = indoorSameTypeThisYear.filter((a) => a.kilojoules > 0);
+      if (indoorWithKJ.length >= MIN_INDOOR_RIDES_FOR_AWARDS) {
+        const maxPriorIndoorKJ = Math.max(...indoorWithKJ.map((a) => a.kilojoules));
+        if (activity.kilojoules > maxPriorIndoorKJ) {
+          awards.push({
+            type: "indoor_work_year_best",
+            segment: null,
+            segment_id: null,
+            time: null,
+            power: activity.weighted_average_watts,
+            comparison: null,
+            delta: Math.round(activity.kilojoules - maxPriorIndoorKJ),
+            message: `Indoor work record! ${Math.round(activity.kilojoules)} kJ — ${Math.round(activity.kilojoules - maxPriorIndoorKJ)} kJ above your previous indoor best this year`,
+          });
+        }
+      }
+    }
+
+    // --- Trainer Streak ---
+    // Consecutive weeks (ending with this week) with at least one indoor ride
+    const allIndoorSameType = allActivities
+      .filter(
+        (a) =>
+          a.sport_type === activity.sport_type &&
+          a.trainer &&
+          a.device_watts
+      )
+      .sort((a, b) => b.start_date_local.localeCompare(a.start_date_local));
+
+    if (allIndoorSameType.length >= TRAINER_STREAK_MIN_WEEKS) {
+      // Build set of ISO week keys (YYYY-Www) for all indoor rides
+      const weeksWithIndoor = new Set();
+      for (const a of allIndoorSameType) {
+        weeksWithIndoor.add(isoWeekKey(new Date(a.start_date_local)));
+      }
+      // Walk backwards from current week
+      const currentWeek = isoWeekKey(activityDate);
+      let streak = 0;
+      let checkDate = new Date(activityDate);
+      // Align to start of current week (Monday)
+      const dayOfWeek = checkDate.getDay() || 7; // Sunday = 7
+      checkDate.setDate(checkDate.getDate() - (dayOfWeek - 1));
+      while (weeksWithIndoor.has(isoWeekKey(checkDate))) {
+        streak++;
+        checkDate.setDate(checkDate.getDate() - 7);
+      }
+      if (streak >= TRAINER_STREAK_MIN_WEEKS) {
+        awards.push({
+          type: "trainer_streak",
+          segment: null,
+          segment_id: null,
+          time: null,
+          power: activity.weighted_average_watts,
+          comparison: null,
+          delta: null,
+          message: `${streak}-week trainer streak! You've been on the trainer every week for ${streak} straight weeks`,
+        });
+      }
+    }
+  }
+
+  // --- Indoor vs Outdoor (#46) ---
+  // When an outdoor powered ride happens, compare NP against recent indoor average.
+  // Helps athletes see how indoor training translates to outdoor performance.
+  if (
+    !activity.trainer &&
+    activity.device_watts &&
+    activity.weighted_average_watts > 0
+  ) {
+    const recentIndoor = allActivities
+      .filter(
+        (a) =>
+          a.sport_type === activity.sport_type &&
+          a.trainer &&
+          a.device_watts &&
+          a.weighted_average_watts > 0 &&
+          a.start_date_local < activity.start_date_local
+      )
+      .sort((a, b) => b.start_date_local.localeCompare(a.start_date_local))
+      .slice(0, 5);
+
+    if (recentIndoor.length >= INDOOR_VS_OUTDOOR_MIN_INDOOR) {
+      const indoorAvgNP = Math.round(
+        recentIndoor.reduce((sum, a) => sum + a.weighted_average_watts, 0) / recentIndoor.length
+      );
+      const diff = Math.round(activity.weighted_average_watts - indoorAvgNP);
+      const pct = Math.round((diff / indoorAvgNP) * 100);
+      // Only award if outdoor NP is within 20% of indoor average (meaningful comparison)
+      if (Math.abs(pct) <= 20) {
+        const absDiff = Math.abs(diff);
+        const absPct = Math.abs(pct);
+        awards.push({
+          type: "indoor_vs_outdoor",
+          segment: null,
+          segment_id: null,
+          time: null,
+          power: activity.weighted_average_watts,
+          comparison: null,
+          delta: diff,
+          message: diff >= 0
+            ? `Outdoor NP ${absDiff}W above indoor average! ${Math.round(activity.weighted_average_watts)}W vs ${indoorAvgNP}W indoor avg (+${absPct}%) — the training is paying off`
+            : `Outdoor NP ${absDiff}W below indoor average — ${Math.round(activity.weighted_average_watts)}W vs ${indoorAvgNP}W indoor avg (${pct}%) — wind and hills change the game`,
+        });
       }
     }
   }

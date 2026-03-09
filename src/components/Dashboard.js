@@ -102,6 +102,11 @@ const AWARD_LABELS = {
   work_recent_best: { label: "Work Recent Best", color: "bg-orange-100 text-orange-800" },
   peak_power: { label: "Peak Power", color: "bg-yellow-200 text-yellow-900" },
   peak_power_recent: { label: "Peak Recent", color: "bg-yellow-100 text-yellow-800" },
+  // Indoor training awards (#46)
+  indoor_np_year_best: { label: "Indoor NP Best", color: "bg-violet-200 text-violet-900" },
+  indoor_work_year_best: { label: "Indoor Work Best", color: "bg-violet-100 text-violet-800" },
+  trainer_streak: { label: "Trainer Streak", color: "bg-indigo-200 text-indigo-900" },
+  indoor_vs_outdoor: { label: "Indoor vs Outdoor", color: "bg-sky-200 text-sky-900" },
 };
 
 async function loadDashboard() {
