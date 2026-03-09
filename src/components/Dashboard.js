@@ -15,6 +15,7 @@ import {
   startAutoSync,
   stopAutoSync,
   manualSync,
+  updateSyncWindow,
   syncProgress,
   rateLimitStatus,
   isSyncing,
@@ -71,6 +72,9 @@ const refBirthday = signal("");
 const refAge = signal("40");
 const streakData = signal(null);
 const fitnessData = signal(null);
+const syncWindowChoice = signal("3y"); // "2y" | "3y" | "4y" | "all" | "custom"
+const syncWindowCustomDate = signal("");
+const currentSyncAfterEpoch = signal(null);
 
 async function loadDashboard() {
   loading.value = true;
@@ -93,6 +97,23 @@ async function loadDashboard() {
     // Check sync completion state
     const state = await getSyncState();
     backfillComplete.value = state.backfill_complete;
+
+    // Load sync window preference (#111)
+    currentSyncAfterEpoch.value = state.sync_after_epoch || null;
+    if (state.sync_after_epoch) {
+      // Determine which preset matches, if any
+      const now = Date.now() / 1000;
+      const diffYears = (now - state.sync_after_epoch) / (365.25 * 24 * 3600);
+      if (Math.abs(diffYears - 2) < 0.1) syncWindowChoice.value = "2y";
+      else if (Math.abs(diffYears - 3) < 0.1) syncWindowChoice.value = "3y";
+      else if (Math.abs(diffYears - 4) < 0.1) syncWindowChoice.value = "4y";
+      else {
+        syncWindowChoice.value = "custom";
+        syncWindowCustomDate.value = new Date(state.sync_after_epoch * 1000).toISOString().slice(0, 10);
+      }
+    } else {
+      syncWindowChoice.value = "all";
+    }
 
     // Count activities awaiting detail fetch (no efforts yet)
     const pending = await getActivitiesWithoutEfforts();
@@ -988,6 +1009,85 @@ export function Dashboard() {
                 `}
               </div>
             </div>
+
+            ${!isDemo.value && html`
+            <div class="mt-4 pt-4 space-y-3" style="border-top: 1px solid var(--border-light);">
+              <!-- Sync Window Settings (#111) -->
+              <div>
+                <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Sync Window</p>
+                <p class="text-xs mb-2" style="color: var(--text-tertiary);">How far back to sync activities from Strava. Shorter windows sync faster and use less storage.</p>
+
+                <div class="flex flex-wrap gap-1.5 mb-2">
+                  ${["2y", "3y", "4y", "all"].map((opt) => {
+                    const labels = { "2y": "Last 2 years", "3y": "Last 3 years", "4y": "Last 4 years", "all": "All time" };
+                    const isActive = syncWindowChoice.value === opt;
+                    return html`
+                      <button
+                        key=${opt}
+                        onClick=${() => { syncWindowChoice.value = opt; }}
+                        class="text-xs px-2.5 py-1.5 rounded-lg transition-colors"
+                        style=${isActive
+                          ? "background: var(--text); color: var(--surface); font-family: var(--font-body);"
+                          : "border: 1px solid var(--border); color: var(--text-secondary); font-family: var(--font-body);"}
+                      >
+                        ${labels[opt]}
+                      </button>
+                    `;
+                  })}
+                  <button
+                    onClick=${() => { syncWindowChoice.value = "custom"; }}
+                    class="text-xs px-2.5 py-1.5 rounded-lg transition-colors"
+                    style=${syncWindowChoice.value === "custom"
+                      ? "background: var(--text); color: var(--surface); font-family: var(--font-body);"
+                      : "border: 1px solid var(--border); color: var(--text-secondary); font-family: var(--font-body);"}
+                  >
+                    Custom
+                  </button>
+                </div>
+
+                ${syncWindowChoice.value === "custom" && html`
+                  <input
+                    type="date"
+                    value=${syncWindowCustomDate.value}
+                    onInput=${(e) => { syncWindowCustomDate.value = e.target.value; }}
+                    class="w-full text-xs rounded px-2 py-1.5 mb-2 focus:outline-none focus:ring-1"
+                    style="border: 1px solid var(--border); font-family: var(--font-mono);"
+                  />
+                `}
+
+                <button
+                  onClick=${async () => {
+                    let epoch = null;
+                    const now = Date.now() / 1000;
+                    if (syncWindowChoice.value === "2y") epoch = Math.floor(now - 2 * 365.25 * 24 * 3600);
+                    else if (syncWindowChoice.value === "3y") epoch = Math.floor(now - 3 * 365.25 * 24 * 3600);
+                    else if (syncWindowChoice.value === "4y") epoch = Math.floor(now - 4 * 365.25 * 24 * 3600);
+                    else if (syncWindowChoice.value === "custom" && syncWindowCustomDate.value) {
+                      epoch = Math.floor(new Date(syncWindowCustomDate.value).getTime() / 1000);
+                    }
+                    // null = all time
+                    if (epoch === currentSyncAfterEpoch.value) return;
+                    await updateSyncWindow(epoch);
+                    currentSyncAfterEpoch.value = epoch;
+                    await loadDashboard();
+                  }}
+                  disabled=${syncing || (syncWindowChoice.value === "custom" && !syncWindowCustomDate.value)}
+                  class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
+                  style=${syncing || (syncWindowChoice.value === "custom" && !syncWindowCustomDate.value)
+                    ? "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"
+                    : "background: var(--strava); color: white;"}
+                >
+                  Apply
+                </button>
+
+                ${currentSyncAfterEpoch.value && html`
+                  <p class="text-xs mt-1.5" style="color: var(--text-tertiary); font-family: var(--font-mono);">
+                    Currently syncing since ${new Date(currentSyncAfterEpoch.value * 1000).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                  </p>
+                `}
+              </div>
+            </div>
+            `}
 
             <div class="mt-4 pt-4 space-y-3" style="border-top: 1px solid var(--border-light);">
               ${!isDemo.value && html`
