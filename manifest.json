@@ -4,8 +4,8 @@
   "description": "Giving recognition for efforts where effort was given",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f9fafb",
-  "theme_color": "#FC4C02",
+  "background_color": "#F6F3EE",
+  "theme_color": "#F6F3EE",
   "orientation": "portrait-primary",
   "icons": [
     {

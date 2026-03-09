@@ -8,7 +8,7 @@
 
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#FC4C02">
+    <meta name="theme-color" content="#F6F3EE">
 
     <!-- iOS PWA -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -19,6 +19,9 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png">
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="importmap">
@@ -32,22 +35,38 @@
       }
     </script>
     <style>
-        .gradient-text {
-            background: linear-gradient(135deg, #f59e0b, #ef4444, #8b5cf6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
+        :root {
+          /* Surfaces */
+          --bg: #F6F3EE;
+          --surface: #FFFFFF;
+          --surface-hover: #FAF8F4;
+          --border: #E5DFD4;
+          --border-light: #EDE8E0;
+          /* Text */
+          --text: #1A1610;
+          --text-secondary: #5C5548;
+          --text-tertiary: #8C8374;
+          --text-on-dark: #FAF7F2;
+          /* Accents */
+          --strava: #FC4C02;
+          --strava-hover: #E04400;
+          --accent: #B85A28;
+          /* Fonts */
+          --font-display: 'Instrument Serif', serif;
+          --font-body: 'DM Sans', sans-serif;
+          --font-mono: 'IBM Plex Mono', monospace;
         }
         /* Safe area insets for notched devices */
         body {
             padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+            font-family: var(--font-body);
         }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-900">
+<body style="background: var(--bg); color: var(--text);">
     <div id="app">
         <div class="min-h-screen flex items-center justify-center">
-            <p class="text-gray-400">Loading...</p>
+            <p style="color: var(--text-tertiary);">Loading...</p>
         </div>
     </div>
     <script type="module" src="./src/app.js"></script>

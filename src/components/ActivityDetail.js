@@ -20,6 +20,7 @@ import {
   formatElevation,
   formatPower,
 } from "../units.js";
+import { renderIconSVG, drawIcon } from "../icons.js";
 
 const activity = signal(null);
 const awards = signal([]);
@@ -39,96 +40,51 @@ function formatDateShort(isoString) {
 }
 
 const AWARD_LABELS = {
-  year_best: { label: "Year Best", color: "bg-yellow-100 text-yellow-800", icon: "★" },
-  season_first: { label: "Season First", color: "bg-green-100 text-green-800", icon: "🌱" },
-  recent_best: { label: "Recent Best", color: "bg-blue-100 text-blue-800", icon: "↑" },
-  beat_median: { label: "Beat Median", color: "bg-purple-100 text-purple-800", icon: "◆" },
-  top_quartile: { label: "Top Quartile", color: "bg-indigo-100 text-indigo-800", icon: "▲" },
-  top_decile: { label: "Top 10%", color: "bg-red-100 text-red-800", icon: "⬆" },
-  consistency: { label: "Metronome", color: "bg-teal-100 text-teal-800", icon: "≡" },
-  monthly_best: { label: "Monthly Best", color: "bg-orange-100 text-orange-800", icon: "◎" },
-  improvement_streak: { label: "On a Roll", color: "bg-emerald-100 text-emerald-800", icon: "⟫" },
-  comeback: { label: "Comeback", color: "bg-rose-100 text-rose-800", icon: "↺" },
-  milestone: { label: "Milestone", color: "bg-amber-100 text-amber-800", icon: "⬡" },
-  best_month_ever: { label: "Best Month Ever", color: "bg-fuchsia-100 text-fuchsia-800", icon: "◉" },
-  closing_in: { label: "Closing In", color: "bg-pink-100 text-pink-800", icon: "◈" },
-  anniversary: { label: "Anniversary", color: "bg-violet-100 text-violet-800", icon: "↻" },
-  distance_record: { label: "Longest Ride", color: "bg-cyan-100 text-cyan-800", icon: "→" },
-  elevation_record: { label: "Most Climbing", color: "bg-sky-100 text-sky-800", icon: "⛰" },
-  segment_count: { label: "Most Segments", color: "bg-lime-100 text-lime-800", icon: "#" },
-  endurance_record: { label: "Longest by Time", color: "bg-slate-100 text-slate-800", icon: "⏱" },
-  ytd_best_time: { label: "YTD Best", color: "bg-amber-200 text-amber-900", icon: "📅" },
-  ytd_best_power: { label: "YTD Power", color: "bg-red-200 text-red-900", icon: "⚡" },
-  // Comeback mode (#60)
-  comeback_pb: { label: "Comeback PB", color: "bg-rose-200 text-rose-900", icon: "🔄" },
-  recovery_milestone: { label: "Recovery", color: "bg-orange-200 text-orange-900", icon: "📈" },
-  comeback_full: { label: "You're Back!", color: "bg-green-200 text-green-900", icon: "🎉" },
-  comeback_distance: { label: "Comeback Distance", color: "bg-rose-100 text-rose-800", icon: "→" },
-  comeback_elevation: { label: "Comeback Climbing", color: "bg-rose-100 text-rose-800", icon: "⛰" },
-  comeback_endurance: { label: "Comeback Endurance", color: "bg-rose-100 text-rose-800", icon: "⏱" },
-  reference_best: { label: "Reference Best", color: "bg-teal-200 text-teal-900", icon: "⊕" },
-  // Route-level Season First (#59)
-  route_season_first: { label: "Route Season First", color: "bg-green-200 text-green-900", icon: "🛤" },
-  // Activity-level power awards (#45)
-  season_first_power: { label: "First Power Ride", color: "bg-green-200 text-green-900", icon: "⚡" },
-  np_year_best: { label: "NP Year Best", color: "bg-red-200 text-red-900", icon: "⚡" },
-  np_recent_best: { label: "NP Recent Best", color: "bg-red-100 text-red-800", icon: "⚡" },
-  work_year_best: { label: "Work Year Best", color: "bg-orange-200 text-orange-900", icon: "⊙" },
-  work_recent_best: { label: "Work Recent Best", color: "bg-orange-100 text-orange-800", icon: "⊙" },
-  peak_power: { label: "Peak Power", color: "bg-yellow-200 text-yellow-900", icon: "⚡" },
-  peak_power_recent: { label: "Peak Recent", color: "bg-yellow-100 text-yellow-800", icon: "⚡" },
-  // Indoor training awards (#46)
-  indoor_np_year_best: { label: "Indoor NP Best", color: "bg-violet-200 text-violet-900", icon: "🏠" },
-  indoor_work_year_best: { label: "Indoor Work Best", color: "bg-violet-100 text-violet-800", icon: "🏠" },
-  trainer_streak: { label: "Trainer Streak", color: "bg-indigo-200 text-indigo-900", icon: "🔥" },
-  indoor_vs_outdoor: { label: "Indoor vs Outdoor", color: "bg-sky-200 text-sky-900", icon: "↔" },
+  season_first:       { label: "Season First",      dot: "#3D7A4A", bg: "#E8F2E6", text: "#1E4D28", border: "#C0D8B8" },
+  year_best:          { label: "Year Best",          dot: "#B8862E", bg: "#FBF0D8", text: "#6E5010", border: "#E8D4A0" },
+  recent_best:        { label: "Recent Best",        dot: "#4882A8", bg: "#E4EEF6", text: "#2A5470", border: "#B8D0E4" },
+  beat_median:        { label: "Beat Median",        dot: "#7A5C8A", bg: "#ECE4F0", text: "#4A3060", border: "#CCC0D8" },
+  top_quartile:       { label: "Top Quartile",       dot: "#5B6CA0", bg: "#E4E8F2", text: "#34406A", border: "#BCC4DC" },
+  top_decile:         { label: "Top 10%",            dot: "#B85A28", bg: "#F8E4D4", text: "#7A3418", border: "#E8C0A4" },
+  consistency:        { label: "Metronome",          dot: "#6B6260", bg: "#ECEAE6", text: "#3E3A36", border: "#D4D0C8" },
+  monthly_best:       { label: "Monthly Best",       dot: "#C08020", bg: "#FAF0D8", text: "#785010", border: "#E8D8A8" },
+  improvement_streak: { label: "On a Roll",          dot: "#3D7A4A", bg: "#E4F0E4", text: "#204E28", border: "#B8D4B0" },
+  comeback:           { label: "Comeback",           dot: "#A05060", bg: "#F4E4E8", text: "#6E2E3C", border: "#DCC0C8" },
+  milestone:          { label: "Milestone",          dot: "#8C7A30", bg: "#F4EEDA", text: "#5C5018", border: "#DCD4A8" },
+  best_month_ever:    { label: "Best Month Ever",    dot: "#8C7A30", bg: "#F4EEDA", text: "#5C5018", border: "#DCD4A8" },
+  closing_in:         { label: "Closing In",         dot: "#A04880", bg: "#F2E0EC", text: "#6A2858", border: "#D8B8D0" },
+  anniversary:        { label: "Anniversary",        dot: "#6B5CA0", bg: "#E8E4F4", text: "#3E3070", border: "#C4BCD8" },
+  distance_record:    { label: "Longest Ride",       dot: "#4882A8", bg: "#E4EEF6", text: "#2A5470", border: "#B8D0E4" },
+  elevation_record:   { label: "Most Climbing",      dot: "#6B6260", bg: "#ECEAE6", text: "#3E3A36", border: "#D4D0C8" },
+  segment_count:      { label: "Most Segments",      dot: "#6B6260", bg: "#ECEAE6", text: "#3E3A36", border: "#D4D0C8" },
+  endurance_record:   { label: "Longest by Time",    dot: "#6B6260", bg: "#ECEAE6", text: "#3E3A36", border: "#D4D0C8" },
+  ytd_best_time:      { label: "YTD Best",           dot: "#9C6E18", bg: "#F8ECD0", text: "#5E4010", border: "#E0CCA0" },
+  ytd_best_power:     { label: "YTD Power",          dot: "#B85030", bg: "#F6DED4", text: "#7A2E18", border: "#E4B8A4" },
+  comeback_pb:        { label: "Comeback PB",        dot: "#A05060", bg: "#F4E4E8", text: "#6E2E3C", border: "#DCC0C8" },
+  recovery_milestone: { label: "Recovery",           dot: "#A05060", bg: "#F4E4E8", text: "#6E2E3C", border: "#DCC0C8" },
+  comeback_full:      { label: "You're Back!",       dot: "#3D7A4A", bg: "#E8F2E6", text: "#1E4D28", border: "#C0D8B8" },
+  comeback_distance:  { label: "Comeback Distance",  dot: "#A05060", bg: "#F4E4E8", text: "#6E2E3C", border: "#DCC0C8" },
+  comeback_elevation: { label: "Comeback Climbing",  dot: "#A05060", bg: "#F4E4E8", text: "#6E2E3C", border: "#DCC0C8" },
+  comeback_endurance: { label: "Comeback Endurance",  dot: "#A05060", bg: "#F4E4E8", text: "#6E2E3C", border: "#DCC0C8" },
+  reference_best:     { label: "Reference Best",     dot: "#6B6260", bg: "#ECEAE6", text: "#3E3A36", border: "#D4D0C8" },
+  route_season_first: { label: "Route Season First", dot: "#3D7A4A", bg: "#E8F2E6", text: "#1E4D28", border: "#C0D8B8" },
+  season_first_power: { label: "First Power Ride",   dot: "#3D7A4A", bg: "#E8F2E6", text: "#1E4D28", border: "#C0D8B8" },
+  np_year_best:       { label: "NP Year Best",       dot: "#B8862E", bg: "#FBF0D8", text: "#6E5010", border: "#E8D4A0" },
+  np_recent_best:     { label: "NP Recent Best",     dot: "#4882A8", bg: "#E4EEF6", text: "#2A5470", border: "#B8D0E4" },
+  work_year_best:     { label: "Work Year Best",     dot: "#C08020", bg: "#FAF0D8", text: "#785010", border: "#E8D8A8" },
+  work_recent_best:   { label: "Work Recent Best",   dot: "#C08020", bg: "#FAF0D8", text: "#785010", border: "#E8D8A8" },
+  peak_power:         { label: "Peak Power",         dot: "#A03020", bg: "#F6DCD4", text: "#6E1810", border: "#E4B0A4" },
+  peak_power_recent:  { label: "Peak Recent",        dot: "#A03020", bg: "#F6DCD4", text: "#6E1810", border: "#E4B0A4" },
+  indoor_np_year_best:  { label: "Indoor NP Best",   dot: "#B85A28", bg: "#F8E4D4", text: "#7A3418", border: "#E8C0A4" },
+  indoor_work_year_best:{ label: "Indoor Work Best",  dot: "#B85A28", bg: "#F8E4D4", text: "#7A3418", border: "#E8C0A4" },
+  trainer_streak:       { label: "Trainer Streak",    dot: "#B85A28", bg: "#F8E4D4", text: "#7A3418", border: "#E8C0A4" },
+  indoor_vs_outdoor:    { label: "Indoor vs Outdoor", dot: "#4882A8", bg: "#E4EEF6", text: "#2A5470", border: "#B8D0E4" },
 };
 
-const AWARD_COLORS = {
-  year_best:          { bg: "#FEF9C3", text: "#854D0E", accent: "#EAB308" },
-  season_first:       { bg: "#DCFCE7", text: "#166534", accent: "#22C55E" },
-  recent_best:        { bg: "#DBEAFE", text: "#1E40AF", accent: "#3B82F6" },
-  beat_median:        { bg: "#F3E8FF", text: "#6B21A8", accent: "#A855F7" },
-  top_quartile:       { bg: "#E0E7FF", text: "#3730A3", accent: "#6366F1" },
-  top_decile:         { bg: "#FEE2E2", text: "#991B1B", accent: "#EF4444" },
-  consistency:        { bg: "#CCFBF1", text: "#115E59", accent: "#14B8A6" },
-  monthly_best:       { bg: "#FFEDD5", text: "#9A3412", accent: "#F97316" },
-  improvement_streak: { bg: "#D1FAE5", text: "#065F46", accent: "#10B981" },
-  comeback:           { bg: "#FFE4E6", text: "#9F1239", accent: "#F43F5E" },
-  milestone:          { bg: "#FEF3C7", text: "#92400E", accent: "#F59E0B" },
-  best_month_ever:    { bg: "#FAE8FF", text: "#86198F", accent: "#D946EF" },
-  closing_in:         { bg: "#FCE7F3", text: "#9D174D", accent: "#EC4899" },
-  anniversary:        { bg: "#EDE9FE", text: "#5B21B6", accent: "#8B5CF6" },
-  distance_record:    { bg: "#CFFAFE", text: "#155E75", accent: "#06B6D4" },
-  elevation_record:   { bg: "#E0F2FE", text: "#075985", accent: "#0EA5E9" },
-  segment_count:      { bg: "#ECFCCB", text: "#3F6212", accent: "#84CC16" },
-  endurance_record:   { bg: "#F1F5F9", text: "#334155", accent: "#64748B" },
-  ytd_best_time:      { bg: "#FDE68A", text: "#78350F", accent: "#D97706" },
-  ytd_best_power:     { bg: "#FECACA", text: "#7F1D1D", accent: "#DC2626" },
-  // Comeback mode (#60)
-  comeback_pb:        { bg: "#FECDD3", text: "#881337", accent: "#E11D48" },
-  recovery_milestone: { bg: "#FED7AA", text: "#7C2D12", accent: "#EA580C" },
-  comeback_full:      { bg: "#BBF7D0", text: "#14532D", accent: "#16A34A" },
-  comeback_distance:  { bg: "#FFE4E6", text: "#9F1239", accent: "#F43F5E" },
-  comeback_elevation: { bg: "#FFE4E6", text: "#9F1239", accent: "#F43F5E" },
-  comeback_endurance: { bg: "#FFE4E6", text: "#9F1239", accent: "#F43F5E" },
-  reference_best:     { bg: "#99F6E4", text: "#134E4A", accent: "#14B8A6" },
-  // Route-level Season First (#59)
-  route_season_first: { bg: "#BBF7D0", text: "#14532D", accent: "#16A34A" },
-  // Activity-level power awards (#45)
-  season_first_power: { bg: "#BBF7D0", text: "#14532D", accent: "#16A34A" },
-  np_year_best:       { bg: "#FECACA", text: "#7F1D1D", accent: "#DC2626" },
-  np_recent_best:     { bg: "#FEE2E2", text: "#991B1B", accent: "#EF4444" },
-  work_year_best:     { bg: "#FED7AA", text: "#7C2D12", accent: "#EA580C" },
-  work_recent_best:   { bg: "#FFEDD5", text: "#9A3412", accent: "#F97316" },
-  peak_power:         { bg: "#FDE68A", text: "#78350F", accent: "#D97706" },
-  peak_power_recent:  { bg: "#FEF9C3", text: "#854D0E", accent: "#EAB308" },
-  // Indoor training awards (#46)
-  indoor_np_year_best:  { bg: "#DDD6FE", text: "#4C1D95", accent: "#7C3AED" },
-  indoor_work_year_best:{ bg: "#EDE9FE", text: "#5B21B6", accent: "#8B5CF6" },
-  trainer_streak:       { bg: "#C7D2FE", text: "#312E81", accent: "#4F46E5" },
-  indoor_vs_outdoor:    { bg: "#BAE6FD", text: "#075985", accent: "#0284C7" },
-};
+// AWARD_COLORS now uses same structure as AWARD_LABELS for share card rendering
+const AWARD_COLORS = Object.fromEntries(
+  Object.entries(AWARD_LABELS).map(([k, v]) => [k, { bg: v.bg, text: v.text, accent: v.dot, border: v.border }])
+);
 
 async function loadActivity(id) {
   // Only show full loading screen on initial load, not on refresh/resync
@@ -185,10 +141,9 @@ function buildSummary(act, awardsList) {
 
     const top = awardsList.slice(0, 3);
     for (const a of top) {
-      const icon = AWARD_LABELS[a.type]?.icon || "•";
       let detail = a.time != null ? formatTime(a.time) : "";
       if (a.power) detail += detail ? ` · ${formatPower(a.power)}` : formatPower(a.power);
-      lines.push(`  ${icon} ${a.segment || ""} ${detail ? "— " + detail : ""}`);
+      lines.push(`  ${a.segment || ""} ${detail ? "— " + detail : ""}`);
     }
     if (awardsList.length > 3) lines.push(`  + ${awardsList.length - 3} more`);
   }
@@ -200,15 +155,24 @@ function buildSummary(act, awardsList) {
 
 // ── Canvas Share Card ─────────────────────────────────────────────
 
-function renderShareCard(canvas, act, awardsList) {
+async function renderShareCard(canvas, act, awardsList) {
   const W = 1080;
   const pad = 60, left = pad + 48, maxTextW = W - left - pad - 48;
+
+  // Wait for fonts to load
+  await Promise.all([
+    document.fonts.load('400 52px "Instrument Serif"'),
+    document.fonts.load('400 30px "IBM Plex Mono"'),
+    document.fonts.load('500 28px "DM Sans"'),
+    document.fonts.load('600 26px "DM Sans"'),
+    document.fonts.load('400 24px "Instrument Serif"'),
+  ]).catch(() => {});
 
   // Pre-measure to compute dynamic height
   const tmpCanvas = document.createElement("canvas");
   tmpCanvas.width = W;
   const tmpCtx = tmpCanvas.getContext("2d");
-  tmpCtx.font = "bold 52px -apple-system, BlinkMacSystemFont, sans-serif";
+  tmpCtx.font = '400 52px "Instrument Serif", serif';
   const nameLines = wrapText(tmpCtx, act.name, maxTextW);
 
   const showCount = Math.min(awardsList.length, 6);
@@ -238,48 +202,56 @@ function renderShareCard(canvas, act, awardsList) {
   canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  // Background
-  const bg = ctx.createLinearGradient(0, 0, W, H);
-  bg.addColorStop(0, "#1E293B");
-  bg.addColorStop(0.5, "#0F172A");
-  bg.addColorStop(1, "#1E293B");
-  ctx.fillStyle = bg;
+  // Background — warm paper
+  ctx.fillStyle = "#F6F3EE";
   ctx.fillRect(0, 0, W, H);
 
-  // Subtle texture
-  ctx.fillStyle = "rgba(255,255,255,0.015)";
-  for (let i = 0; i < 150; i++) {
-    ctx.beginPath();
-    ctx.arc(Math.random() * W, Math.random() * H, Math.random() * 2 + 0.5, 0, Math.PI * 2);
-    ctx.fill();
+  // Topo texture — concentric circles at 3% opacity
+  ctx.strokeStyle = "rgba(26, 22, 16, 0.03)";
+  ctx.lineWidth = 1;
+  const centers = [
+    [W * 0.15, H * 0.3], [W * 0.75, H * 0.2], [W * 0.5, H * 0.7],
+    [W * 0.85, H * 0.6], [W * 0.25, H * 0.8],
+  ];
+  for (const [cx, cy] of centers) {
+    for (let r = 40; r < 400; r += 50) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
 
   // Card container
   const cardW = W - pad * 2, cardH = contentH;
-  ctx.fillStyle = "rgba(255,255,255,0.06)";
+  ctx.fillStyle = "#FFFFFF";
   roundRect(ctx, pad, cardY, cardW, cardH, 24);
   ctx.fill();
-  ctx.strokeStyle = "rgba(255,255,255,0.1)";
+  ctx.strokeStyle = "#E5DFD4";
   ctx.lineWidth = 1;
   roundRect(ctx, pad, cardY, cardW, cardH, 24);
   ctx.stroke();
 
   let y = cardY + 60;
 
-  // Header
-  ctx.font = "bold 28px -apple-system, BlinkMacSystemFont, sans-serif";
-  ctx.fillStyle = "#94A3B8";
+  // Header — wordmark left, "Participation Awards" right
+  ctx.font = '400 28px "Instrument Serif", serif';
+  ctx.fillStyle = "#1A1610";
   ctx.textAlign = "left";
-  ctx.fillText("aeyu.io", left, y);
-  ctx.font = "600 28px -apple-system, BlinkMacSystemFont, sans-serif";
-  ctx.fillStyle = "#64748B";
+  ctx.fillText("aeyu", left, y);
+  const aeyuW = ctx.measureText("aeyu").width;
+  ctx.fillStyle = "#B85A28";
+  ctx.fillText(".io", left + aeyuW, y);
+
+  ctx.font = '400 28px "DM Sans", sans-serif';
+  ctx.fillStyle = "#8C8374";
   ctx.textAlign = "right";
   ctx.fillText("Participation Awards", W - pad - 48, y);
   ctx.textAlign = "left";
   y += 60;
 
   // Divider
-  ctx.strokeStyle = "rgba(255,255,255,0.08)";
+  ctx.strokeStyle = "#E5DFD4";
+  ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(left, y);
   ctx.lineTo(W - pad - 48, y);
@@ -287,8 +259,8 @@ function renderShareCard(canvas, act, awardsList) {
   y += 48;
 
   // Activity name
-  ctx.font = "bold 52px -apple-system, BlinkMacSystemFont, sans-serif";
-  ctx.fillStyle = "#F8FAFC";
+  ctx.font = '400 52px "Instrument Serif", serif';
+  ctx.fillStyle = "#1A1610";
   for (const line of nameLines) {
     ctx.fillText(line, left, y);
     y += 62;
@@ -299,8 +271,8 @@ function renderShareCard(canvas, act, awardsList) {
   const meta = [formatDateShort(act.start_date_local), formatDistance(act.distance), formatTime(act.moving_time)];
   if (act.total_elevation_gain) meta.push(formatElevation(act.total_elevation_gain));
   if (act.device_watts && act.average_watts) meta.push(formatPower(act.average_watts));
-  ctx.font = "400 30px -apple-system, BlinkMacSystemFont, sans-serif";
-  ctx.fillStyle = "#94A3B8";
+  ctx.font = '400 30px "IBM Plex Mono", monospace';
+  ctx.fillStyle = "#5C5548";
   ctx.fillText(meta.join("  ·  "), left, y);
   y += 64;
 
@@ -312,7 +284,7 @@ function renderShareCard(canvas, act, awardsList) {
     for (const a of awardsList) counts[a.type] = (counts[a.type] || 0) + 1;
 
     let pillX = left;
-    ctx.font = "600 26px -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.font = '600 26px "DM Sans", sans-serif';
     for (const type of order) {
       if (!counts[type]) continue;
       const label = counts[type] > 1
@@ -320,18 +292,36 @@ function renderShareCard(canvas, act, awardsList) {
         : AWARD_LABELS[type].label;
       const colors = AWARD_COLORS[type];
       if (!colors) continue;
-      const tw = ctx.measureText(label).width + 32;
+
+      // Measure pill: icon space + text + padding
+      const iconSize = 20;
+      const iconPad = 6;
+      const textW = ctx.measureText(label).width;
+      const tw = 16 + iconSize + iconPad + textW + 16;
+
+      // Pill background
       ctx.fillStyle = colors.bg;
       roundRect(ctx, pillX, y - 28, tw, 40, 20);
       ctx.fill();
+      ctx.strokeStyle = colors.border;
+      ctx.lineWidth = 1;
+      roundRect(ctx, pillX, y - 28, tw, 40, 20);
+      ctx.stroke();
+
+      // Draw icon
+      drawIcon(ctx, type, pillX + 14, y - 26, iconSize, colors.accent, 2);
+
+      // Pill text
       ctx.fillStyle = colors.text;
-      ctx.fillText(label, pillX + 16, y);
+      ctx.font = '600 26px "DM Sans", sans-serif';
+      ctx.fillText(label, pillX + 14 + iconSize + iconPad, y);
       pillX += tw + 12;
     }
     y += 36 + 20;
 
     // Divider
-    ctx.strokeStyle = "rgba(255,255,255,0.06)";
+    ctx.strokeStyle = "#E5DFD4";
+    ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(left, y);
     ctx.lineTo(W - pad - 48, y);
@@ -344,19 +334,17 @@ function renderShareCard(canvas, act, awardsList) {
       const colors = AWARD_COLORS[award.type];
       if (!colors) continue;
 
-      // Accent bar
-      ctx.fillStyle = colors.accent;
-      roundRect(ctx, left, y - 16, 4, 44, 2);
-      ctx.fill();
+      // Draw icon as accent marker
+      drawIcon(ctx, award.type, left, y - 14, 20, colors.accent, 2);
 
       // Segment name
-      ctx.font = "500 28px -apple-system, BlinkMacSystemFont, sans-serif";
-      ctx.fillStyle = "#E2E8F0";
-      ctx.fillText(award.segment || "", left + 20, y + 4);
+      ctx.font = '500 28px "DM Sans", sans-serif';
+      ctx.fillStyle = "#1A1610";
+      ctx.fillText(award.segment || "", left + 28, y + 4);
 
       // Time + power
       const rightLabel = award.time != null ? formatTime(award.time) : (award.power ? `${Math.round(award.power)}W` : "");
-      ctx.font = "600 28px -apple-system, BlinkMacSystemFont, sans-serif";
+      ctx.font = '500 28px "IBM Plex Mono", monospace';
       ctx.fillStyle = colors.accent;
       ctx.textAlign = "right";
       ctx.fillText(rightLabel, W - pad - 48, y + 4);
@@ -364,23 +352,23 @@ function renderShareCard(canvas, act, awardsList) {
 
       // Delta
       if (award.delta && award.delta > 0) {
-        ctx.font = "400 22px -apple-system, BlinkMacSystemFont, sans-serif";
-        ctx.fillStyle = "#64748B";
-        ctx.fillText(`${formatTime(award.delta)} faster`, left + 20, y + 30);
+        ctx.font = '400 22px "IBM Plex Mono", monospace';
+        ctx.fillStyle = "#8C8374";
+        ctx.fillText(`${formatTime(award.delta)} faster`, left + 28, y + 30);
       }
       y += (award.delta && award.delta > 0) ? 60 : 48;
     }
 
     if (awardsList.length > 6) {
-      ctx.font = "400 24px -apple-system, BlinkMacSystemFont, sans-serif";
-      ctx.fillStyle = "#64748B";
+      ctx.font = '400 24px "DM Sans", sans-serif';
+      ctx.fillStyle = "#8C8374";
       ctx.fillText(`+ ${awardsList.length - 6} more awards`, left, y + 8);
     }
   }
 
   // Tagline
-  ctx.font = "italic 24px -apple-system, BlinkMacSystemFont, sans-serif";
-  ctx.fillStyle = "#475569";
+  ctx.font = 'italic 24px "Instrument Serif", serif';
+  ctx.fillStyle = "#8C8374";
   ctx.textAlign = "center";
   ctx.fillText("It's just you and your efforts", W / 2, H - 30);
   ctx.textAlign = "left";
@@ -432,18 +420,18 @@ export function ActivityDetail({ id }) {
 
   if (loading.value) {
     return html`
-      <div class="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p class="text-gray-400">Loading activity...</p>
+      <div class="min-h-screen flex items-center justify-center" style="background: var(--bg);">
+        <p style="color: var(--text-tertiary);">Loading activity...</p>
       </div>
     `;
   }
 
   if (!act) {
     return html`
-      <div class="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div class="min-h-screen flex items-center justify-center" style="background: var(--bg);">
         <div class="text-center">
-          <p class="text-gray-500">Activity not found</p>
-          <button onClick=${() => navigate("dashboard")} class="mt-4 text-blue-600 hover:underline">
+          <p style="color: var(--text-secondary);">Activity not found</p>
+          <button onClick=${() => navigate("dashboard")} class="mt-4" style="color: var(--accent);">
             Back to dashboard
           </button>
         </div>
@@ -467,10 +455,10 @@ export function ActivityDetail({ id }) {
     }).catch(() => {});
   }
 
-  function handleGenerateImage() {
+  async function handleGenerateImage() {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    renderShareCard(canvas, act, awards.value);
+    await renderShareCard(canvas, act, awards.value);
     canvas.style.display = "block";
     cardGenerated.value = true;
   }
@@ -518,19 +506,20 @@ export function ActivityDetail({ id }) {
   const ridePower = act.device_watts && act.average_watts ? formatPower(act.average_watts) : null;
 
   return html`
-    <div class="min-h-screen bg-gray-50">
-      <header class="bg-white border-b border-gray-200 px-6 py-4">
+    <div class="min-h-screen" style="background: var(--bg);">
+      <header class="px-6 py-4" style="background: var(--surface); border-bottom: 1px solid var(--border);">
         <div class="max-w-3xl mx-auto">
-          <button onClick=${() => navigate("dashboard")} class="text-sm text-blue-600 hover:underline mb-2 block">
+          <button onClick=${() => navigate("dashboard")} class="text-sm mb-2 block" style="color: var(--accent);">
             ← Back to dashboard
           </button>
           <div class="flex items-center justify-between gap-3">
-            <h1 class="text-xl font-bold text-gray-800">${act.name}</h1>
+            <h1 style="font-family: var(--font-display); font-size: 1.25rem; color: var(--text);">${act.name}</h1>
             ${!isDemo.value && html`
               <button
                 onClick=${handleResync}
                 disabled=${resyncing.value}
-                class="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                class="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                style="border: 1px solid var(--border); color: var(--text-secondary); font-family: var(--font-body);"
                 title="Re-fetch this activity from Strava"
               >
                 <svg class="w-3.5 h-3.5 ${resyncing.value ? 'animate-spin' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -541,9 +530,9 @@ export function ActivityDetail({ id }) {
             `}
           </div>
           ${resyncError.value && html`
-            <div class="mt-1 text-xs text-red-600">${resyncError.value}</div>
+            <div class="mt-1 text-xs" style="color: #A03020;">${resyncError.value}</div>
           `}
-          <p class="text-sm text-gray-500">
+          <p style="font-family: var(--font-mono); font-size: 14px; color: var(--text-secondary);">
             ${formatDateFull(act.start_date_local)}
             · ${formatDistance(act.distance)}
             · ${formatTime(act.moving_time)}
@@ -556,34 +545,37 @@ export function ActivityDetail({ id }) {
       <main class="max-w-3xl mx-auto px-6 py-6">
         <!-- Awards summary -->
         ${awards.value.length > 0 && html`
-          <div class="bg-white rounded-xl border border-gray-200 p-4 mb-6">
-            <h2 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">Awards Earned</h2>
+          <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+            <h2 style="font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Awards Earned</h2>
             <div class="space-y-2">
               ${awards.value.map(
                 (award) => {
+                  const al = AWARD_LABELS[award.type];
+                  const pillStyle = al ? `background: ${al.bg}; color: ${al.text}; border: 1px solid ${al.border};` : "background: #ECEAE6; color: #3E3A36;";
                   // Route Season First: show collapsed award + expandable segment details (#59)
                   if (award.type === "route_season_first" && award._collapsed_season_firsts) {
                     return html`
-                      <div class="p-2 rounded-lg bg-gray-50">
+                      <div class="p-2 rounded-lg" style="background: var(--bg);">
                         <div class="flex items-start gap-3">
-                          <span class="text-lg">${AWARD_LABELS[award.type]?.icon || "•"}</span>
+                          ${al ? renderIconSVG(award.type, { size: 20, color: al.dot }) : html`<span class="text-lg">•</span>`}
                           <div class="flex-1">
-                            <span class="text-xs px-2 py-0.5 rounded-full ${AWARD_LABELS[award.type]?.color || 'bg-gray-100'}">
-                              ${AWARD_LABELS[award.type]?.label || award.type}
+                            <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style=${pillStyle}>
+                              ${al ? renderIconSVG(award.type, { size: 12, color: al.dot }) : null}
+                              ${al?.label || award.type}
                             </span>
-                            <p class="text-sm text-gray-700 mt-1">${award.message}</p>
+                            <p class="mt-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">${award.message}</p>
                           </div>
                         </div>
                         <details class="mt-2 ml-9">
-                          <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+                          <summary class="text-xs cursor-pointer" style="color: var(--text-tertiary);">
                             ${award._collapsed_season_firsts.length} segment Season Firsts
                           </summary>
-                          <div class="mt-1 space-y-1 pl-2 border-l-2 border-green-200">
+                          <div class="mt-1 space-y-1 pl-2" style="border-left: 2px solid ${AWARD_LABELS.season_first.border};">
                             ${award._collapsed_season_firsts.map(
                               (sf) => html`
                                 <div class="flex items-start gap-2 py-1">
-                                  <span class="text-xs">${AWARD_LABELS.season_first?.icon || "🌱"}</span>
-                                  <p class="text-xs text-gray-600">${sf.message}</p>
+                                  ${renderIconSVG("season_first", { size: 12, color: AWARD_LABELS.season_first.dot })}
+                                  <p class="text-xs" style="color: var(--text-secondary);">${sf.message}</p>
                                 </div>
                               `
                             )}
@@ -593,13 +585,14 @@ export function ActivityDetail({ id }) {
                     `;
                   }
                   return html`
-                    <div class="flex items-start gap-3 p-2 rounded-lg bg-gray-50">
-                      <span class="text-lg">${AWARD_LABELS[award.type]?.icon || "•"}</span>
+                    <div class="flex items-start gap-3 p-2 rounded-lg" style="background: var(--bg);">
+                      ${al ? renderIconSVG(award.type, { size: 20, color: al.dot }) : html`<span class="text-lg">•</span>`}
                       <div>
-                        <span class="text-xs px-2 py-0.5 rounded-full ${AWARD_LABELS[award.type]?.color || 'bg-gray-100'}">
-                          ${AWARD_LABELS[award.type]?.label || award.type}
+                        <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style=${pillStyle}>
+                          ${al ? renderIconSVG(award.type, { size: 12, color: al.dot }) : null}
+                          ${al?.label || award.type}
                         </span>
-                        <p class="text-sm text-gray-700 mt-1">${award.message}</p>
+                        <p class="mt-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">${award.message}</p>
                       </div>
                     </div>
                   `;
@@ -608,11 +601,12 @@ export function ActivityDetail({ id }) {
             </div>
 
             <!-- Share actions -->
-            <div class="border-t border-gray-100 mt-4 pt-4">
+            <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
               <div class="flex flex-wrap gap-2">
                 <button
                   onClick=${handleCopy}
-                  class="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                  class="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors"
+                  style="border: 1px solid var(--border); color: var(--text-secondary); font-family: var(--font-body);"
                 >
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
@@ -621,7 +615,8 @@ export function ActivityDetail({ id }) {
                 </button>
                 <button
                   onClick=${handleGenerateImage}
-                  class="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                  class="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors"
+                  style="border: 1px solid var(--border); color: var(--text-secondary); font-family: var(--font-body);"
                 >
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
@@ -635,7 +630,8 @@ export function ActivityDetail({ id }) {
               ${isCardGenerated && html`
                 <button
                   onClick=${handleSaveImage}
-                  class="mt-3 inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                  class="mt-3 inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg text-white transition-colors"
+                  style="background: var(--strava); font-family: var(--font-body);"
                 >
                   <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -649,7 +645,7 @@ export function ActivityDetail({ id }) {
 
         <!-- Segment efforts -->
         ${act.has_efforts && act.segment_efforts && act.segment_efforts.length > 0 && html`
-          <h2 class="text-lg font-semibold text-gray-800 mb-3">Segment Efforts</h2>
+          <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin-bottom: 0.75rem;">Segment Efforts</h2>
           <div class="space-y-3">
             ${act.segment_efforts.map((effort) => {
               const seg = segmentHistory.value.get(effort.segment.id);
@@ -660,18 +656,18 @@ export function ActivityDetail({ id }) {
                 : null;
 
               return html`
-                <div class="bg-white rounded-xl border border-gray-200 p-4">
+                <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
                   <div class="flex items-start justify-between">
                     <div>
-                      <div class="font-medium text-gray-800">${effort.segment.name}</div>
-                      <div class="text-sm text-gray-500 mt-1">
+                      <div style="font-family: var(--font-body); font-size: 16px; font-weight: 500; color: var(--text);">${effort.segment.name}</div>
+                      <div class="mt-1" style="font-family: var(--font-mono); font-size: 14px; color: var(--text-secondary);">
                         ${formatDistance(effort.segment.distance)}
                         · ${effort.segment.average_grade}% grade
                         · ${formatTime(effort.elapsed_time)}
                         ${effortPower ? ` · ${effortPower}` : ""}
                       </div>
                       ${effortCount > 1 && html`
-                        <div class="text-xs text-gray-400 mt-1">
+                        <div class="mt-1" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-tertiary);">
                           ${effortCount} total efforts on this segment
                         </div>
                       `}
@@ -679,17 +675,22 @@ export function ActivityDetail({ id }) {
                     ${segAwards.length > 0 && html`
                       <div class="flex flex-wrap gap-1 ml-3">
                         ${segAwards.map(
-                          (a) => html`
-                            <span class="text-xs px-2 py-0.5 rounded-full ${AWARD_LABELS[a.type]?.color || 'bg-gray-100'}">
-                              ${AWARD_LABELS[a.type]?.icon || ""} ${AWARD_LABELS[a.type]?.label || a.type}
-                            </span>
-                          `
+                          (a) => {
+                            const al = AWARD_LABELS[a.type];
+                            const pillStyle = al ? `background: ${al.bg}; color: ${al.text}; border: 1px solid ${al.border};` : "background: #ECEAE6; color: #3E3A36;";
+                            return html`
+                              <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style=${pillStyle}>
+                                ${al ? renderIconSVG(a.type, { size: 12, color: al.dot }) : null}
+                                ${al?.label || a.type}
+                              </span>
+                            `;
+                          }
                         )}
                       </div>
                     `}
                   </div>
                   ${effort.pr_rank && html`
-                    <div class="mt-2 text-xs text-orange-600">Strava PR #${effort.pr_rank}</div>
+                    <div class="mt-2" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--strava);">Strava PR #${effort.pr_rank}</div>
                   `}
                 </div>
               `;
@@ -698,13 +699,13 @@ export function ActivityDetail({ id }) {
         `}
 
         ${!act.has_efforts && html`
-          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-sm text-yellow-700">
+          <div class="rounded-lg p-4" style="background: #FBF0D8; border: 1px solid #E8D4A0; font-family: var(--font-body); font-size: 0.875rem; color: #6E5010;">
             Segment details have not been loaded yet for this activity. Run a sync to fetch them.
           </div>
         `}
 
         <div class="text-center mt-12 mb-6">
-          <p class="text-xs text-gray-400">Powered by Strava</p>
+          <p style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">Powered by Strava</p>
         </div>
       </main>
     </div>
