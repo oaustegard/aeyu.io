@@ -4,7 +4,7 @@
  */
 
 import { html } from "htm/preact";
-import { render } from "preact";
+import { render, Component } from "preact";
 import { signal, effect } from "@preact/signals";
 import { authState, initAuth } from "./auth.js";
 import { checkDemo, isDemo } from "./demo.js";
@@ -35,6 +35,46 @@ export function navigate(path) {
   window.location.hash = path;
 }
 
+// --- Error Boundary ---
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error, info) {
+    console.error("Render error:", error, info);
+  }
+
+  render() {
+    if (this.state.error) {
+      return html`
+        <div class="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">
+          <p style="color: var(--text-secondary); font-family: var(--font-body);">
+            Something went wrong while loading the app.
+          </p>
+          <p style="color: var(--text-tertiary); font-family: var(--font-mono); font-size: 0.75rem; max-width: 400px; word-break: break-word;">
+            ${this.state.error.message || "Unknown error"}
+          </p>
+          <button
+            onClick=${() => {
+              this.setState({ error: null });
+              window.location.reload();
+            }}
+            style="background: var(--strava); color: white; padding: 0.5rem 1.5rem; border-radius: 0.5rem; border: none; cursor: pointer; font-family: var(--font-body);"
+          >Reload</button>
+        </div>
+      `;
+    }
+    return this.props.children;
+  }
+}
+
 // --- App ---
 
 function App() {
@@ -59,16 +99,49 @@ function App() {
 
 // --- Init ---
 
+function safeRender() {
+  try {
+    render(
+      html`<${ErrorBoundary}><${App} /></${ErrorBoundary}>`,
+      document.getElementById("app")
+    );
+    window.__appRendered = true;
+  } catch (err) {
+    console.error("Render failed:", err);
+    const app = document.getElementById("app");
+    if (app) {
+      app.innerHTML =
+        '<div class="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">' +
+        '<p style="color: var(--text-secondary); font-family: var(--font-body);">Failed to render the app.</p>' +
+        '<p style="color: var(--text-tertiary); font-family: var(--font-mono); font-size: 0.75rem; max-width: 400px; word-break: break-word;">' +
+        (err.message || "Unknown error") + "</p>" +
+        '<button onclick="window.location.reload()" style="background: var(--strava); color: white; ' +
+        'padding: 0.5rem 1.5rem; border-radius: 0.5rem; border: none; cursor: pointer; ' +
+        'font-family: var(--font-body);">Reload</button></div>';
+    }
+  }
+}
+
 async function init() {
   try {
     initInstallDetection();
-    await initAuth();
-    await checkDemo();
   } catch (err) {
-    console.error("Init error:", err);
+    console.error("Install detection error:", err);
   }
 
-  render(html`<${App} />`, document.getElementById("app"));
+  try {
+    await initAuth();
+  } catch (err) {
+    console.error("Auth init error:", err);
+  }
+
+  try {
+    await checkDemo();
+  } catch (err) {
+    console.error("Demo check error:", err);
+  }
+
+  safeRender();
 
   // Re-render on auth and route changes
   effect(() => {
@@ -76,8 +149,11 @@ async function init() {
     const __ = route.value;
     const ___ = routeParams.value;
     const ____ = isDemo.value;
-    render(html`<${App} />`, document.getElementById("app"));
+    safeRender();
   });
 }
+
+// Signal that the module loaded (even if init hasn't finished yet)
+window.__appModuleLoaded = true;
 
 init();

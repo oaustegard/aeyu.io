@@ -20,8 +20,9 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png">
 
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Fonts (non-render-blocking: load as print, swap to all on load) -->
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="importmap">
@@ -73,24 +74,62 @@
     <script>
       // Register service worker
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.register("/sw.js").catch(() => {});
+        navigator.serviceWorker.register("/sw.js").catch(function() {});
       }
 
-      // Detect stuck loading: if module fails to load (CDN down, SW cache miss,
-      // network error), init() never runs and "Loading..." stays forever.
-      // After 10s, show an error with a reload button.
+      // Global error handlers — catch unhandled errors and show them to the user
+      // instead of silently failing with "Loading..." stuck on screen.
+      window.__appModuleLoaded = false;
+      window.__appRendered = false;
+
+      window.onerror = function(msg, url, line, col, error) {
+        console.error("Global error:", msg, url, line, col, error);
+        showLoadError("JS error: " + msg);
+      };
+
+      window.addEventListener("unhandledrejection", function(event) {
+        console.error("Unhandled rejection:", event.reason);
+        showLoadError("Async error: " + (event.reason && event.reason.message || event.reason));
+      });
+
+      // Detect stuck loading using flags set by app.js instead of fragile DOM text matching.
+      // Checks at 8s and 15s to catch both fast and slow failure scenarios.
       setTimeout(function() {
-        var app = document.getElementById("app");
-        if (app && app.querySelector("p") && app.textContent.trim() === "Loading...") {
-          app.innerHTML =
-            '<div class="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">' +
-            '<p style="color: var(--text-secondary); font-family: var(--font-body);">' +
-            'Failed to load the app. This can happen due to a network issue or stale cache.</p>' +
-            '<button onclick="clearCacheAndReload()" style="background: var(--strava); color: white; ' +
-            'padding: 0.5rem 1.5rem; border-radius: 0.5rem; border: none; cursor: pointer; ' +
-            'font-family: var(--font-body);">Clear Cache & Reload</button></div>';
+        if (!window.__appRendered) {
+          var detail = !window.__appModuleLoaded
+            ? "Module failed to load (CDN or network issue)"
+            : "App loaded but failed to render";
+          showLoadError(detail);
         }
-      }, 10000);
+      }, 8000);
+
+      setTimeout(function() {
+        if (!window.__appRendered) {
+          var detail = !window.__appModuleLoaded
+            ? "Module failed to load — CDN may be unreachable"
+            : "App module loaded but rendering failed";
+          showLoadError(detail);
+        }
+      }, 15000);
+
+      function showLoadError(detail) {
+        // Don't overwrite if app has successfully rendered
+        if (window.__appRendered) return;
+        var app = document.getElementById("app");
+        if (!app) return;
+        app.innerHTML =
+          '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:1rem;text-align:center;">' +
+          '<p style="color: var(--text-secondary, #5C5548); font-family: var(--font-body, sans-serif);">' +
+          'Failed to load the app.</p>' +
+          '<p style="color: var(--text-tertiary, #8C8374); font-family: var(--font-mono, monospace); font-size: 0.75rem; max-width: 400px; word-break: break-word;">' +
+          (detail || "Unknown error") + '</p>' +
+          '<button onclick="clearCacheAndReload()" style="background: var(--strava, #FC4C02); color: white; ' +
+          'padding: 0.5rem 1.5rem; border-radius: 0.5rem; border: none; cursor: pointer; ' +
+          'font-family: var(--font-body, sans-serif);">Clear Cache & Reload</button>' +
+          '<button onclick="window.location.reload()" style="background: none; border: none; cursor: pointer; ' +
+          'font-family: var(--font-body, sans-serif); color: var(--text-tertiary, #8C8374); font-size: 0.875rem;">' +
+          'Simple Reload</button></div>';
+      }
 
       function clearCacheAndReload() {
         if ("caches" in window) {
