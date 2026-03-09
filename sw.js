@@ -4,7 +4,7 @@
  * All Strava data lives in IndexedDB — SW just needs to serve the app offline.
  */
 
-const CACHE_NAME = "aeyu-v4";
+const CACHE_NAME = "aeyu-v5";
 
 const APP_SHELL = [
   "/",
@@ -17,6 +17,11 @@ const APP_SHELL = [
   "/src/db.js",
   "/src/sync.js",
   "/src/install.js",
+  "/src/demo.js",
+  "/src/units.js",
+  "/src/icons.js",
+  "/src/award-config.js",
+  "/src/power-curve.js",
   "/src/components/Landing.js",
   "/src/components/Dashboard.js",
   "/src/components/SyncProgress.js",
@@ -76,8 +81,9 @@ self.addEventListener("fetch", (event) => {
   }
 
   // App shell: network-first, cache fallback (deploys are immediately visible)
+  // Use cache: "no-cache" to bypass browser HTTP cache and always revalidate
   event.respondWith(
-    fetch(event.request)
+    fetch(event.request, { cache: "no-cache" })
       .then((response) => {
         if (response.ok && event.request.method === "GET") {
           const clone = response.clone();

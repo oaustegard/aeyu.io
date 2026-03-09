@@ -60,9 +60,14 @@ function App() {
 // --- Init ---
 
 async function init() {
-  initInstallDetection();
-  await initAuth();
-  await checkDemo();
+  try {
+    initInstallDetection();
+    await initAuth();
+    await checkDemo();
+  } catch (err) {
+    console.error("Init error:", err);
+  }
+
   render(html`<${App} />`, document.getElementById("app"));
 
   // Re-render on auth and route changes
