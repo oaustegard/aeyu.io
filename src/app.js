@@ -7,7 +7,7 @@ import { html } from "htm/preact";
 import { render, Component } from "preact";
 import { signal, effect } from "@preact/signals";
 import { authState, initAuth } from "./auth.js";
-import { checkDemo, isDemo } from "./demo.js";
+import { checkDemo, isDemo, startDemo } from "./demo.js";
 import { initInstallDetection } from "./install.js";
 import { Landing } from "./components/Landing.js";
 import { Dashboard } from "./components/Dashboard.js";
@@ -81,8 +81,8 @@ function App() {
   const auth = authState.value;
   const currentRoute = route.value;
 
-  // Not authenticated — show landing
-  if (!auth && currentRoute !== "callback") {
+  // Not authenticated — show landing (except callback and demo routes)
+  if (!auth && currentRoute !== "callback" && currentRoute !== "demo") {
     return html`<${Landing} />`;
   }
 
@@ -90,6 +90,12 @@ function App() {
   switch (currentRoute) {
     case "activity":
       return html`<${ActivityDetail} id=${routeParams.value.id} />`;
+    case "demo":
+      if (isDemo.value) return html`<${Dashboard} />`;
+      // Start demo mode (backs up real session if authenticated)
+      startDemo().then(() => safeRender());
+      return html`<div class="min-h-screen flex items-center justify-center"
+        style="color: var(--text-secondary); font-family: var(--font-body);">Loading demo…</div>`;
     case "sync": // legacy — now handled by dashboard
     case "dashboard":
     default:
