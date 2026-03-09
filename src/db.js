@@ -254,6 +254,37 @@ export async function appendEffort(segmentId, segmentData, effort) {
   });
 }
 
+/**
+ * Remove all efforts for a given activity from the segments store.
+ * Used before re-appending updated efforts during activity resync.
+ */
+export async function removeEffortsForActivity(activityId) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("segments", "readwrite");
+    const store = tx.objectStore("segments");
+    const req = store.openCursor();
+
+    req.onsuccess = () => {
+      const cursor = req.result;
+      if (cursor) {
+        const segment = cursor.value;
+        const before = segment.efforts.length;
+        segment.efforts = segment.efforts.filter(
+          (e) => e.activity_id !== activityId
+        );
+        if (segment.efforts.length !== before) {
+          cursor.update(segment);
+        }
+        cursor.continue();
+      }
+    };
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 // --- Reset Event (Comeback Mode) ---
 
 /**

@@ -9,6 +9,8 @@ import { signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
 import { getActivity, getSegment, getAllActivities, getResetEvent, getUserConfig } from "../db.js";
 import { computeAwards, computeRideLevelAwards } from "../awards.js";
+import { resyncActivity } from "../sync.js";
+import { isDemo } from "../demo.js";
 import { navigate } from "../app.js";
 import {
   formatDistance,
@@ -25,6 +27,8 @@ const segmentHistory = signal(new Map());
 const loading = signal(true);
 const copied = signal(false);
 const cardGenerated = signal(false);
+const resyncing = signal(false);
+const resyncError = signal(null);
 
 function formatDateShort(isoString) {
   return new Date(isoString).toLocaleDateString("en-US", {
@@ -493,6 +497,20 @@ export function ActivityDetail({ id }) {
     URL.revokeObjectURL(url);
   }
 
+  async function handleResync() {
+    if (resyncing.value) return;
+    resyncing.value = true;
+    resyncError.value = null;
+    try {
+      await resyncActivity(Number(id));
+      await loadActivity(id);
+    } catch (err) {
+      resyncError.value = err.message || "Resync failed";
+    } finally {
+      resyncing.value = false;
+    }
+  }
+
   // Ride-level power display
   const ridePower = act.device_watts && act.average_watts ? formatPower(act.average_watts) : null;
 
@@ -503,7 +521,25 @@ export function ActivityDetail({ id }) {
           <button onClick=${() => navigate("dashboard")} class="text-sm text-blue-600 hover:underline mb-2 block">
             ← Back to dashboard
           </button>
-          <h1 class="text-xl font-bold text-gray-800">${act.name}</h1>
+          <div class="flex items-center justify-between gap-3">
+            <h1 class="text-xl font-bold text-gray-800">${act.name}</h1>
+            ${!isDemo.value && html`
+              <button
+                onClick=${handleResync}
+                disabled=${resyncing.value}
+                class="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                title="Re-fetch this activity from Strava"
+              >
+                <svg class="w-3.5 h-3.5 ${resyncing.value ? 'animate-spin' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                ${resyncing.value ? "Resyncing…" : "Resync"}
+              </button>
+            `}
+          </div>
+          ${resyncError.value && html`
+            <div class="mt-1 text-xs text-red-600">${resyncError.value}</div>
+          `}
           <p class="text-sm text-gray-500">
             ${formatDateFull(act.start_date_local)}
             · ${formatDistance(act.distance)}
