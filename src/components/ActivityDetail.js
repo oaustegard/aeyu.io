@@ -7,8 +7,9 @@
 import { html } from "htm/preact";
 import { signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
-import { getActivity, getSegment, getAllActivities, getResetEvent, getUserConfig } from "../db.js";
+import { getActivity, getSegment, getAllActivities, getResetEvent, getUserConfig, getAllRoutes } from "../db.js";
 import { computeAwards, computeRideLevelAwards } from "../awards.js";
+import { detectRoutes, findRouteForActivity } from "../routes.js";
 import { resyncActivity } from "../sync.js";
 import { isDemo } from "../demo.js";
 import { navigate } from "../app.js";
@@ -52,13 +53,57 @@ async function loadActivity(id) {
     activity.value = act;
 
     if (act.has_efforts) {
+      // Propagate device_watts from segment efforts to activity level (#85)
+      // Handles activities synced before power fields were added to sync code
+      if (!act.device_watts && act.segment_efforts) {
+        const hasDeviceWatts = act.segment_efforts.some(e => e.device_watts);
+        if (hasDeviceWatts) {
+          act.device_watts = true;
+          if (!act.weighted_average_watts && act.average_watts) {
+            act.weighted_average_watts = act.average_watts;
+          }
+        }
+      }
+
       const resetEvent = await getResetEvent();
       const userConfig = await getUserConfig();
       const refPoints = userConfig.referencePoints || [];
       const segmentAwards = await computeAwards(act, resetEvent, refPoints);
       const allActivities = await getAllActivities();
       const rideAwards = computeRideLevelAwards(act, allActivities, resetEvent);
-      const awardsList = [...segmentAwards, ...rideAwards];
+      let awardsList = [...segmentAwards, ...rideAwards];
+
+      // Route-level Season First collapse (#84)
+      const seasonFirsts = awardsList.filter(a => a.type === "season_first");
+      if (seasonFirsts.length >= 2) {
+        let routes = await getAllRoutes();
+        if (!routes || routes.length === 0) {
+          const withEfforts = allActivities.filter(a => a.has_efforts);
+          routes = detectRoutes(withEfforts);
+        }
+        if (routes.length > 0) {
+          const route = findRouteForActivity(act, routes);
+          if (route) {
+            const nonSeasonFirsts = awardsList.filter(a => a.type !== "season_first");
+            const routeAward = {
+              type: "route_season_first",
+              segment: null,
+              segment_id: null,
+              time: null,
+              power: null,
+              comparison: null,
+              delta: null,
+              route_name: route.name,
+              route_frequency: route.frequency,
+              collapsed_count: seasonFirsts.length,
+              _collapsed_season_firsts: seasonFirsts,
+              message: `Season First on ${route.name}! First time this year on this route (${seasonFirsts.length} segments) — ${route.frequency} times total`,
+            };
+            awardsList = [...nonSeasonFirsts, routeAward];
+          }
+        }
+      }
+
       awards.value = awardsList;
 
       const history = new Map();
@@ -93,13 +138,15 @@ function buildSummary(act, awardsList) {
     }
     lines.push(Object.entries(counts).map(([l, n]) => n > 1 ? `${n}× ${l}` : l).join(", "));
 
-    const top = awardsList.slice(0, 3);
-    for (const a of top) {
+    // Top highlights — deduplicated by segment (#87)
+    const highlights = buildShareCardHighlights(awardsList);
+    for (const a of highlights) {
       let detail = a.time != null ? formatTime(a.time) : "";
       if (a.power) detail += detail ? ` · ${formatPower(a.power)}` : formatPower(a.power);
-      lines.push(`  ${a.segment || ""} ${detail ? "— " + detail : ""}`);
+      lines.push(`  ${a.segment || a.route_name || ""} ${detail ? "— " + detail : ""}`);
     }
-    if (awardsList.length > 3) lines.push(`  + ${awardsList.length - 3} more`);
+    const remaining = awardsList.length - highlights.length;
+    if (remaining > 0) lines.push(`  + ${remaining} more`);
   }
   lines.push("");
   lines.push("aeyu.io — Participation Awards");
@@ -112,6 +159,7 @@ function buildSummary(act, awardsList) {
 async function renderShareCard(canvas, act, awardsList) {
   const W = 1080;
   const pad = 60, left = pad + 48, maxTextW = W - left - pad - 48;
+  const rightEdge = W - pad - 48;
 
   // Wait for fonts to load
   await Promise.all([
@@ -129,22 +177,37 @@ async function renderShareCard(canvas, act, awardsList) {
   tmpCtx.font = '400 52px "Instrument Serif", serif';
   const nameLines = wrapText(tmpCtx, act.name, maxTextW);
 
-  const showCount = Math.min(awardsList.length, 6);
+  // Build meta text and measure for wrapping (#87)
+  const metaParts = [formatDateShort(act.start_date_local), formatDistance(act.distance), formatTime(act.moving_time)];
+  if (act.total_elevation_gain) metaParts.push(formatElevation(act.total_elevation_gain));
+  if (act.device_watts && act.average_watts) metaParts.push(formatPower(act.average_watts));
+  tmpCtx.font = '400 30px "IBM Plex Mono", monospace';
+  const metaText = metaParts.join("  ·  ");
+  const metaLines = wrapText(tmpCtx, metaText, maxTextW);
+
+  // Deduplicate awards for share card: best award per segment, max 5 highlights (#87)
+  const highlightAwards = buildShareCardHighlights(awardsList);
+
+  // Pre-measure pill rows for wrapping (#87)
+  const counts = {};
+  const pillOrder = ["route_season_first", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record", "season_first_power", "np_year_best", "np_recent_best", "work_year_best", "work_recent_best", "peak_power", "peak_power_recent", "indoor_np_year_best", "indoor_work_year_best", "trainer_streak", "indoor_vs_outdoor"];
+  for (const a of awardsList) counts[a.type] = (counts[a.type] || 0) + 1;
+  tmpCtx.font = '600 26px "DM Sans", sans-serif';
+  const pillRows = layoutPillRows(tmpCtx, counts, pillOrder, left, maxTextW);
 
   // Calculate height
   let contentH = 60;  // top padding in card
   contentH += 28 + 60; // header + gap
   contentH += 48;      // divider gap
   contentH += nameLines.length * 62 + 8; // title
-  contentH += 30 + 64; // meta line + gap
+  contentH += metaLines.length * 38 + 26; // meta lines + gap
 
   if (awardsList.length > 0) {
-    contentH += 36 + 20 + 36; // pills row + divider
-    for (let i = 0; i < showCount; i++) {
-      const a = awardsList[i];
+    contentH += pillRows.length * 52 + 20 + 36; // pill rows + gap + divider
+    for (const a of highlightAwards) {
       contentH += (a.delta && a.delta > 0) ? 60 : 48;
     }
-    if (awardsList.length > showCount) contentH += 40;
+    if (awardsList.length > highlightAwards.length) contentH += 40;
   }
   contentH += 48; // bottom padding in card
 
@@ -199,7 +262,7 @@ async function renderShareCard(canvas, act, awardsList) {
   ctx.font = '400 28px "DM Sans", sans-serif';
   ctx.fillStyle = "#8C8374";
   ctx.textAlign = "right";
-  ctx.fillText("Participation Awards", W - pad - 48, y);
+  ctx.fillText("Participation Awards", rightEdge, y);
   ctx.textAlign = "left";
   y += 60;
 
@@ -208,7 +271,7 @@ async function renderShareCard(canvas, act, awardsList) {
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.moveTo(left, y);
-  ctx.lineTo(W - pad - 48, y);
+  ctx.lineTo(rightEdge, y);
   ctx.stroke();
   y += 48;
 
@@ -221,90 +284,83 @@ async function renderShareCard(canvas, act, awardsList) {
   }
   y += 8;
 
-  // Meta
-  const meta = [formatDateShort(act.start_date_local), formatDistance(act.distance), formatTime(act.moving_time)];
-  if (act.total_elevation_gain) meta.push(formatElevation(act.total_elevation_gain));
-  if (act.device_watts && act.average_watts) meta.push(formatPower(act.average_watts));
+  // Meta — wrapped to fit (#87)
   ctx.font = '400 30px "IBM Plex Mono", monospace';
   ctx.fillStyle = "#5C5548";
-  ctx.fillText(meta.join("  ·  "), left, y);
-  y += 64;
+  for (const line of metaLines) {
+    ctx.fillText(line, left, y);
+    y += 38;
+  }
+  y += 26;
 
   // Awards
   if (awardsList.length > 0) {
-    // Summary pills
-    const counts = {};
-    const order = ["route_season_first", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record", "season_first_power", "np_year_best", "np_recent_best", "work_year_best", "work_recent_best", "peak_power", "peak_power_recent", "indoor_np_year_best", "indoor_work_year_best", "trainer_streak", "indoor_vs_outdoor"];
-    for (const a of awardsList) counts[a.type] = (counts[a.type] || 0) + 1;
+    // Summary pills — multi-row wrapping (#87)
+    for (const row of pillRows) {
+      for (const pill of row) {
+        ctx.font = '600 26px "DM Sans", sans-serif';
+        const colors = AWARD_COLORS[pill.type];
+        if (!colors) continue;
 
-    let pillX = left;
-    ctx.font = '600 26px "DM Sans", sans-serif';
-    for (const type of order) {
-      if (!counts[type]) continue;
-      const label = counts[type] > 1
-        ? `${counts[type]}× ${AWARD_LABELS[type].label}`
-        : AWARD_LABELS[type].label;
-      const colors = AWARD_COLORS[type];
-      if (!colors) continue;
+        const iconSize = 20;
+        const iconPad = 6;
+        const textW = ctx.measureText(pill.label).width;
+        const tw = 16 + iconSize + iconPad + textW + 16;
 
-      // Measure pill: icon space + text + padding
-      const iconSize = 20;
-      const iconPad = 6;
-      const textW = ctx.measureText(label).width;
-      const tw = 16 + iconSize + iconPad + textW + 16;
+        ctx.fillStyle = colors.bg;
+        roundRect(ctx, pill.x, y - 28, tw, 40, 20);
+        ctx.fill();
+        ctx.strokeStyle = colors.border;
+        ctx.lineWidth = 1;
+        roundRect(ctx, pill.x, y - 28, tw, 40, 20);
+        ctx.stroke();
 
-      // Pill background
-      ctx.fillStyle = colors.bg;
-      roundRect(ctx, pillX, y - 28, tw, 40, 20);
-      ctx.fill();
-      ctx.strokeStyle = colors.border;
-      ctx.lineWidth = 1;
-      roundRect(ctx, pillX, y - 28, tw, 40, 20);
-      ctx.stroke();
+        drawIcon(ctx, pill.type, pill.x + 14, y - 26, iconSize, colors.accent, 2);
 
-      // Draw icon
-      drawIcon(ctx, type, pillX + 14, y - 26, iconSize, colors.accent, 2);
-
-      // Pill text
-      ctx.fillStyle = colors.text;
-      ctx.font = '600 26px "DM Sans", sans-serif';
-      ctx.fillText(label, pillX + 14 + iconSize + iconPad, y);
-      pillX += tw + 12;
+        ctx.fillStyle = colors.text;
+        ctx.font = '600 26px "DM Sans", sans-serif';
+        ctx.fillText(pill.label, pill.x + 14 + iconSize + iconPad, y);
+      }
+      y += 52;
     }
-    y += 36 + 20;
+    y += 20;
 
     // Divider
     ctx.strokeStyle = "#E5DFD4";
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(left, y);
-    ctx.lineTo(W - pad - 48, y);
+    ctx.lineTo(rightEdge, y);
     ctx.stroke();
     y += 36;
 
-    // Individual awards
-    const show = awardsList.slice(0, 6);
-    for (const award of show) {
+    // Top segment highlights — deduplicated, max 5 (#87)
+    for (const award of highlightAwards) {
       const colors = AWARD_COLORS[award.type];
       if (!colors) continue;
 
-      // Draw icon as accent marker
       drawIcon(ctx, award.type, left, y - 14, 20, colors.accent, 2);
 
-      // Segment name
       ctx.font = '500 28px "DM Sans", sans-serif';
       ctx.fillStyle = "#1A1610";
-      ctx.fillText(award.segment || "", left + 28, y + 4);
+      const segName = award.segment || award.route_name || "";
+      const awardLabel = AWARD_LABELS[award.type]?.label || "";
+      const displayName = segName ? `${segName} — ${awardLabel}` : awardLabel;
+      // Truncate to fit
+      let truncated = displayName;
+      const rightLabelW = 150; // reserve space for time/power
+      while (ctx.measureText(truncated).width > maxTextW - rightLabelW - 28 && truncated.length > 3) {
+        truncated = truncated.slice(0, -4) + "…";
+      }
+      ctx.fillText(truncated, left + 28, y + 4);
 
-      // Time + power
       const rightLabel = award.time != null ? formatTime(award.time) : (award.power ? `${Math.round(award.power)}W` : "");
       ctx.font = '500 28px "IBM Plex Mono", monospace';
       ctx.fillStyle = colors.accent;
       ctx.textAlign = "right";
-      ctx.fillText(rightLabel, W - pad - 48, y + 4);
+      ctx.fillText(rightLabel, rightEdge, y + 4);
       ctx.textAlign = "left";
 
-      // Delta
       if (award.delta && award.delta > 0) {
         ctx.font = '400 22px "IBM Plex Mono", monospace';
         ctx.fillStyle = "#8C8374";
@@ -313,10 +369,11 @@ async function renderShareCard(canvas, act, awardsList) {
       y += (award.delta && award.delta > 0) ? 60 : 48;
     }
 
-    if (awardsList.length > 6) {
+    const remaining = awardsList.length - highlightAwards.length;
+    if (remaining > 0) {
       ctx.font = '400 24px "DM Sans", sans-serif';
       ctx.fillStyle = "#8C8374";
-      ctx.fillText(`+ ${awardsList.length - 6} more awards`, left, y + 8);
+      ctx.fillText(`+ ${remaining} more awards`, left, y + 8);
     }
   }
 
@@ -326,6 +383,69 @@ async function renderShareCard(canvas, act, awardsList) {
   ctx.textAlign = "center";
   ctx.fillText("It's just you and your efforts", W / 2, H - 30);
   ctx.textAlign = "left";
+}
+
+/**
+ * Build share card highlights: best award per segment, max 5 rows (#87).
+ * Deduplicates segments — picks the highest-tier award for each.
+ * Includes ride-level awards (no segment) too.
+ */
+function buildShareCardHighlights(awardsList) {
+  const TIER = {
+    route_season_first: 20, year_best: 18, ytd_best_time: 17, ytd_best_power: 17,
+    np_year_best: 16, peak_power: 16, best_month_ever: 15, top_decile: 14,
+    work_year_best: 13, improvement_streak: 12, comeback: 12, closing_in: 11,
+    top_quartile: 10, recent_best: 9, np_recent_best: 9, monthly_best: 8,
+    work_recent_best: 8, peak_power_recent: 8, beat_median: 7, season_first: 6,
+    consistency: 5, milestone: 4, anniversary: 3, distance_record: 15,
+    elevation_record: 14, segment_count: 3, endurance_record: 13,
+    season_first_power: 12, indoor_np_year_best: 14, indoor_work_year_best: 13,
+    trainer_streak: 10, indoor_vs_outdoor: 8, comeback_pb: 12, recovery_milestone: 11,
+    comeback_full: 15, comeback_distance: 10, comeback_elevation: 10, comeback_endurance: 10,
+    reference_best: 6,
+  };
+  // Best award per segment (or per unique ride-level type)
+  const bySegment = new Map();
+  for (const a of awardsList) {
+    const key = a.segment_id != null ? `seg:${a.segment_id}` : `ride:${a.type}`;
+    const tier = TIER[a.type] || 0;
+    if (!bySegment.has(key) || tier > (TIER[bySegment.get(key).type] || 0)) {
+      bySegment.set(key, a);
+    }
+  }
+  // Sort by tier descending, take top 5
+  return [...bySegment.values()]
+    .sort((a, b) => (TIER[b.type] || 0) - (TIER[a.type] || 0))
+    .slice(0, 5);
+}
+
+/**
+ * Layout summary pills into rows that fit within maxTextW (#87).
+ */
+function layoutPillRows(ctx, counts, order, startX, maxW) {
+  const rows = [];
+  let currentRow = [];
+  let x = startX;
+  const iconSize = 20, iconPad = 6, pillPad = 16, gap = 12;
+
+  for (const type of order) {
+    if (!counts[type]) continue;
+    const label = counts[type] > 1
+      ? `${counts[type]}× ${AWARD_LABELS[type].label}`
+      : AWARD_LABELS[type].label;
+    const textW = ctx.measureText(label).width;
+    const tw = pillPad + iconSize + iconPad + textW + pillPad;
+
+    if (currentRow.length > 0 && (x - startX + tw) > maxW) {
+      rows.push(currentRow);
+      currentRow = [];
+      x = startX;
+    }
+    currentRow.push({ type, label, x });
+    x += tw + gap;
+  }
+  if (currentRow.length > 0) rows.push(currentRow);
+  return rows;
 }
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -611,40 +731,32 @@ export function ActivityDetail({ id }) {
 
               return html`
                 <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
-                  <div class="flex items-start justify-between">
-                    <div>
-                      <div style="font-family: var(--font-body); font-size: 16px; font-weight: 500; color: var(--text);">${effort.segment.name}</div>
-                      <div class="mt-1" style="font-family: var(--font-mono); font-size: 14px; color: var(--text-secondary);">
-                        ${formatDistance(effort.segment.distance)}
-                        · ${effort.segment.average_grade}% grade
-                        · ${formatTime(effort.elapsed_time)}
-                        ${effortPower ? ` · ${effortPower}` : ""}
-                      </div>
-                      ${effortCount > 1 && html`
-                        <div class="mt-1" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-tertiary);">
-                          ${effortCount} total efforts on this segment
-                        </div>
-                      `}
-                    </div>
-                    ${segAwards.length > 0 && html`
-                      <div class="flex flex-wrap gap-1 ml-3">
-                        ${segAwards.map(
-                          (a) => {
-                            const al = AWARD_LABELS[a.type];
-                            const pillStyle = al ? `background: ${al.bg}; color: ${al.text}; border: 1px solid ${al.border};` : "background: #ECEAE6; color: #3E3A36;";
-                            return html`
-                              <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style=${pillStyle}>
-                                ${al ? renderIconSVG(a.type, { size: 12, color: al.dot }) : null}
-                                ${al?.label || a.type}
-                              </span>
-                            `;
-                          }
-                        )}
-                      </div>
-                    `}
+                  <div style="font-family: var(--font-body); font-size: 16px; font-weight: 500; color: var(--text);">${effort.segment.name}</div>
+                  <div class="mt-1" style="font-family: var(--font-mono); font-size: 14px; color: var(--text-secondary);">
+                    ${formatDistance(effort.segment.distance)}
+                    · ${effort.segment.average_grade}% grade
+                    · ${formatTime(effort.elapsed_time)}
+                    ${effortPower ? ` · ${effortPower}` : ""}
+                    ${effortCount > 1 ? ` · ${effortCount} efforts` : ""}
                   </div>
                   ${effort.pr_rank && html`
-                    <div class="mt-2" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--strava);">Strava PR #${effort.pr_rank}</div>
+                    <div class="mt-1" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--strava);">Strava PR #${effort.pr_rank}</div>
+                  `}
+                  ${segAwards.length > 0 && html`
+                    <div class="flex flex-wrap gap-1 mt-2">
+                      ${segAwards.map(
+                        (a) => {
+                          const al = AWARD_LABELS[a.type];
+                          const pillStyle = al ? `background: ${al.bg}; color: ${al.text}; border: 1px solid ${al.border};` : "background: #ECEAE6; color: #3E3A36;";
+                          return html`
+                            <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style=${pillStyle}>
+                              ${al ? renderIconSVG(a.type, { size: 12, color: al.dot }) : null}
+                              ${al?.label || a.type}
+                            </span>
+                          `;
+                        }
+                      )}
+                    </div>
                   `}
                 </div>
               `;
