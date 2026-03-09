@@ -478,7 +478,7 @@ export function Dashboard() {
 
         <!-- Powered by Strava -->
         <div class="text-center mt-12 mb-6">
-          <p style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">Powered by Strava</p>
+          <img src="assets/strava/api_logo_pwrdBy_strava_horiz_orange.svg" alt="Powered by Strava" style="height: 24px; display: inline-block;" />
         </div>
       </main>
 

@@ -153,7 +153,7 @@ export function SyncProgress() {
 
         <!-- Powered by Strava -->
         <div class="text-center mt-8">
-          <p class="text-xs text-gray-400">Powered by Strava</p>
+          <img src="assets/strava/api_logo_pwrdBy_strava_horiz_orange.svg" alt="Powered by Strava" style="height: 24px; display: inline-block;" />
         </div>
       </div>
     </div>
