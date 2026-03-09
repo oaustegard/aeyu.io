@@ -572,6 +572,18 @@ export function Dashboard() {
                     <span class="text-xs px-2 py-0.5 rounded-full bg-teal-200 text-teal-900 whitespace-nowrap mt-0.5">Reference Best</span>
                     <span>Best effort within a user-defined window — since a date, in last N rides, or since turning an age. Configure in settings below.</span>
                   </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-rose-200 text-rose-900 whitespace-nowrap mt-0.5">Comeback PB</span>
+                    <span>Post-injury personal best on a segment. Only appears when Comeback Mode is active.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-orange-200 text-orange-900 whitespace-nowrap mt-0.5">Recovery</span>
+                    <span>You've reached 80%, 90%, or 95% of your pre-injury best on a segment.</span>
+                  </div>
+                  <div class="flex items-start gap-2">
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-green-200 text-green-900 whitespace-nowrap mt-0.5">You're Back!</span>
+                    <span>You've matched or beaten your pre-injury best. Full recovery on this segment.</span>
+                  </div>
                 </div>
               </details>
 
@@ -622,6 +634,19 @@ export function Dashboard() {
                 </summary>
                 <div class="pt-3 pb-1 text-sm text-gray-600">
                   Power is shown for rides with a power meter (measured watts only — estimated power is excluded). Average watts appear in ride summaries and per-segment details. YTD Power awards compare your power output by date across years.
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                  Comeback Mode vs Reference Points?
+                  <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 text-sm text-gray-600 space-y-2">
+                  <p>Both track progress from a point in time, but they serve different purposes:</p>
+                  <p><strong class="text-rose-700">Comeback Mode</strong> is for injury recovery. It shields you from demoralizing comparisons to your pre-injury self. While you're rebuilding, awards like Year Best and Top Quartile are temporarily hidden — replaced by recovery milestones (80%, 90%, 95%) and a "You're Back!" celebration when you match your old form. One active at a time.</p>
+                  <p><strong class="text-teal-700">Reference Points</strong> are lightweight personal markers — "since I got my new bike", "last 20 rides", "since turning 50". They add "best since" awards without changing how other awards work. Stack as many as you like.</p>
+                  <p class="text-xs text-gray-400">In short: Comeback Mode protects; Reference Points observe.</p>
                 </div>
               </details>
             </div>
@@ -699,7 +724,7 @@ export function Dashboard() {
                     >
                       Set a reset date (injury recovery)
                     </button>
-                    <p class="text-xs text-gray-300 mt-1">Awards will adjust to celebrate your recovery progress instead of comparing to pre-injury bests.</p>
+                    <p class="text-xs text-gray-300 mt-1">Hides demoralizing comparisons while you rebuild. Tracks recovery milestones toward your pre-injury best.</p>
                   `}
                 `}
               </div>
@@ -709,7 +734,7 @@ export function Dashboard() {
               <!-- Reference Points Settings -->
               <div>
                 <p class="text-xs font-medium text-gray-600 mb-1.5">Reference Points</p>
-                <p class="text-xs text-gray-400 mb-2">Custom "best since" awards — compare your efforts within a personal time window.</p>
+                <p class="text-xs text-gray-400 mb-2">Lightweight "best since" markers — track progress from a date, last N rides, or an age. Doesn't change other awards.</p>
 
                 ${referencePoints.value.length > 0 && html`
                   <div class="space-y-1.5 mb-2">
