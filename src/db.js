@@ -403,6 +403,7 @@ const DEFAULT_SYNC_STATE = {
   last_sync: null,
   power_backfill_complete: false,
   schema_version: 0,
+  sync_after_epoch: null, // Unix timestamp — limits how far back to sync (#111)
 };
 
 export async function getSyncState() {

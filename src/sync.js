@@ -458,15 +458,28 @@ export async function startBackfill() {
       let lastActivityDate = state.last_activity_fetch;
       let totalFetched = 0;
 
+      // Apply sync window cutoff (#111) — Strava `after` param is epoch seconds
+      // Default to 3 years on first backfill if no preference set
+      let syncAfterEpoch = state.sync_after_epoch;
+      if (syncAfterEpoch === null && page === 1) {
+        syncAfterEpoch = Math.floor(Date.now() / 1000 - 3 * 365.25 * 24 * 3600);
+        await updateSyncState({ sync_after_epoch: syncAfterEpoch });
+      }
+
+      // Show sync window in progress messages
+      const windowLabel = syncAfterEpoch
+        ? `since ${new Date(syncAfterEpoch * 1000).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`
+        : "all time";
+
       while (true) {
         // Fetch one page of activity summaries
         syncProgress.value = {
           ...syncProgress.value,
           phase: "list",
-          message: `Fetching activities (page ${page})...`,
+          message: `Fetching activities ${windowLabel} (page ${page})...`,
         };
 
-        const result = await fetchActivityListPage(page);
+        const result = await fetchActivityListPage(page, syncAfterEpoch);
 
         if (result.summaries.length === 0) break;
 
@@ -607,6 +620,33 @@ export async function incrementalSync() {
     throw err;
   } finally {
     isSyncing.value = false;
+  }
+}
+
+/**
+ * Update the sync window cutoff (#111).
+ * If the window is extended (sync_after_epoch moved earlier or removed),
+ * resets backfill so the newly-included period gets fetched.
+ * If the window is shrunk, just updates the preference — no data deleted.
+ * @param {number|null} newEpoch - Unix timestamp cutoff, or null for all-time
+ */
+export async function updateSyncWindow(newEpoch) {
+  const state = await getSyncState();
+  const oldEpoch = state.sync_after_epoch || null;
+
+  await updateSyncState({ sync_after_epoch: newEpoch });
+
+  // If window was extended (new epoch is earlier or removed), trigger re-backfill
+  const windowExtended =
+    (oldEpoch !== null && newEpoch === null) || // expanded to all-time
+    (oldEpoch !== null && newEpoch !== null && newEpoch < oldEpoch); // moved earlier
+
+  if (windowExtended && state.backfill_complete) {
+    // Reset backfill so the new range gets fetched
+    await updateSyncState({
+      backfill_complete: false,
+      backfill_page: 1,
+    });
   }
 }
 

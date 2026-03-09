@@ -104,8 +104,10 @@
 - **syncProgress** (variable) :21
 - **rateLimitStatus** (variable) :30
 - **isSyncing** (variable) :37
-- **startBackfill** (f) `()` :364
-- **incrementalSync** (f) `()` :415
+- **startBackfill** (f) `()` :434
+- **incrementalSync** (f) `()` :565
+- **updateSyncWindow** (f) `(newEpoch)` :633
+- **manualSync** (f) `()` :658
 
 ### units.js
 > Imports: `signals, db.js`
