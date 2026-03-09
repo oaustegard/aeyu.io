@@ -8,6 +8,7 @@ import { render } from "preact";
 import { signal, effect } from "@preact/signals";
 import { authState, initAuth } from "./auth.js";
 import { checkDemo, isDemo } from "./demo.js";
+import { initInstallDetection } from "./install.js";
 import { Landing } from "./components/Landing.js";
 import { Dashboard } from "./components/Dashboard.js";
 import { ActivityDetail } from "./components/ActivityDetail.js";
@@ -59,6 +60,7 @@ function App() {
 // --- Init ---
 
 async function init() {
+  initInstallDetection();
   await initAuth();
   await checkDemo();
   render(html`<${App} />`, document.getElementById("app"));
