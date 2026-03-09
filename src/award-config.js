@@ -53,6 +53,15 @@ export const AWARD_LABELS = {
   // Streak & consistency awards (#58)
   weekly_streak:        { label: "Ride Streak",       dot: "#3D7A4A", bg: "#E8F2E6", text: "#1E4D28", border: "#C0D8B8" },
   group_consistency:    { label: "Group Ride",        dot: "#5B6CA0", bg: "#E4E8F2", text: "#34406A", border: "#BCC4DC" },
+  // Power trend & milestone awards (#47)
+  watt_milestone:       { label: "Watt Milestone",    dot: "#A03020", bg: "#F6DCD4", text: "#6E1810", border: "#E4B0A4" },
+  kj_milestone:         { label: "kJ Milestone",      dot: "#B85A28", bg: "#F8E4D4", text: "#7A3418", border: "#E8C0A4" },
+  power_progression:    { label: "Power Up",          dot: "#3D7A4A", bg: "#E4F0E4", text: "#204E28", border: "#B8D4B0" },
+  power_consistency:    { label: "Steady Power",      dot: "#6B6260", bg: "#ECEAE6", text: "#3E3A36", border: "#D4D0C8" },
+  ftp_milestone:        { label: "FTP Milestone",     dot: "#A03020", bg: "#F6DCD4", text: "#6E1810", border: "#E4B0A4" },
+  // Power curve awards (#48)
+  curve_year_best:      { label: "Curve Year Best",   dot: "#B8862E", bg: "#FBF0D8", text: "#6E5010", border: "#E8D4A0" },
+  curve_all_time:       { label: "Curve Record",      dot: "#A03020", bg: "#F6DCD4", text: "#6E1810", border: "#E4B0A4" },
 };
 
 // Share card colors derived from AWARD_LABELS

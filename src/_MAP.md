@@ -1,5 +1,5 @@
 # src/
-*Files: 10 | Subdirectories: 1*
+*Files: 11 | Subdirectories: 1*
 
 ## Subdirectories
 
@@ -32,6 +32,17 @@
 - **computeAwards** (f) `(activity, resetEvent = null, referencePoints = [])` :472
 - **computeRideLevelAwards** (f) `(activity, allActivities, resetEvent = null)` :988
 - **computeAwardsForActivities** (f) `(activities)` :1484
+
+### power-curve.js
+> Imports: `signals, config.js, auth.js, db.js`
+- **POWER_CURVE_DURATIONS** (variable) :27
+- **DURATION_LABELS** (variable) :30
+- **powerCurveProgress** (variable) :41
+- **computePowerCurve** (f) `(watts)` :53
+- **estimateFTP** (f) `(powerCurve)` :81
+- **fetchAndComputePowerCurve** (f) `(activityId)` :123
+- **getActivitiesNeedingPowerCurves** (f) `()` :155
+- **getAllTimeBestCurve** (f) `()` :167
 
 ### config.js
 - **STRAVA_CLIENT_ID** (variable) :6

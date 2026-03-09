@@ -531,6 +531,13 @@ export function Dashboard() {
                     ["comeback_full", "You're Back!", "You've matched or beaten your pre-injury best. Full recovery on this segment."],
                     ["weekly_streak", "Ride Streak", "Consecutive weeks with at least one ride. One missed week is forgiven (mulligan) — two consecutive misses break the streak."],
                     ["group_consistency", "Group Ride", "Detects recurring rides by day, time, and location. Tracks your attendance streak on each group ride."],
+                    ["watt_milestone", "Watt Milestone", "First ride where your average power exceeds a threshold (100W, 150W, ... 350W). Measures sustained effort."],
+                    ["kj_milestone", "kJ Milestone", "First ride exceeding an energy threshold (500kJ, 1000kJ, ... 3000kJ). Energy is energy — sport-agnostic."],
+                    ["power_progression", "Power Up", "Your Normalized Power is trending upward over your last 10 rides. Uses linear regression to detect real improvement."],
+                    ["power_consistency", "Steady Power", "Low variation in NP across your last 10 rides — steady, repeatable power output."],
+                    ["ftp_milestone", "FTP Milestone", "Your estimated FTP (95% of 20-min best) crosses a threshold (150W, 200W, ... 400W). Requires power curve data."],
+                    ["curve_year_best", "Curve Year Best", "Year's best power at a standard duration (5s sprint, 1min anaerobic, 5min VO2max, 20min FTP, etc)."],
+                    ["curve_all_time", "Curve Record", "All-time personal record at a standard power curve duration. Your best ever."],
                   ].map(([type, label, desc]) => {
                     const al = AWARD_LABELS[type];
                     return html`
