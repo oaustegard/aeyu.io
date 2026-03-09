@@ -617,62 +617,73 @@ export function ActivityDetail({ id }) {
       </header>
 
       <main class="max-w-3xl mx-auto px-6 py-6">
-        <!-- Awards summary -->
+        <!-- Awards summary — compact pill row + ride-level awards + share (#88) -->
         ${awards.value.length > 0 && html`
           <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
             <h2 style="font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Awards Earned</h2>
-            <div class="space-y-2">
-              ${awards.value.map(
-                (award) => {
-                  const al = AWARD_LABELS[award.type];
+            <!-- Compact award type pills with counts -->
+            <div class="flex flex-wrap gap-1.5">
+              ${(() => {
+                const counts = {};
+                for (const a of awards.value) {
+                  counts[a.type] = (counts[a.type] || 0) + 1;
+                }
+                return Object.entries(counts).map(([type, count]) => {
+                  const al = AWARD_LABELS[type];
                   const pillStyle = al ? `background: ${al.bg}; color: ${al.text}; border: 1px solid ${al.border};` : "background: #ECEAE6; color: #3E3A36;";
-                  // Route Season First: show collapsed award + expandable segment details (#59)
-                  if (award.type === "route_season_first" && award._collapsed_season_firsts) {
-                    return html`
-                      <div class="p-2 rounded-lg" style="background: var(--bg);">
-                        <div class="flex items-start gap-3">
-                          ${al ? renderIconSVG(award.type, { size: 20, color: al.dot }) : html`<span class="text-lg">•</span>`}
+                  const label = al?.label || type;
+                  return html`
+                    <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style=${pillStyle}>
+                      ${al ? renderIconSVG(type, { size: 12, color: al.dot }) : null}
+                      ${count > 1 ? `${count}× ${label}` : label}
+                    </span>
+                  `;
+                });
+              })()}
+            </div>
+
+            <!-- Ride-level awards detail -->
+            ${(() => {
+              const rideAwards = awards.value.filter(a => !a.segment_id);
+              if (rideAwards.length === 0) return null;
+              return html`
+                <div class="mt-3 space-y-1.5">
+                  ${rideAwards.map(award => {
+                    const al = AWARD_LABELS[award.type];
+                    // Route Season First with expandable segment list
+                    if (award.type === "route_season_first" && award._collapsed_season_firsts) {
+                      return html`
+                        <div class="flex items-start gap-2 p-2 rounded-lg" style="background: var(--bg);">
+                          ${al ? renderIconSVG(award.type, { size: 16, color: al.dot }) : null}
                           <div class="flex-1">
-                            <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style=${pillStyle}>
-                              ${al ? renderIconSVG(award.type, { size: 12, color: al.dot }) : null}
-                              ${al?.label || award.type}
-                            </span>
-                            <p class="mt-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">${award.message}</p>
+                            <p style="font-family: var(--font-body); font-size: 0.8125rem; color: var(--text-secondary);">${award.message}</p>
+                            <details class="mt-1">
+                              <summary class="text-xs cursor-pointer" style="color: var(--text-tertiary);">
+                                ${award._collapsed_season_firsts.length} segment Season Firsts
+                              </summary>
+                              <div class="mt-1 space-y-1 pl-2" style="border-left: 2px solid ${AWARD_LABELS.season_first.border};">
+                                ${award._collapsed_season_firsts.map(sf => html`
+                                  <div class="flex items-start gap-2 py-0.5">
+                                    ${renderIconSVG("season_first", { size: 12, color: AWARD_LABELS.season_first.dot })}
+                                    <p class="text-xs" style="color: var(--text-secondary);">${sf.message}</p>
+                                  </div>
+                                `)}
+                              </div>
+                            </details>
                           </div>
                         </div>
-                        <details class="mt-2 ml-9">
-                          <summary class="text-xs cursor-pointer" style="color: var(--text-tertiary);">
-                            ${award._collapsed_season_firsts.length} segment Season Firsts
-                          </summary>
-                          <div class="mt-1 space-y-1 pl-2" style="border-left: 2px solid ${AWARD_LABELS.season_first.border};">
-                            ${award._collapsed_season_firsts.map(
-                              (sf) => html`
-                                <div class="flex items-start gap-2 py-1">
-                                  ${renderIconSVG("season_first", { size: 12, color: AWARD_LABELS.season_first.dot })}
-                                  <p class="text-xs" style="color: var(--text-secondary);">${sf.message}</p>
-                                </div>
-                              `
-                            )}
-                          </div>
-                        </details>
+                      `;
+                    }
+                    return html`
+                      <div class="flex items-start gap-2 p-2 rounded-lg" style="background: var(--bg);">
+                        ${al ? renderIconSVG(award.type, { size: 16, color: al.dot }) : null}
+                        <p style="font-family: var(--font-body); font-size: 0.8125rem; color: var(--text-secondary);">${award.message}</p>
                       </div>
                     `;
-                  }
-                  return html`
-                    <div class="flex items-start gap-3 p-2 rounded-lg" style="background: var(--bg);">
-                      ${al ? renderIconSVG(award.type, { size: 20, color: al.dot }) : html`<span class="text-lg">•</span>`}
-                      <div>
-                        <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style=${pillStyle}>
-                          ${al ? renderIconSVG(award.type, { size: 12, color: al.dot }) : null}
-                          ${al?.label || award.type}
-                        </span>
-                        <p class="mt-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">${award.message}</p>
-                      </div>
-                    </div>
-                  `;
-                }
-              )}
-            </div>
+                  })}
+                </div>
+              `;
+            })()}
 
             <!-- Share actions -->
             <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
@@ -717,7 +728,7 @@ export function ActivityDetail({ id }) {
           </div>
         `}
 
-        <!-- Segment efforts -->
+        <!-- Segment efforts — summary cards with expandable detail (#88) -->
         ${act.has_efforts && act.segment_efforts && act.segment_efforts.length > 0 && html`
           <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin-bottom: 0.75rem;">Segment Efforts</h2>
           <div class="space-y-3">
@@ -728,9 +739,12 @@ export function ActivityDetail({ id }) {
               const effortPower = effort.device_watts && effort.average_watts
                 ? formatPower(effort.average_watts)
                 : null;
+              const hasAwards = segAwards.length > 0;
 
               return html`
-                <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
+                <div class="rounded-xl p-4" style=${hasAwards
+                  ? "background: var(--surface); border: 1px solid var(--border);"
+                  : "background: var(--surface); border: 1px solid var(--border); opacity: 0.7;"}>
                   <div style="font-family: var(--font-body); font-size: 16px; font-weight: 500; color: var(--text);">${effort.segment.name}</div>
                   <div class="mt-1" style="font-family: var(--font-mono); font-size: 14px; color: var(--text-secondary);">
                     ${formatDistance(effort.segment.distance)}
@@ -742,7 +756,7 @@ export function ActivityDetail({ id }) {
                   ${effort.pr_rank && html`
                     <div class="mt-1" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--strava);">Strava PR #${effort.pr_rank}</div>
                   `}
-                  ${segAwards.length > 0 && html`
+                  ${hasAwards && html`
                     <div class="flex flex-wrap gap-1 mt-2">
                       ${segAwards.map(
                         (a) => {
@@ -757,6 +771,22 @@ export function ActivityDetail({ id }) {
                         }
                       )}
                     </div>
+                    <details class="mt-2">
+                      <summary class="text-xs cursor-pointer select-none" style="color: var(--text-tertiary); font-family: var(--font-body);">
+                        Award details
+                      </summary>
+                      <div class="mt-2 space-y-1.5 pl-1" style="border-left: 2px solid var(--border);">
+                        ${segAwards.map(a => {
+                          const al = AWARD_LABELS[a.type];
+                          return html`
+                            <div class="flex items-start gap-2 py-0.5 pl-2">
+                              ${al ? renderIconSVG(a.type, { size: 14, color: al.dot }) : null}
+                              <p class="text-xs" style="color: var(--text-secondary); font-family: var(--font-body);">${a.message}</p>
+                            </div>
+                          `;
+                        })}
+                      </div>
+                    </details>
                   `}
                 </div>
               `;
