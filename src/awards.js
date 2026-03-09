@@ -1858,20 +1858,6 @@ function haversineKm(a, b) {
 }
 
 /**
- * Get ISO week string "YYYY-WNN" for a date.
- * Uses ISO week number (Monday-start weeks).
- */
-function isoWeekKey(dateStr) {
-  const d = new Date(dateStr);
-  // Thursday of the same ISO week determines the year
-  const thu = new Date(d);
-  thu.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 3);
-  const yearStart = new Date(thu.getFullYear(), 0, 1);
-  const weekNum = Math.ceil(((thu - yearStart) / 86400000 + 1) / 7);
-  return `${thu.getFullYear()}-W${String(weekNum).padStart(2, "0")}`;
-}
-
-/**
  * Compute weekly ride streaks from all activities.
  * Returns { current, longest, mulliganUsed, streakStart, lastRideDate, danger }.
  *
