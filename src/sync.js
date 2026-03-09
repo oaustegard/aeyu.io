@@ -12,6 +12,7 @@ import {
   getActivity,
   getActivitiesWithoutEfforts,
   getActivitiesWithoutPower,
+  getActivitiesWithoutHeartRate,
   getSyncState,
   updateSyncState,
   appendEffort,
@@ -114,6 +115,10 @@ function toActivitySummary(a) {
     device_watts: a.device_watts || false,
     kilojoules: a.kilojoules || null,
     trainer: a.trainer || false,
+    // Heart rate fields (#106)
+    has_heartrate: a.has_heartrate || false,
+    average_heartrate: a.average_heartrate || null,
+    max_heartrate: a.max_heartrate || null,
     // Group ride detection fields (#58)
     start_latlng: a.start_latlng || null,
     athlete_count: a.athlete_count || 1,
@@ -257,6 +262,9 @@ async function fetchActivityDetails() {
         // Power fields per segment effort
         average_watts: e.average_watts || null,
         device_watts: e.device_watts || false,
+        // Heart rate fields per segment effort (#106)
+        average_heartrate: e.average_heartrate || null,
+        max_heartrate: e.max_heartrate || null,
       }));
 
       const updated = {
@@ -270,6 +278,10 @@ async function fetchActivityDetails() {
         device_watts: full.device_watts || activity.device_watts || false,
         kilojoules: full.kilojoules || activity.kilojoules || null,
         trainer: full.trainer || activity.trainer || false,
+        // Heart rate fields from detail response (#106)
+        has_heartrate: full.has_heartrate || false,
+        average_heartrate: full.average_heartrate || null,
+        max_heartrate: full.max_heartrate || null,
         // Group ride detection fields (#58)
         start_latlng: full.start_latlng || activity.start_latlng || null,
         athlete_count: full.athlete_count || activity.athlete_count || 1,
@@ -277,7 +289,7 @@ async function fetchActivityDetails() {
 
       await putActivity(updated);
 
-      // Denormalize into segments store — include power in effort record
+      // Denormalize into segments store — include power + HR in effort record
       for (const effort of efforts) {
         await appendEffort(effort.segment.id, effort.segment, {
           effort_id: effort.id,
@@ -289,6 +301,8 @@ async function fetchActivityDetails() {
           pr_rank: effort.pr_rank,
           average_watts: effort.average_watts,
           device_watts: effort.device_watts,
+          average_heartrate: effort.average_heartrate,
+          max_heartrate: effort.max_heartrate,
         });
       }
 
@@ -376,6 +390,39 @@ async function runPowerMigration() {
   await updateSyncState({ schema_version: 2, power_backfill_complete: true });
 }
 
+// --- Phase 4: Heart Rate Fields Migration (#106) ---
+
+/**
+ * One-time migration for activities stored before HR tracking.
+ * Resets has_efforts on legacy activities so the detail fetch pipeline
+ * re-processes them — capturing activity-level and effort-level HR fields.
+ * Triggered when schema_version is below 3.
+ */
+async function runHeartRateMigration() {
+  const state = await getSyncState();
+  if (state.schema_version >= 3) return;
+
+  const legacy = await getActivitiesWithoutHeartRate();
+  const needsRefetch = legacy.filter((a) => a.has_efforts);
+
+  if (needsRefetch.length === 0) {
+    await updateSyncState({ schema_version: 3 });
+    return;
+  }
+
+  syncProgress.value = {
+    ...syncProgress.value,
+    phase: "detail",
+    message: `Migrating ${needsRefetch.length} activities for heart rate data...`,
+  };
+
+  // Reset has_efforts so fetchActivityDetails() will re-fetch them
+  const reset = needsRefetch.map((a) => ({ ...a, has_efforts: false }));
+  await putActivities(reset);
+
+  await updateSyncState({ schema_version: 3 });
+}
+
 // --- Public API ---
 
 /**
@@ -403,6 +450,7 @@ export async function startBackfill() {
     // If backfill was already completed, this is a resume for pending details
     if (state.backfill_complete) {
       await runPowerMigration();
+      await runHeartRateMigration();
       await fetchActivityDetails();
     } else {
       // Interleaved backfill: fetch page → detail → fetch page → detail
@@ -463,7 +511,8 @@ export async function startBackfill() {
       if (!isRateLimited()) {
         await updateSyncState({ backfill_complete: true });
         await runPowerMigration();
-        // Final detail pass for any remaining from power migration
+        await runHeartRateMigration();
+        // Final detail pass for any remaining from migration
         await fetchActivityDetails();
       }
     }
@@ -695,6 +744,8 @@ export async function resyncActivity(activityId) {
     achievements: e.achievements || [],
     average_watts: e.average_watts || null,
     device_watts: e.device_watts || false,
+    average_heartrate: e.average_heartrate || null,
+    max_heartrate: e.max_heartrate || null,
   }));
 
   const updated = {
@@ -713,6 +764,9 @@ export async function resyncActivity(activityId) {
     device_watts: full.device_watts || false,
     kilojoules: full.kilojoules || null,
     trainer: full.trainer || false,
+    has_heartrate: full.has_heartrate || false,
+    average_heartrate: full.average_heartrate || null,
+    max_heartrate: full.max_heartrate || null,
     start_latlng: full.start_latlng || existing.start_latlng || null,
     athlete_count: full.athlete_count || existing.athlete_count || 1,
     has_efforts: true,
@@ -734,6 +788,8 @@ export async function resyncActivity(activityId) {
       pr_rank: effort.pr_rank,
       average_watts: effort.average_watts,
       device_watts: effort.device_watts,
+      average_heartrate: effort.average_heartrate,
+      max_heartrate: effort.max_heartrate,
     });
   }
 
