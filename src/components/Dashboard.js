@@ -570,7 +570,7 @@ export function Dashboard() {
                   </div>
                   <div class="flex items-start gap-2">
                     <span class="text-xs px-2 py-0.5 rounded-full bg-teal-200 text-teal-900 whitespace-nowrap mt-0.5">Reference Best</span>
-                    <span>Best effort within a user-defined window — since a date, in last N rides, or since turning an age. Configure in settings below.</span>
+                    <span>Best effort within a user-defined window — since a date, in last N efforts, or since turning an age. Configure in settings below.</span>
                   </div>
                   <div class="flex items-start gap-2">
                     <span class="text-xs px-2 py-0.5 rounded-full bg-rose-200 text-rose-900 whitespace-nowrap mt-0.5">Comeback PB</span>
@@ -645,7 +645,7 @@ export function Dashboard() {
                 <div class="pt-3 pb-1 text-sm text-gray-600 space-y-2">
                   <p>Both track progress from a point in time, but they serve different purposes:</p>
                   <p><strong class="text-rose-700">Comeback Mode</strong> is for injury recovery. It shields you from demoralizing comparisons to your pre-injury self. While you're rebuilding, awards like Year Best and Top Quartile are temporarily hidden — replaced by recovery milestones (80%, 90%, 95%) and a "You're Back!" celebration when you match your old form. One active at a time.</p>
-                  <p><strong class="text-teal-700">Reference Points</strong> are lightweight personal markers — "since I got my new bike", "last 20 rides", "since turning 50". They add "best since" awards without changing how other awards work. Stack as many as you like.</p>
+                  <p><strong class="text-teal-700">Reference Points</strong> are lightweight personal markers — "since I got my new bike", "last 20 efforts", "since turning 50". They add "best since" awards without changing how other awards work. Stack as many as you like.</p>
                   <p class="text-xs text-gray-400">In short: Comeback Mode protects; Reference Points observe.</p>
                 </div>
               </details>
@@ -734,7 +734,7 @@ export function Dashboard() {
               <!-- Reference Points Settings -->
               <div>
                 <p class="text-xs font-medium text-gray-600 mb-1.5">Reference Points</p>
-                <p class="text-xs text-gray-400 mb-2">Lightweight "best since" markers — track progress from a date, last N rides, or an age. Doesn't change other awards.</p>
+                <p class="text-xs text-gray-400 mb-2">Lightweight "best since" markers — track progress from a date, last N efforts, or an age. Doesn't change other awards.</p>
 
                 ${referencePoints.value.length > 0 && html`
                   <div class="space-y-1.5 mb-2">
@@ -744,7 +744,7 @@ export function Dashboard() {
                           <p class="text-xs font-medium text-teal-800">${rp.label}</p>
                           <p class="text-xs text-teal-600">
                             ${rp.type === "since_date" ? `Since ${new Date(rp.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : ""}
-                            ${rp.type === "last_n" ? `Last ${rp.count} rides` : ""}
+                            ${rp.type === "last_n" ? `Last ${rp.count} efforts` : ""}
                             ${rp.type === "since_age" ? `Since turning ${rp.age} (${new Date(rp.birthday).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })})` : ""}
                           </p>
                         </div>
@@ -772,19 +772,19 @@ export function Dashboard() {
                         refType.value = e.target.value;
                         // Set default labels
                         if (e.target.value === "since_date") refLabel.value = "";
-                        if (e.target.value === "last_n") refLabel.value = "last " + refCount.value + " rides";
+                        if (e.target.value === "last_n") refLabel.value = "last " + refCount.value + " efforts";
                         if (e.target.value === "since_age") refLabel.value = "";
                       }}
                       class="w-full text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400 bg-white"
                     >
                       <option value="since_date">Best since date</option>
-                      <option value="last_n">Best in last N rides</option>
+                      <option value="last_n">Best in last N efforts</option>
                       <option value="since_age">Best since turning age</option>
                     </select>
 
                     <input
                       type="text"
-                      placeholder=${refType.value === "since_date" ? "Label (e.g. Since new bike)" : refType.value === "last_n" ? "Label (e.g. Last 10 rides)" : "Label (e.g. Since turning 40)"}
+                      placeholder=${refType.value === "since_date" ? "Label (e.g. Since new bike)" : refType.value === "last_n" ? "Label (e.g. Last 10 efforts)" : "Label (e.g. Since turning 40)"}
                       value=${refLabel.value}
                       onInput=${(e) => { refLabel.value = e.target.value; }}
                       class="w-full text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400"
@@ -809,7 +809,7 @@ export function Dashboard() {
                           onInput=${(e) => { refCount.value = parseInt(e.target.value) || 10; }}
                           class="w-20 text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400"
                         />
-                        <span class="text-xs text-gray-500">rides per segment</span>
+                        <span class="text-xs text-gray-500">efforts per segment</span>
                       </div>
                     `}
 
