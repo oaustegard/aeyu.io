@@ -71,6 +71,11 @@ const AWARD_LABELS = {
   work_recent_best: { label: "Work Recent Best", color: "bg-orange-100 text-orange-800", icon: "⊙" },
   peak_power: { label: "Peak Power", color: "bg-yellow-200 text-yellow-900", icon: "⚡" },
   peak_power_recent: { label: "Peak Recent", color: "bg-yellow-100 text-yellow-800", icon: "⚡" },
+  // Indoor training awards (#46)
+  indoor_np_year_best: { label: "Indoor NP Best", color: "bg-violet-200 text-violet-900", icon: "🏠" },
+  indoor_work_year_best: { label: "Indoor Work Best", color: "bg-violet-100 text-violet-800", icon: "🏠" },
+  trainer_streak: { label: "Trainer Streak", color: "bg-indigo-200 text-indigo-900", icon: "🔥" },
+  indoor_vs_outdoor: { label: "Indoor vs Outdoor", color: "bg-sky-200 text-sky-900", icon: "↔" },
 };
 
 const AWARD_COLORS = {
@@ -110,6 +115,11 @@ const AWARD_COLORS = {
   work_recent_best:   { bg: "#FFEDD5", text: "#9A3412", accent: "#F97316" },
   peak_power:         { bg: "#FDE68A", text: "#78350F", accent: "#D97706" },
   peak_power_recent:  { bg: "#FEF9C3", text: "#854D0E", accent: "#EAB308" },
+  // Indoor training awards (#46)
+  indoor_np_year_best:  { bg: "#DDD6FE", text: "#4C1D95", accent: "#7C3AED" },
+  indoor_work_year_best:{ bg: "#EDE9FE", text: "#5B21B6", accent: "#8B5CF6" },
+  trainer_streak:       { bg: "#C7D2FE", text: "#312E81", accent: "#4F46E5" },
+  indoor_vs_outdoor:    { bg: "#BAE6FD", text: "#075985", accent: "#0284C7" },
 };
 
 async function loadActivity(id) {
@@ -287,7 +297,7 @@ function renderShareCard(canvas, act, awardsList) {
   if (awardsList.length > 0) {
     // Summary pills
     const counts = {};
-    const order = ["season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
+    const order = ["season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record", "season_first_power", "np_year_best", "np_recent_best", "work_year_best", "work_recent_best", "peak_power", "peak_power_recent", "indoor_np_year_best", "indoor_work_year_best", "trainer_streak", "indoor_vs_outdoor"];
     for (const a of awardsList) counts[a.type] = (counts[a.type] || 0) + 1;
 
     let pillX = left;
