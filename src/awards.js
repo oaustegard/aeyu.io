@@ -10,13 +10,13 @@
  *   - Top Quartile: In the top 25% of your own history
  *   - Top 10%: In the top 10% of your own history
  *     (Superseding: Top 10% > Top Quartile > Beat Median — only highest awarded)
- *   - Consistency (Metronome): Low variance across recent efforts (CV < 0.05)
+ *   - Consistency (Metronome): Low variance across recent efforts (CV < 0.03, min 8 efforts)
  *   - Monthly Best: Fastest effort on a segment this calendar month (#36)
  *   - Improvement Streak: 3+ consecutive faster times ending now (#36)
  *   - Comeback: Beat median after 3+ sub-median efforts in a row (#36)
  *   - Milestone: Round-number attempt count on a segment (#36)
  *   - Best Month Ever: Fastest effort on segment in this calendar month across all years (#27)
- *   - Closing In: Within 10% of all-time PR on a segment (#28)
+ *   - Closing In: Within 5% of all-time PR on a segment (#28)
  *   - Anniversary: Rode this segment on same date N years ago (#30)
  *   - YTD Best Time: Fastest time by this date across all years
  *   - YTD Best Power: Highest power by this date across all years
@@ -89,6 +89,9 @@ import { detectRoutes, findRouteForActivity } from "./routes.js";
 /** Minimum total efforts on a segment before comparative awards apply */
 const MIN_EFFORTS_FOR_AWARDS = 3;
 
+/** Minimum efforts for statistical awards (beat median, top quartile, top decile) */
+const MIN_EFFORTS_FOR_STATISTICAL = 5;
+
 /** Month (1-indexed) before which Year Best awards are suppressed */
 const YEAR_BEST_CALENDAR_GATE_MONTH = 3; // March
 
@@ -99,10 +102,10 @@ const HIGH_VARIANCE_CV_THRESHOLD = 0.5;
 const MIN_EFFORTS_FOR_CV = 5;
 
 /** CV below this threshold earns a Consistency award */
-const CONSISTENCY_CV_THRESHOLD = 0.05;
+const CONSISTENCY_CV_THRESHOLD = 0.03;
 
 /** Minimum recent efforts to evaluate consistency */
-const CONSISTENCY_MIN_EFFORTS = 5;
+const CONSISTENCY_MIN_EFFORTS = 8;
 
 /** Minimum consecutive improving efforts for a streak award */
 const STREAK_MIN_LENGTH = 3;
@@ -171,6 +174,17 @@ const SUPPRESSED_IN_RECOVERY = new Set([
 
 /** Maximum regular awards per segment */
 const MAX_AWARDS_PER_SEGMENT = 3;
+
+/** Maximum awards of the same type per activity (controls flood of beat_median, top_quartile, etc.) */
+const MAX_AWARDS_PER_TYPE = {
+  beat_median:   5,
+  top_quartile:  5,
+  top_decile:    5,
+  consistency:   3,
+  closing_in:    3,
+  monthly_best:  5,
+  recent_best:   5,
+};
 
 /** Award types that get a bonus slot (not counted against the cap) */
 const COMEBACK_MODE_TYPES = new Set(["comeback_pb", "comeback_full", "recovery_milestone"]);
@@ -260,7 +274,18 @@ export function rankSegmentAwards(awards) {
     ranked.push(...cappedRegular, ...bonusComeback);
   }
 
-  return [...ranked, ...rideLevelAwards];
+  // 5. Per-activity type caps: limit how many awards of the same type appear
+  // Sort by tier so we keep the best when capping
+  ranked.sort((a, b) => (AWARD_TIER[b.type] || 0) - (AWARD_TIER[a.type] || 0));
+  const typeCounts = {};
+  const afterTypeCap = ranked.filter((a) => {
+    const cap = MAX_AWARDS_PER_TYPE[a.type];
+    if (cap === undefined) return true; // no cap for this type
+    typeCounts[a.type] = (typeCounts[a.type] || 0) + 1;
+    return typeCounts[a.type] <= cap;
+  });
+
+  return [...afterTypeCap, ...rideLevelAwards];
 }
 
 function formatDate(isoString) {
@@ -645,7 +670,8 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
     // --- Beat Median / Top Quartile / Top 10% (superseding hierarchy) ---
     // Top 10% supersedes Top Quartile supersedes Beat Median.
     // Only the highest-tier award is granted per segment.
-    if (allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
+    // Requires more history than basic comparative awards for statistical reliability.
+    if (allEfforts.length >= MIN_EFFORTS_FOR_STATISTICAL) {
       const sortedTimes = [...allTimes].sort((a, b) => a - b);
       const med = median(sortedTimes);
       const q1Index = Math.floor(sortedTimes.length * 0.25);
@@ -677,7 +703,7 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
           delta: null,
           message: `Top quartile on ${segment.name}! #${rank} of ${allEfforts.length} efforts — ${formatTime(effort.elapsed_time)}`,
         });
-      } else if (effort.elapsed_time < med) {
+      } else if (effort.elapsed_time < med && (med - effort.elapsed_time) / med >= 0.02) {
         awards.push({
           type: "beat_median",
           segment: segment.name,
@@ -691,9 +717,10 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
       }
     }
 
-    // --- Consistency / Metronome (#39) ---
-    if (last5.length >= CONSISTENCY_MIN_EFFORTS) {
-      const recentTimes = last5.map((e) => e.elapsed_time);
+    // --- Consistency / Metronome (#39, tightened #109) ---
+    const recentForConsistency = sortedByDate.slice(0, CONSISTENCY_MIN_EFFORTS);
+    if (recentForConsistency.length >= CONSISTENCY_MIN_EFFORTS) {
+      const recentTimes = recentForConsistency.map((e) => e.elapsed_time);
       const recentCV = cv(recentTimes);
       const spread = Math.max(...recentTimes) - Math.min(...recentTimes);
 
@@ -706,7 +733,7 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
           power: effort.average_watts || null,
           comparison: null,
           delta: null,
-          message: `Metronome on ${segment.name}! ${spread}s spread across last ${last5.length} efforts (CV: ${(recentCV * 100).toFixed(1)}%)`,
+          message: `Metronome on ${segment.name}! ${spread}s spread across last ${recentForConsistency.length} efforts (CV: ${(recentCV * 100).toFixed(1)}%)`,
         });
       }
     }
@@ -820,13 +847,13 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
     }
 
     // --- Closing In on PR (#28) ---
-    // Within 10% of all-time best (but not the best itself)
+    // Within 5% of all-time best (but not the best itself)
     if (allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
       const allTimeBest = Math.min(...allTimes);
       if (effort.elapsed_time > allTimeBest) {
         const gap = (effort.elapsed_time - allTimeBest) / allTimeBest;
-        if (gap <= 0.10) {
-          const pctLabel = gap <= 0.05 ? "5%" : "10%";
+        if (gap <= 0.05) {
+          const pctLabel = gap <= 0.02 ? "2%" : "5%";
           awards.push({
             type: "closing_in",
             segment: segment.name,
