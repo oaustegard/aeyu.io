@@ -75,6 +75,41 @@
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/sw.js").catch(() => {});
       }
+
+      // Detect stuck loading: if module fails to load (CDN down, SW cache miss,
+      // network error), init() never runs and "Loading..." stays forever.
+      // After 10s, show an error with a reload button.
+      setTimeout(function() {
+        var app = document.getElementById("app");
+        if (app && app.querySelector("p") && app.textContent.trim() === "Loading...") {
+          app.innerHTML =
+            '<div class="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">' +
+            '<p style="color: var(--text-secondary); font-family: var(--font-body);">' +
+            'Failed to load the app. This can happen due to a network issue or stale cache.</p>' +
+            '<button onclick="clearCacheAndReload()" style="background: var(--strava); color: white; ' +
+            'padding: 0.5rem 1.5rem; border-radius: 0.5rem; border: none; cursor: pointer; ' +
+            'font-family: var(--font-body);">Clear Cache & Reload</button></div>';
+        }
+      }, 10000);
+
+      function clearCacheAndReload() {
+        if ("caches" in window) {
+          caches.keys().then(function(names) {
+            return Promise.all(names.map(function(n) { return caches.delete(n); }));
+          }).then(function() {
+            if (navigator.serviceWorker) {
+              navigator.serviceWorker.getRegistrations().then(function(regs) {
+                regs.forEach(function(r) { r.unregister(); });
+                window.location.reload();
+              });
+            } else {
+              window.location.reload();
+            }
+          });
+        } else {
+          window.location.reload();
+        }
+      }
     </script>
 </body>
 </html>

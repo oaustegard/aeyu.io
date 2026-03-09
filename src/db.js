@@ -58,6 +58,12 @@ export function openDB() {
 
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
+    request.onblocked = () => {
+      // Another tab has the DB open at an older version — upgrade is blocked.
+      // Reject so init() doesn't hang forever; the try/catch will let the app render.
+      dbPromise = null; // Allow retry after closing other tabs
+      reject(new Error("IndexedDB upgrade blocked — close other tabs and reload"));
+    };
   });
   return dbPromise;
 }
