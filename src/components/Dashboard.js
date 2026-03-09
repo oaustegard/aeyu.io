@@ -62,9 +62,9 @@ const refType = signal("since_date");
 const pendingCount = signal(0);
 const refLabel = signal("");
 const refDate = signal("");
-const refCount = signal(10);
+const refCount = signal("10");
 const refBirthday = signal("");
-const refAge = signal(40);
+const refAge = signal("40");
 
 const AWARD_LABELS = {
   year_best: { label: "Year Best", color: "bg-yellow-100 text-yellow-800" },
@@ -806,7 +806,7 @@ export function Dashboard() {
                           min="2"
                           max="100"
                           value=${refCount.value}
-                          onInput=${(e) => { refCount.value = parseInt(e.target.value) || 10; }}
+                          onInput=${(e) => { refCount.value = e.target.value; }}
                           class="w-20 text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400"
                         />
                         <span class="text-xs text-gray-500">efforts per segment</span>
@@ -831,7 +831,7 @@ export function Dashboard() {
                             min="1"
                             max="120"
                             value=${refAge.value}
-                            onInput=${(e) => { refAge.value = parseInt(e.target.value) || 40; }}
+                            onInput=${(e) => { refAge.value = e.target.value; }}
                             class="w-20 text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-teal-400"
                           />
                         </div>
@@ -848,11 +848,11 @@ export function Dashboard() {
                             if (!refDate.value) return;
                             rp.date = refDate.value;
                           } else if (refType.value === "last_n") {
-                            rp.count = refCount.value;
+                            rp.count = parseInt(refCount.value) || 10;
                           } else if (refType.value === "since_age") {
-                            if (!refBirthday.value || !refAge.value) return;
+                            if (!refBirthday.value || !parseInt(refAge.value)) return;
                             rp.birthday = refBirthday.value;
-                            rp.age = refAge.value;
+                            rp.age = parseInt(refAge.value);
                           }
                           const updated = [...referencePoints.value, rp];
                           referencePoints.value = updated;
@@ -863,9 +863,9 @@ export function Dashboard() {
                           refType.value = "since_date";
                           await loadDashboard();
                         }}
-                        disabled=${!refLabel.value.trim() || (refType.value === "since_date" && !refDate.value) || (refType.value === "since_age" && (!refBirthday.value || !refAge.value))}
+                        disabled=${!refLabel.value.trim() || (refType.value === "since_date" && !refDate.value) || (refType.value === "since_age" && (!refBirthday.value || !parseInt(refAge.value)))}
                         class="text-xs px-3 py-1.5 rounded font-medium transition-colors ${
-                          refLabel.value.trim() && (refType.value !== "since_date" || refDate.value) && (refType.value !== "since_age" || (refBirthday.value && refAge.value))
+                          refLabel.value.trim() && (refType.value !== "since_date" || refDate.value) && (refType.value !== "since_age" || (refBirthday.value && parseInt(refAge.value)))
                             ? "bg-teal-600 text-white hover:bg-teal-700"
                             : "bg-gray-200 text-gray-400 cursor-not-allowed"
                         }"
