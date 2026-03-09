@@ -122,6 +122,103 @@ const SUPPRESSED_IN_RECOVERY = new Set([
   "closing_in",
 ]);
 
+// ── Award Ranking (#80) ─────────────────────────────────────────────
+// Caps per-segment awards to reduce noise when a single segment earns many.
+
+/** Maximum regular awards per segment */
+const MAX_AWARDS_PER_SEGMENT = 3;
+
+/** Award types that get a bonus slot (not counted against the cap) */
+const COMEBACK_MODE_TYPES = new Set(["comeback_pb", "comeback_full", "recovery_milestone"]);
+
+/** Subsumption rules: higher award removes lower ones on the same segment */
+const SUBSUMES = {
+  year_best: ["recent_best", "monthly_best"],
+  comeback_full: ["comeback_pb", "recovery_milestone", "comeback"],
+  comeback_pb: ["comeback"],
+};
+
+/** Tier ranking (5=highest → 1=lowest) for award priority */
+const AWARD_TIER = {
+  comeback_full:      5,
+  year_best:          4,
+  top_decile:         4,
+  comeback_pb:        4,
+  closing_in:         4,
+  ytd_best_time:      3,
+  ytd_best_power:     3,
+  best_month_ever:    3,
+  improvement_streak: 3,
+  reference_best:     3,
+  consistency:        3,
+  recent_best:        2,
+  monthly_best:       2,
+  top_quartile:       2,
+  comeback:           2,
+  beat_median:        1,
+  anniversary:        1,
+  milestone:          1,
+  recovery_milestone: 1,
+  season_first:       1,
+};
+
+/**
+ * Rank and cap per-segment awards to reduce noise.
+ * Applies subsumption rules, then caps to MAX_AWARDS_PER_SEGMENT regular awards
+ * plus one bonus slot for comeback-mode awards.
+ * Ride-level awards (segment_id === null) pass through unaffected.
+ *
+ * @param {Array} awards — Array of award objects from computeAwards
+ * @returns {Array} — Filtered/ranked awards
+ */
+export function rankSegmentAwards(awards) {
+  // Separate ride-level awards (no segment) from segment awards
+  const rideLevelAwards = awards.filter((a) => !a.segment_id);
+  const segmentAwards = awards.filter((a) => a.segment_id);
+
+  if (segmentAwards.length === 0) return awards;
+
+  // Group by segment_id
+  const bySegment = new Map();
+  for (const award of segmentAwards) {
+    if (!bySegment.has(award.segment_id)) {
+      bySegment.set(award.segment_id, []);
+    }
+    bySegment.get(award.segment_id).push(award);
+  }
+
+  const ranked = [];
+  for (const [, segAwards] of bySegment) {
+    // 1. Apply subsumption: remove lower awards that are subsumed by higher ones
+    const presentTypes = new Set(segAwards.map((a) => a.type));
+    const subsumed = new Set();
+    for (const [higher, lowerList] of Object.entries(SUBSUMES)) {
+      if (presentTypes.has(higher)) {
+        for (const lower of lowerList) {
+          subsumed.add(lower);
+        }
+      }
+    }
+    const afterSubsumption = segAwards.filter((a) => !subsumed.has(a.type));
+
+    // 2. Separate comeback-mode bonus awards from regular awards
+    const comebackAwards = afterSubsumption.filter((a) => COMEBACK_MODE_TYPES.has(a.type));
+    const regularAwards = afterSubsumption.filter((a) => !COMEBACK_MODE_TYPES.has(a.type));
+
+    // 3. Sort regular awards by tier (highest first), then cap
+    regularAwards.sort((a, b) => (AWARD_TIER[b.type] || 0) - (AWARD_TIER[a.type] || 0));
+    const cappedRegular = regularAwards.slice(0, MAX_AWARDS_PER_SEGMENT);
+
+    // 4. Allow at most 1 comeback-mode bonus award (highest tier)
+    comebackAwards.sort((a, b) => (AWARD_TIER[b.type] || 0) - (AWARD_TIER[a.type] || 0));
+    const bonusComeback = comebackAwards.slice(0, 1);
+
+    ranked.push(...cappedRegular, ...bonusComeback);
+  }
+
+  return [...ranked, ...rideLevelAwards];
+}
+
 function formatDate(isoString) {
   return new Date(isoString).toLocaleDateString("en-US", {
     month: "short",
@@ -854,7 +951,7 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
       if (hasRecoveryZone) {
         // Only suppress if the athlete is still recovering on at least one segment
         // Keep awards for segments where they're fully recovered
-        return awards.filter((a) => {
+        return rankSegmentAwards(awards.filter((a) => {
           if (!SUPPRESSED_IN_RECOVERY.has(a.type)) return true;
           // Check this specific segment's recovery status
           if (!a.segment_id) return true; // ride-level awards pass through
@@ -871,12 +968,12 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
           if (isFullyRecovered) return true;
           // Suppress comparative awards for segments still in recovery
           return !hasRecoveryAward;
-        });
+        }));
       }
     }
   }
 
-  return awards;
+  return rankSegmentAwards(awards);
 }
 
 /**

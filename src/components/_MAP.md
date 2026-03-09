@@ -4,12 +4,12 @@
 ## Files
 
 ### ActivityDetail.js
-> Imports: `preact, signals, hooks, db.js, awards.js`...
-- **ActivityDetail** (f) `({ id })` :386
+> Imports: `preact, signals, hooks, db.js, awards.js, award-config.js`...
+- **ActivityDetail** (f) `({ id })` :365
 
 ### Dashboard.js
-> Imports: `preact, signals, hooks, auth.js, sync.js`...
-- **Dashboard** (f) `()` :141
+> Imports: `preact, signals, hooks, auth.js, sync.js, award-config.js`...
+- **Dashboard** (f) `()` :117
 
 ### Landing.js
 > Imports: `preact, signals, auth.js, demo.js, app.js`...
