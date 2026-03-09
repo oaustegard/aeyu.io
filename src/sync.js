@@ -561,6 +561,23 @@ export async function incrementalSync() {
   }
 }
 
+/**
+ * Manual sync — triggered by user from settings menu.
+ * Runs backfill or incremental as appropriate, same as auto-sync cycle.
+ * Returns without error on rate-limit (progress signal shows status).
+ */
+export async function manualSync() {
+  if (isSyncing.value) return;
+
+  const state = await getSyncState();
+
+  if (!state.backfill_complete) {
+    await startBackfill();
+  } else {
+    await incrementalSync();
+  }
+}
+
 // --- Auto-Sync Scheduler ---
 
 const SYNC_INTERVAL = 5 * 60 * 1000;       // 5 min between incremental checks
