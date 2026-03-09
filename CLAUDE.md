@@ -90,7 +90,9 @@ Push to `main` → GitHub Pages auto-deploys. Worker changes need `wrangler depl
 
 ## Gotchas
 
-- `AWARD_LABELS` is duplicated in Dashboard.js and ActivityDetail.js — keep them in sync
+- **No `gh` CLI available.** Use the GitHub REST API directly (curl or urllib). Don't attempt `gh issue`, `gh pr`, etc.
+
+- `AWARD_LABELS` is duplicated in Dashboard.js and ActivityDetail.js — keep them in sync (consolidation tracked in #74)
 - Segment efforts are stored in TWO places: embedded in activities AND in the segments store. Both must be populated.
 - The `has_efforts` flag on activities distinguishes summary-only (from list endpoint) from detail-fetched activities
 - Power awards require `device_watts: true` — estimated power is excluded
