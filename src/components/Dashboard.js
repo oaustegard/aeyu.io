@@ -435,11 +435,21 @@ export function Dashboard() {
           </div>
         `}
 
-        <!-- FAQ (toggled) -->
-        ${showFaq.value && html`
-          <div class="bg-white rounded-xl border border-gray-200 p-6 mt-6">
+        <!-- Powered by Strava -->
+        <div class="text-center mt-12 mb-6">
+          <p class="text-xs text-gray-400">Powered by Strava</p>
+        </div>
+      </main>
+
+      <!-- FAQ Modal Overlay -->
+      ${showFaq.value && html`
+        <div
+          class="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm overflow-y-auto p-4 pt-16 sm:pt-24"
+          onClick=${(e) => { if (e.target === e.currentTarget) showFaq.value = false; }}
+        >
+          <div class="bg-white rounded-xl border border-gray-200 shadow-xl w-full max-w-lg p-6 my-4">
             <div class="flex items-center justify-between mb-4">
-              <h2 class="text-lg font-semibold text-gray-800">FAQ</h2>
+              <h2 class="text-lg font-semibold text-gray-800">FAQ & Settings</h2>
               <button
                 onClick=${() => { showFaq.value = false; }}
                 class="text-sm text-gray-400 hover:text-gray-600"
@@ -901,13 +911,8 @@ export function Dashboard() {
               </div>
             </div>
           </div>
-        `}
-
-        <!-- Powered by Strava -->
-        <div class="text-center mt-12 mb-6">
-          <p class="text-xs text-gray-400">Powered by Strava</p>
         </div>
-      </main>
+      `}
     </div>
   `;
 }
