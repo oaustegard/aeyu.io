@@ -48,6 +48,17 @@
  *   - Trainer Streak: Consecutive weeks with at least one indoor ride
  *   - Indoor vs Outdoor: NP comparison when outdoor ride follows indoor training
  *
+ * Power trend & milestone awards (Phase 3, #47):
+ *   - Watt Milestone: First ride averaging 100/150/200/250/300/350W
+ *   - kJ Milestone: First ride exceeding 500/1000/1500/2000/2500/3000 kJ
+ *   - Power Progression: NP trending upward over last 10 rides (linear regression)
+ *   - Power Consistency: Low CV in NP across last 10 rides
+ *   - FTP Milestone: Estimated FTP (95% of 20-min best) crossing thresholds
+ *
+ * Power curve awards (Phase 2, #48):
+ *   - Curve Year Best: Year's best power at a standard duration (5s/30s/1m/5m/20m/60m)
+ *   - Curve All-Time: All-time personal record at a standard duration
+ *
  * Streak & consistency awards (#58):
  *   - Weekly Ride Streak: Consecutive weeks with at least one ride (mulligan support)
  *   - Group Ride Consistency: Attendance tracking on recurring group rides
@@ -113,6 +124,34 @@ const TRAINER_STREAK_MIN_WEEKS = 3;
 
 /** Minimum recent indoor rides to compute indoor vs outdoor comparison */
 const INDOOR_VS_OUTDOOR_MIN_INDOOR = 3;
+
+/** Minimum powered rides for power trend awards */
+const POWER_TREND_MIN_RIDES = 10;
+
+/** R² threshold for power progression trend to trigger award */
+const POWER_TREND_R2_THRESHOLD = 0.3;
+
+/** NP Watt milestones */
+const WATT_MILESTONES = [100, 150, 200, 250, 300, 350];
+
+/** kJ milestones */
+const KJ_MILESTONES = [500, 1000, 1500, 2000, 2500, 3000];
+
+/** FTP milestones (based on 95% of 20-min best power) */
+const FTP_MILESTONES = [150, 200, 250, 300, 350, 400];
+
+/** Power curve duration labels for award messages */
+const CURVE_DURATION_LABELS = {
+  5: "5-second",
+  30: "30-second",
+  60: "1-minute",
+  300: "5-minute",
+  1200: "20-minute",
+  3600: "60-minute",
+};
+
+/** Standard power curve durations */
+const POWER_CURVE_DURATIONS = [5, 30, 60, 300, 1200, 3600];
 
 /** Recovery ratio above which normal comparative awards are suppressed */
 const RECOVERY_ZONE_THRESHOLD = 1.15;
@@ -1473,6 +1512,217 @@ export function computeRideLevelAwards(activity, allActivities, resetEvent = nul
     }
   }
 
+  // ── Power Trend & Milestone Awards (Phase 3, #47) ──────────────────
+
+  if (activity.device_watts && activity.weighted_average_watts > 0) {
+    // --- Watt Milestone (#47) ---
+    // First ride where weighted_average_watts exceeds a threshold
+    const allPoweredSameType = allActivities.filter(
+      (a) =>
+        a.sport_type === activity.sport_type &&
+        a.device_watts &&
+        a.weighted_average_watts > 0 &&
+        a.id !== activity.id &&
+        a.start_date_local < activity.start_date_local
+    );
+
+    for (const threshold of WATT_MILESTONES) {
+      if (activity.weighted_average_watts >= threshold) {
+        const anyPrior = allPoweredSameType.some(
+          (a) => a.weighted_average_watts >= threshold
+        );
+        if (!anyPrior) {
+          awards.push({
+            type: "watt_milestone",
+            segment: null,
+            segment_id: null,
+            time: null,
+            power: activity.weighted_average_watts,
+            comparison: null,
+            delta: null,
+            message: `First ride averaging ${threshold}W! Welcome to the ${threshold}W club`,
+          });
+          break; // Only award the highest milestone crossed for the first time
+        }
+      }
+    }
+
+    // --- kJ Milestone (#47) ---
+    // First ride exceeding energy thresholds
+    if (activity.kilojoules > 0) {
+      const allPoweredWithKJ = allPoweredSameType.filter((a) => a.kilojoules > 0);
+      for (const threshold of KJ_MILESTONES) {
+        if (activity.kilojoules >= threshold) {
+          const anyPrior = allPoweredWithKJ.some(
+            (a) => a.kilojoules >= threshold
+          );
+          if (!anyPrior) {
+            awards.push({
+              type: "kj_milestone",
+              segment: null,
+              segment_id: null,
+              time: null,
+              power: activity.weighted_average_watts,
+              comparison: null,
+              delta: null,
+              message: `First ${threshold.toLocaleString()} kJ ride — that's a massive effort!`,
+            });
+            break;
+          }
+        }
+      }
+    }
+
+    // --- Power Progression (#47) ---
+    // NP trending upward over last N rides (linear regression)
+    const recentPowered = allActivities
+      .filter(
+        (a) =>
+          a.sport_type === activity.sport_type &&
+          a.device_watts &&
+          a.weighted_average_watts > 0
+      )
+      .sort((a, b) => a.start_date_local.localeCompare(b.start_date_local));
+
+    // Find this activity's position and take the window ending with it
+    const actIdx = recentPowered.findIndex((a) => a.id === activity.id);
+    if (actIdx >= POWER_TREND_MIN_RIDES - 1) {
+      const window = recentPowered.slice(actIdx - POWER_TREND_MIN_RIDES + 1, actIdx + 1);
+      const npValues = window.map((a) => a.weighted_average_watts);
+      const { slope, r2 } = linearRegression(npValues);
+
+      if (slope > 0 && r2 >= POWER_TREND_R2_THRESHOLD) {
+        const totalGain = Math.round(slope * (POWER_TREND_MIN_RIDES - 1));
+        awards.push({
+          type: "power_progression",
+          segment: null,
+          segment_id: null,
+          time: null,
+          power: activity.weighted_average_watts,
+          comparison: null,
+          delta: totalGain,
+          message: `Power trending up! Your NP has increased ~${totalGain}W over your last ${POWER_TREND_MIN_RIDES} rides`,
+        });
+      }
+    }
+
+    // --- Power Consistency (#47) ---
+    // Low coefficient of variation in NP across recent rides
+    if (actIdx >= POWER_TREND_MIN_RIDES - 1) {
+      const window = recentPowered.slice(actIdx - POWER_TREND_MIN_RIDES + 1, actIdx + 1);
+      const npValues = window.map((a) => a.weighted_average_watts);
+      const mean = npValues.reduce((s, v) => s + v, 0) / npValues.length;
+      const variance = npValues.reduce((s, v) => s + (v - mean) ** 2, 0) / npValues.length;
+      const stddev = Math.sqrt(variance);
+      const cv = stddev / mean;
+
+      if (cv < CONSISTENCY_CV_THRESHOLD && mean > 0) {
+        awards.push({
+          type: "power_consistency",
+          segment: null,
+          segment_id: null,
+          time: null,
+          power: activity.weighted_average_watts,
+          comparison: null,
+          delta: null,
+          message: `Rock solid: your last ${POWER_TREND_MIN_RIDES} rides averaged ${Math.round(mean)}W ± ${Math.round(stddev)}W. That's remarkably consistent`,
+        });
+      }
+    }
+
+    // --- FTP Milestone (#47) ---
+    // When estimated FTP (95% of 20-min best from power_curve) crosses thresholds
+    if (activity.power_curve && activity.power_curve[1200]) {
+      const currentFTP = Math.round(activity.power_curve[1200] * 0.95);
+      const priorWithCurves = allPoweredSameType.filter(
+        (a) => a.power_curve && a.power_curve[1200]
+      );
+      for (const threshold of FTP_MILESTONES) {
+        if (currentFTP >= threshold) {
+          const anyPrior = priorWithCurves.some(
+            (a) => Math.round(a.power_curve[1200] * 0.95) >= threshold
+          );
+          if (!anyPrior) {
+            awards.push({
+              type: "ftp_milestone",
+              segment: null,
+              segment_id: null,
+              time: null,
+              power: currentFTP,
+              comparison: null,
+              delta: null,
+              message: `Estimated FTP: ${currentFTP}W — you've crossed the ${threshold}W threshold!`,
+            });
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // --- Power Curve Year Best & All-Time Best (#48) ---
+  if (activity.power_curve) {
+    const activityDate = new Date(activity.start_date_local);
+    const afterCalendarGate = (activityDate.getMonth() + 1) >= YEAR_BEST_CALENDAR_GATE_MONTH;
+
+    const allWithCurves = allActivities.filter(
+      (a) =>
+        a.sport_type === activity.sport_type &&
+        a.power_curve &&
+        a.id !== activity.id
+    );
+
+    const sameYearWithCurves = allWithCurves.filter(
+      (a) => new Date(a.start_date_local).getFullYear() === currentYear
+    );
+
+    for (const dur of POWER_CURVE_DURATIONS) {
+      if (!activity.power_curve[dur]) continue;
+
+      // Year Best at this duration
+      if (afterCalendarGate && sameYearWithCurves.length >= 3) {
+        const priorBest = Math.max(
+          0,
+          ...sameYearWithCurves.map((a) => a.power_curve[dur] || 0)
+        );
+        if (activity.power_curve[dur] > priorBest && priorBest > 0) {
+          awards.push({
+            type: "curve_year_best",
+            segment: null,
+            segment_id: null,
+            time: null,
+            power: activity.power_curve[dur],
+            comparison: null,
+            delta: activity.power_curve[dur] - priorBest,
+            message: `Year Best ${CURVE_DURATION_LABELS[dur]} power: ${activity.power_curve[dur]}W — ${activity.power_curve[dur] - priorBest}W above previous best`,
+            curve_duration: dur,
+          });
+        }
+      }
+
+      // All-time best at this duration
+      if (allWithCurves.length >= 5) {
+        const allTimeBest = Math.max(
+          0,
+          ...allWithCurves.map((a) => a.power_curve[dur] || 0)
+        );
+        if (activity.power_curve[dur] > allTimeBest && allTimeBest > 0) {
+          awards.push({
+            type: "curve_all_time",
+            segment: null,
+            segment_id: null,
+            time: null,
+            power: activity.power_curve[dur],
+            comparison: null,
+            delta: activity.power_curve[dur] - allTimeBest,
+            message: `All-time best ${CURVE_DURATION_LABELS[dur]} power: ${activity.power_curve[dur]}W! New personal record`,
+            curve_duration: dur,
+          });
+        }
+      }
+    }
+  }
+
   return awards;
 }
 
@@ -1559,6 +1809,41 @@ const STREAK_TIERS = [4, 8, 12, 26, 52];
 
 /** Minimum consecutive weeks for a weekly ride streak award */
 const WEEKLY_STREAK_MIN = 4;
+
+/**
+ * Simple linear regression on an array of values (y values, x = 0..n-1).
+ * Returns { slope, intercept, r2 }.
+ */
+function linearRegression(values) {
+  const n = values.length;
+  if (n < 2) return { slope: 0, intercept: values[0] || 0, r2: 0 };
+
+  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+  for (let i = 0; i < n; i++) {
+    sumX += i;
+    sumY += values[i];
+    sumXY += i * values[i];
+    sumX2 += i * i;
+    sumY2 += values[i] * values[i];
+  }
+
+  const denom = n * sumX2 - sumX * sumX;
+  if (denom === 0) return { slope: 0, intercept: sumY / n, r2: 0 };
+
+  const slope = (n * sumXY - sumX * sumY) / denom;
+  const intercept = (sumY - slope * sumX) / n;
+
+  // R² (coefficient of determination)
+  const yMean = sumY / n;
+  let ssTot = 0, ssRes = 0;
+  for (let i = 0; i < n; i++) {
+    ssTot += (values[i] - yMean) ** 2;
+    ssRes += (values[i] - (intercept + slope * i)) ** 2;
+  }
+  const r2 = ssTot === 0 ? 0 : 1 - ssRes / ssTot;
+
+  return { slope, intercept, r2 };
+}
 
 /** Haversine distance in km between two [lat, lng] coordinates */
 function haversineKm(a, b) {
