@@ -42,6 +42,7 @@ import {
   formatElevation,
   formatPower,
 } from "../units.js";
+import { isDemo, exitDemo } from "../demo.js";
 
 const recentActivities = signal([]);
 const activityAwards = signal(new Map());
@@ -222,7 +223,10 @@ export function Dashboard() {
           <div>
             <h1 class="text-xl font-bold text-gray-800">Participation Awards</h1>
             ${auth && html`
-              <p class="text-sm text-gray-500">${auth.athlete.firstname} ${auth.athlete.lastname}</p>
+              <p class="text-sm text-gray-500">
+                ${auth.athlete.firstname} ${auth.athlete.lastname}
+                ${isDemo.value && html`<span class="ml-2 text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">Demo</span>`}
+              </p>
             `}
           </div>
           <div class="flex items-center gap-3">
@@ -234,16 +238,23 @@ export function Dashboard() {
             >
               ${units === "metric" ? "km" : "mi"}
             </button>
-            <button
-              onClick=${handleSync}
-              disabled=${syncing}
-              class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-            >
-              ${syncing && html`
-                <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              `}
-              ${syncing ? "Syncing..." : "Sync Now"}
-            </button>
+            ${isDemo.value ? html`
+              <button
+                onClick=${async () => { await exitDemo(); authState.value = null; navigate(""); }}
+                class="text-xs text-amber-600 hover:text-amber-800 font-medium transition-colors"
+              >Exit Demo</button>
+            ` : html`
+              <button
+                onClick=${handleSync}
+                disabled=${syncing}
+                class="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+              >
+                ${syncing && html`
+                  <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                `}
+                ${syncing ? "Syncing..." : "Sync Now"}
+              </button>
+            `}
             <button
               onClick=${() => { showFaq.value = !showFaq.value; }}
               class="text-sm text-gray-500 hover:text-gray-700 transition-colors"
@@ -323,6 +334,16 @@ export function Dashboard() {
                 End
               </button>
             </div>
+          </div>
+        `}
+
+        <!-- Demo mode banner -->
+        ${isDemo.value && html`
+          <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 text-sm text-amber-800">
+            <p class="font-medium mb-1">Demo Mode</p>
+            <p class="text-amber-700">
+              You're viewing sample data from a fictional rider. Connect your Strava to see your own awards.
+            </p>
           </div>
         `}
 
@@ -803,15 +824,27 @@ export function Dashboard() {
             </div>
 
             <div class="mt-4 pt-4 border-t border-gray-100 space-y-3">
-              <div>
-                <button
-                  onClick=${handleDisconnect}
-                  class="text-xs text-gray-400 hover:text-red-500 transition-colors"
-                >
-                  Disconnect Strava
-                </button>
-                <p class="text-xs text-gray-300 mt-1">Removes your login session. Synced data stays in your browser.</p>
-              </div>
+              ${isDemo.value ? html`
+                <div>
+                  <button
+                    onClick=${async () => { await exitDemo(); authState.value = null; navigate(""); }}
+                    class="text-xs text-amber-600 hover:text-red-500 transition-colors font-medium"
+                  >
+                    Exit Demo Mode
+                  </button>
+                  <p class="text-xs text-gray-300 mt-1">Returns to the landing page. Demo data is discarded.</p>
+                </div>
+              ` : html`
+                <div>
+                  <button
+                    onClick=${handleDisconnect}
+                    class="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                  >
+                    Disconnect Strava
+                  </button>
+                  <p class="text-xs text-gray-300 mt-1">Removes your login session. Synced data stays in your browser.</p>
+                </div>
+              `}
               <div>
                 <button
                   onClick=${() => { showDeleteConfirm.value = !showDeleteConfirm.value; deleteConfirmText.value = ""; }}

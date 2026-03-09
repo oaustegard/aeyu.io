@@ -1,10 +1,33 @@
 /**
  * Landing / Connect Screen
- * Shows app branding, "Connect with Strava" button, and FAQ.
+ * Shows app branding, "Connect with Strava" button, demo option, and FAQ.
  */
 
 import { html } from "htm/preact";
+import { signal } from "@preact/signals";
 import { startOAuth } from "../auth.js";
+import { startDemo } from "../demo.js";
+import { navigate } from "../app.js";
+import { authState } from "../auth.js";
+
+const demoLoading = signal(false);
+
+async function handleDemo() {
+  demoLoading.value = true;
+  try {
+    await startDemo();
+    authState.value = {
+      access_token: "demo_token",
+      refresh_token: "demo_refresh",
+      expires_at: Math.floor(Date.now() / 1000) + 86400,
+      athlete: { id: 99999999, firstname: "Demo", lastname: "Rider", profile: "" },
+    };
+    navigate("dashboard");
+  } catch (err) {
+    console.error("Demo load failed:", err);
+    demoLoading.value = false;
+  }
+}
 
 function FaqItem({ q, children }) {
   return html`
@@ -56,6 +79,16 @@ export function Landing() {
               </svg>
               Connect with Strava
             </button>
+
+            <div class="mt-4">
+              <button
+                onClick=${handleDemo}
+                disabled=${demoLoading.value}
+                class="text-sm text-gray-400 hover:text-gray-600 transition-colors disabled:text-gray-300"
+              >
+                ${demoLoading.value ? "Loading demo..." : "or try the demo →"}
+              </button>
+            </div>
           </div>
 
           <div class="text-xs text-gray-400 space-y-1">
