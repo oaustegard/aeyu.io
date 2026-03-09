@@ -136,7 +136,7 @@ async function fetchActivityListPage(page, afterEpoch) {
     page: String(page),
   });
 
-  if (afterEpoch !== undefined) {
+  if (afterEpoch) {
     params.set("after", String(afterEpoch));
   }
 
@@ -418,7 +418,7 @@ export async function startBackfill() {
           message: `Fetching activities (page ${page})...`,
         };
 
-        const result = await fetchActivityListPage(page, 0);
+        const result = await fetchActivityListPage(page);
 
         if (result.summaries.length === 0) break;
 
