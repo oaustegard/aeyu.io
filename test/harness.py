@@ -6,11 +6,12 @@ Generates realistic Strava mock data with deterministic scenarios that
 guarantee every award type fires. Serves the app locally, injects data
 into IndexedDB via Playwright, runs an awards audit, and takes screenshots.
 
-Award coverage (33 types):
+Award coverage (34 types):
   Segment-level: year_best, season_first, recent_best, beat_median,
     top_quartile, top_decile, consistency, monthly_best, improvement_streak,
     comeback, milestone, best_month_ever, closing_in, anniversary,
     ytd_best_time, ytd_best_power
+  Route-level (#59): route_season_first
   Comeback: comeback_pb, recovery_milestone, comeback_full
   Ride-level: distance_record, elevation_record, segment_count,
     endurance_record, comeback_distance, comeback_elevation, comeback_endurance
@@ -636,6 +637,7 @@ AUDIT_JS = """(async () => {
         "improvement_streak", "comeback", "milestone",
         "best_month_ever", "closing_in", "anniversary",
         "ytd_best_time", "ytd_best_power",
+        "route_season_first",
         "comeback_pb", "recovery_milestone", "comeback_full",
         "distance_record", "elevation_record", "segment_count",
         "endurance_record",

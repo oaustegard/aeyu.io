@@ -94,6 +94,8 @@ const AWARD_LABELS = {
   comeback_elevation: { label: "Comeback Climbing", color: "bg-rose-100 text-rose-800" },
   comeback_endurance: { label: "Comeback Endurance", color: "bg-rose-100 text-rose-800" },
   reference_best: { label: "Reference Best", color: "bg-teal-200 text-teal-900" },
+  // Route-level Season First (#59)
+  route_season_first: { label: "Route Season First", color: "bg-green-200 text-green-900" },
   // Activity-level power awards (#45)
   season_first_power: { label: "First Power Ride", color: "bg-green-200 text-green-900" },
   np_year_best: { label: "NP Year Best", color: "bg-red-200 text-red-900" },
@@ -396,7 +398,7 @@ export function Dashboard() {
               for (const a of awards) {
                 typeCounts.set(a.type, (typeCounts.get(a.type) || 0) + 1);
               }
-              const typeOrder = ["season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "reference_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
+              const typeOrder = ["route_season_first", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "reference_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
               const summary = typeOrder
                 .filter((t) => typeCounts.has(t))
                 .map((t) => ({ type: t, count: typeCounts.get(t) }));
@@ -423,11 +425,24 @@ export function Dashboard() {
                   ${summary.length > 0 && html`
                     <div class="flex flex-wrap gap-1.5 mt-2">
                       ${summary.map(
-                        (s) => html`
-                          <span class="text-xs px-2 py-0.5 rounded-full ${AWARD_LABELS[s.type]?.color || 'bg-gray-100 text-gray-600'}">
-                            ${s.count > 1 ? `${s.count}× ` : ""}${AWARD_LABELS[s.type]?.label || s.type}
-                          </span>
-                        `
+                        (s) => {
+                          // Route Season First: show route name + frequency (#59)
+                          if (s.type === "route_season_first") {
+                            const routeAward = awards.find((a) => a.type === "route_season_first");
+                            const routeName = routeAward?.route_name || "Route";
+                            const freq = routeAward?.route_frequency;
+                            return html`
+                              <span class="text-xs px-2 py-0.5 rounded-full ${AWARD_LABELS[s.type]?.color || 'bg-gray-100 text-gray-600'}">
+                                Season First: ${routeName}${freq ? ` — ${freq} times` : ""}
+                              </span>
+                            `;
+                          }
+                          return html`
+                            <span class="text-xs px-2 py-0.5 rounded-full ${AWARD_LABELS[s.type]?.color || 'bg-gray-100 text-gray-600'}">
+                              ${s.count > 1 ? `${s.count}× ` : ""}${AWARD_LABELS[s.type]?.label || s.type}
+                            </span>
+                          `;
+                        }
                       )}
                     </div>
                   `}
