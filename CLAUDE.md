@@ -102,7 +102,14 @@ Push to `main` → GitHub Pages auto-deploys. Worker changes need `wrangler depl
 
 ## Gotchas
 
-- **No `gh` CLI available.** Use the GitHub REST API directly (curl or urllib). Don't attempt `gh issue`, `gh pr`, etc.
+- **No `gh` CLI available.** Use the GitHub REST API with `$GH_TOKEN` env var for auth. Example PR creation:
+  ```bash
+  curl -s -X POST "https://api.github.com/repos/oaustegard/aeyu.io/pulls" \
+    -H "Authorization: Bearer $GH_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"title":"...","head":"branch-name","base":"main","body":"..."}'
+  ```
+  Don't attempt `gh issue`, `gh pr`, etc.
 
 - Segment efforts are stored in TWO places: embedded in activities AND in the segments store. Both must be populated.
 - The `has_efforts` flag on activities distinguishes summary-only (from list endpoint) from detail-fetched activities
