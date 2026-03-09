@@ -131,7 +131,10 @@ const AWARD_COLORS = {
 };
 
 async function loadActivity(id) {
-  loading.value = true;
+  // Only show full loading screen on initial load, not on refresh/resync
+  if (!activity.value || activity.value.id !== Number(id)) {
+    loading.value = true;
+  }
   cardGenerated.value = false;
   try {
     const act = await getActivity(Number(id));
