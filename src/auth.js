@@ -11,7 +11,7 @@ import {
   OAUTH_REDIRECT_URI,
   OAUTH_SCOPE,
 } from "./config.js";
-import { getAuth, setAuth, clearAuth, clearAllData } from "./db.js";
+import { getAuth, setAuth, clearAuth } from "./db.js";
 
 // Auth state signal — null means not logged in, object means logged in
 export const authState = signal(null);
@@ -110,8 +110,8 @@ export async function getValidToken() {
   return updated.access_token;
 }
 
-/** Disconnect — clear all stored data and reset auth state */
+/** Disconnect — clear auth session but preserve synced data */
 export async function disconnect() {
-  await clearAllData();
+  await clearAuth();
   authState.value = null;
 }
