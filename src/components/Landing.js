@@ -10,6 +10,8 @@ import { startDemo } from "../demo.js";
 import { navigate } from "../app.js";
 import { authState } from "../auth.js";
 import { renderIconSVG } from "../icons.js";
+import { installContext } from "../install.js";
+import { InstallBanner } from "./InstallBanner.js";
 
 const demoLoading = signal(false);
 
@@ -93,29 +95,54 @@ export function Landing() {
               and personal milestones that Strava doesn't celebrate.
             </p>
 
-            <button
-              onClick=${() => startOAuth()}
-              class="inline-flex items-center gap-2 font-semibold px-6 py-3 rounded-lg transition-colors"
-              style="background: var(--strava); color: white; font-family: var(--font-body);"
-              onMouseOver=${(e) => e.currentTarget.style.background = 'var(--strava-hover)'}
-              onMouseOut=${(e) => e.currentTarget.style.background = 'var(--strava)'}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
-              </svg>
-              Connect with Strava
-            </button>
-
-            <div class="mt-4">
-              <button
-                onClick=${handleDemo}
-                disabled=${demoLoading.value}
-                class="transition-colors"
-                style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-tertiary);"
-              >
-                ${demoLoading.value ? "Loading demo..." : "or try the demo →"}
-              </button>
-            </div>
+            ${(() => {
+              const ctx = installContext.value;
+              const showInstall = ctx.isMobile && !ctx.isStandalone && !ctx.dismissed;
+              if (showInstall) {
+                return html`
+                  <${InstallBanner} />
+                  <div class="mt-4">
+                    <button
+                      onClick=${handleDemo}
+                      disabled=${demoLoading.value}
+                      class="transition-colors"
+                      style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-tertiary);"
+                    >
+                      ${demoLoading.value ? "Loading demo..." : "or try the demo →"}
+                    </button>
+                  </div>
+                `;
+              }
+              return html`
+                <button
+                  onClick=${() => startOAuth()}
+                  class="inline-flex items-center gap-2 font-semibold px-6 py-3 rounded-lg transition-colors"
+                  style="background: var(--strava); color: white; font-family: var(--font-body);"
+                  onMouseOver=${(e) => e.currentTarget.style.background = 'var(--strava-hover)'}
+                  onMouseOut=${(e) => e.currentTarget.style.background = 'var(--strava)'}
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
+                  </svg>
+                  Connect with Strava
+                </button>
+                ${ctx.dismissed && ctx.isMobile && !ctx.isStandalone && html`
+                  <p class="mt-2" style="font-family: var(--font-body); font-size: 0.75rem; color: var(--accent);">
+                    Tip: If you install as an app later, you'll need to reconnect and sync again.
+                  </p>
+                `}
+                <div class="mt-4">
+                  <button
+                    onClick=${handleDemo}
+                    disabled=${demoLoading.value}
+                    class="transition-colors"
+                    style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-tertiary);"
+                  >
+                    ${demoLoading.value ? "Loading demo..." : "or try the demo →"}
+                  </button>
+                </div>
+              `;
+            })()}
           </div>
 
           <div class="space-y-1" style="font-family: var(--font-body);">
