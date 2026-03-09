@@ -9,11 +9,13 @@ import { getValidToken } from "./auth.js";
 import {
   putActivities,
   putActivity,
+  getActivity,
   getActivitiesWithoutEfforts,
   getActivitiesWithoutPower,
   getSyncState,
   updateSyncState,
   appendEffort,
+  removeEffortsForActivity,
 } from "./db.js";
 
 // --- Signals ---
@@ -456,4 +458,79 @@ export async function incrementalSync() {
   } finally {
     isSyncing.value = false;
   }
+}
+
+/**
+ * Resync a single activity from Strava.
+ * Re-fetches detail, updates IndexedDB, replaces segment efforts, returns updated activity.
+ */
+export async function resyncActivity(activityId) {
+  const existing = await getActivity(activityId);
+  if (!existing) throw new Error("Activity not found in local database");
+
+  const full = await stravaFetch(
+    `/activities/${activityId}?include_all_efforts=true`
+  );
+
+  const efforts = (full.segment_efforts || []).map((e) => ({
+    id: e.id,
+    name: e.name,
+    segment: {
+      id: e.segment.id,
+      name: e.segment.name,
+      distance: e.segment.distance,
+      average_grade: e.segment.average_grade,
+      elevation_high: e.segment.elevation_high,
+      elevation_low: e.segment.elevation_low,
+      climb_category: e.segment.climb_category,
+    },
+    elapsed_time: e.elapsed_time,
+    moving_time: e.moving_time,
+    start_date: e.start_date,
+    start_date_local: e.start_date_local,
+    pr_rank: e.pr_rank || null,
+    achievements: e.achievements || [],
+    average_watts: e.average_watts || null,
+    device_watts: e.device_watts || false,
+  }));
+
+  const updated = {
+    ...existing,
+    name: full.name,
+    sport_type: full.sport_type,
+    distance: full.distance,
+    moving_time: full.moving_time,
+    elapsed_time: full.elapsed_time,
+    total_elevation_gain: full.total_elevation_gain,
+    average_speed: full.average_speed,
+    max_speed: full.max_speed,
+    average_watts: full.average_watts || null,
+    max_watts: full.max_watts || null,
+    weighted_average_watts: full.weighted_average_watts || null,
+    device_watts: full.device_watts || false,
+    kilojoules: full.kilojoules || null,
+    trainer: full.trainer || false,
+    has_efforts: true,
+    segment_efforts: efforts,
+  };
+
+  await putActivity(updated);
+
+  // Remove old efforts from segments store, then re-append
+  await removeEffortsForActivity(activityId);
+  for (const effort of efforts) {
+    await appendEffort(effort.segment.id, effort.segment, {
+      effort_id: effort.id,
+      activity_id: activityId,
+      elapsed_time: effort.elapsed_time,
+      moving_time: effort.moving_time,
+      start_date: effort.start_date,
+      start_date_local: effort.start_date_local,
+      pr_rank: effort.pr_rank,
+      average_watts: effort.average_watts,
+      device_watts: effort.device_watts,
+    });
+  }
+
+  return updated;
 }
