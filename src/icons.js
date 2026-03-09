@@ -328,6 +328,30 @@ const ICON_DEFS = {
 };
 
 
+// ── Icon Fallback Mapping ────────────────────────────────────────────
+// Maps award types that lack their own icon to a visually similar existing icon.
+const ICON_FALLBACKS = {
+  // Comeback mode (#60) → comeback
+  comeback_pb: "comeback",
+  recovery_milestone: "comeback",
+  comeback_full: "comeback",
+  comeback_distance: "comeback",
+  comeback_elevation: "comeback",
+  comeback_endurance: "comeback",
+  reference_best: "closing_in",
+  // Route-level (#59)
+  route_season_first: "season_first",
+  // Indoor training (#46) → indoor_power
+  indoor_np_year_best: "indoor_power",
+  indoor_work_year_best: "indoor_power",
+  indoor_vs_outdoor: "indoor_power",
+  // Power curve (#48)
+  curve_year_best: "year_best",
+  curve_all_time: "peak_power",
+  // Power milestones (#47)
+  ftp_milestone: "watt_milestone",
+};
+
 // ── HTM/Preact SVG Rendering ───────────────────────────────────────
 
 /**
@@ -340,7 +364,7 @@ const ICON_DEFS = {
  *   <${AwardIcon} type="year_best" size=${16} color="#B8862E" />
  */
 export function renderIconSVG(type, { size = 16, color = "#6B6260", strokeWidth } = {}) {
-  const prims = ICON_DEFS[type];
+  const prims = ICON_DEFS[type] || ICON_DEFS[ICON_FALLBACKS[type]];
   if (!prims) return null;
 
   const sw = strokeWidth || (size > 20 ? 2 : 1.5);
@@ -406,7 +430,7 @@ export function AwardIcon({ type, size, color, strokeWidth }) {
  * @param {number} [strokeWidth=2] — stroke width in canvas pixels
  */
 export function drawIcon(ctx, type, x, y, size, color, strokeWidth = 2) {
-  const prims = ICON_DEFS[type];
+  const prims = ICON_DEFS[type] || ICON_DEFS[ICON_FALLBACKS[type]];
   if (!prims) return;
 
   const scale = size / 24;

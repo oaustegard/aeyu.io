@@ -205,7 +205,7 @@ export function Dashboard() {
             </button>
             ${isDemo.value ? html`
               <button
-                onClick=${async () => { await exitDemo(); authState.value = null; navigate(""); }}
+                onClick=${async () => { const restored = await exitDemo(); authState.value = restored; navigate(""); }}
                 class="text-xs font-medium transition-colors"
                 style="color: var(--accent);"
               >Exit Demo</button>
@@ -1018,7 +1018,7 @@ export function Dashboard() {
               ${isDemo.value ? html`
                 <div>
                   <button
-                    onClick=${async () => { await exitDemo(); authState.value = null; navigate(""); }}
+                    onClick=${async () => { const restored = await exitDemo(); authState.value = restored; navigate(""); }}
                     class="text-xs font-medium transition-colors"
                     style="color: var(--accent);"
                   >
