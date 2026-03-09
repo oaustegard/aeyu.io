@@ -170,14 +170,20 @@ function loadLogo() {
 
 function drawLogoWatermark(ctx, W, H, cardY, cardH, pad) {
   if (!_logoImg) return;
-  const logoSize = Math.min(cardH * 0.6, 280);
-  const lx = W / 2 - logoSize / 2;
-  const ly = cardY + cardH / 2 - logoSize / 2;
+  const cardW = W - pad * 2;
   ctx.save();
-  ctx.globalAlpha = 0.045;
   // Clip to card bounds so watermark doesn't bleed
-  roundRect(ctx, pad, cardY, W - pad * 2, cardH, 24);
+  roundRect(ctx, pad, cardY, cardW, cardH, 24);
   ctx.clip();
+  // Fill card with the icon's background color at subtle opacity
+  ctx.globalAlpha = 0.035;
+  ctx.fillStyle = "#A0522D";
+  ctx.fillRect(pad, cardY, cardW, cardH);
+  // Draw logo sized to fill the card height, centered
+  ctx.globalAlpha = 0.05;
+  const logoSize = cardH;
+  const lx = W / 2 - logoSize / 2;
+  const ly = cardY;
   ctx.drawImage(_logoImg, lx, ly, logoSize, logoSize);
   ctx.restore();
 }
