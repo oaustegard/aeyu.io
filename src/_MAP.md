@@ -1,11 +1,15 @@
 # src/
-*Files: 9 | Subdirectories: 1*
+*Files: 10 | Subdirectories: 1*
 
 ## Subdirectories
 
 - [components/](./components/_MAP.md)
 
 ## Files
+
+### award-config.js
+- **AWARD_LABELS** (variable) :9
+- **AWARD_COLORS** (variable) :56
 
 ### app.js
 > Imports: `preact, preact, signals, auth.js, demo.js`...
@@ -24,9 +28,10 @@
 
 ### awards.js
 > Imports: `db.js, units.js`
-- **computeAwards** (f) `(activity, resetEvent = null, referencePoints = [])` :338
-- **computeRideLevelAwards** (f) `(activity, allActivities, resetEvent = null)` :854
-- **computeAwardsForActivities** (f) `(activities)` :1023
+- **rankSegmentAwards** (f) `(awards)` :174
+- **computeAwards** (f) `(activity, resetEvent = null, referencePoints = [])` :472
+- **computeRideLevelAwards** (f) `(activity, allActivities, resetEvent = null)` :988
+- **computeAwardsForActivities** (f) `(activities)` :1484
 
 ### config.js
 - **STRAVA_CLIENT_ID** (variable) :6
