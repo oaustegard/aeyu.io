@@ -14,6 +14,7 @@ import { authState, disconnect } from "../auth.js";
 import {
   startAutoSync,
   stopAutoSync,
+  manualSync,
   syncProgress,
   rateLimitStatus,
   isSyncing,
@@ -857,6 +858,31 @@ export function Dashboard() {
             </div>
 
             <div class="mt-4 pt-4 space-y-3" style="border-top: 1px solid var(--border-light);">
+              ${!isDemo.value && html`
+                <div>
+                  <button
+                    onClick=${async () => {
+                      try {
+                        await manualSync();
+                      } catch (e) {
+                        console.error("Manual sync error:", e);
+                      }
+                      await loadDashboard();
+                    }}
+                    disabled=${syncing}
+                    class="text-xs font-medium transition-colors inline-flex items-center gap-1.5"
+                    style=${syncing
+                      ? "color: var(--text-tertiary); cursor: not-allowed;"
+                      : "color: var(--strava);"}
+                  >
+                    ${syncing ? html`
+                      <div class="w-3 h-3 border-2 border-t-transparent rounded-full animate-spin flex-shrink-0" style="border-color: var(--strava); border-top-color: transparent;"></div>
+                      Syncing…
+                    ` : "Sync now"}
+                  </button>
+                  <p class="text-xs mt-1" style="color: var(--border);">Check Strava for new activities. The app syncs automatically every 5 minutes.</p>
+                </div>
+              `}
               ${isDemo.value ? html`
                 <div>
                   <button
