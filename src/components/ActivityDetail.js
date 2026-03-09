@@ -30,6 +30,7 @@ const segmentHistory = signal(new Map());
 const loading = signal(true);
 const copied = signal(false);
 const cardGenerated = signal(false);
+const segmentCardGenerated = signal(null); // segment_id or null
 const resyncing = signal(false);
 const resyncError = signal(null);
 
@@ -47,6 +48,7 @@ async function loadActivity(id) {
     loading.value = true;
   }
   cardGenerated.value = false;
+  segmentCardGenerated.value = null;
   try {
     const act = await getActivity(Number(id));
     if (!act) return;
@@ -154,6 +156,33 @@ function buildSummary(act, awardsList) {
 }
 
 
+// ── Logo Loader ──────────────────────────────────────────────────
+let _logoImg = null;
+function loadLogo() {
+  if (_logoImg) return Promise.resolve(_logoImg);
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => { _logoImg = img; resolve(img); };
+    img.onerror = () => resolve(null);
+    img.src = "/icons/icon-512.png";
+  });
+}
+
+function drawLogoWatermark(ctx, W, H, cardY, cardH, pad) {
+  if (!_logoImg) return;
+  const logoSize = Math.min(cardH * 0.6, 280);
+  const lx = W / 2 - logoSize / 2;
+  const ly = cardY + cardH / 2 - logoSize / 2;
+  ctx.save();
+  ctx.globalAlpha = 0.045;
+  // Clip to card bounds so watermark doesn't bleed
+  roundRect(ctx, pad, cardY, W - pad * 2, cardH, 24);
+  ctx.clip();
+  ctx.drawImage(_logoImg, lx, ly, logoSize, logoSize);
+  ctx.restore();
+}
+
+
 // ── Canvas Share Card ─────────────────────────────────────────────
 
 async function renderShareCard(canvas, act, awardsList) {
@@ -161,13 +190,14 @@ async function renderShareCard(canvas, act, awardsList) {
   const pad = 60, left = pad + 48, maxTextW = W - left - pad - 48;
   const rightEdge = W - pad - 48;
 
-  // Wait for fonts to load
+  // Wait for fonts and logo to load
   await Promise.all([
     document.fonts.load('400 52px "Instrument Serif"'),
     document.fonts.load('400 30px "IBM Plex Mono"'),
     document.fonts.load('500 28px "DM Sans"'),
     document.fonts.load('600 26px "DM Sans"'),
     document.fonts.load('400 24px "Instrument Serif"'),
+    loadLogo(),
   ]).catch(() => {});
 
   // Pre-measure to compute dynamic height
@@ -247,6 +277,9 @@ async function renderShareCard(canvas, act, awardsList) {
   ctx.lineWidth = 1;
   roundRect(ctx, pad, cardY, cardW, cardH, 24);
   ctx.stroke();
+
+  // Logo watermark — subtle background mark
+  drawLogoWatermark(ctx, W, H, cardY, cardH, pad);
 
   let y = cardY + 60;
 
@@ -384,6 +417,245 @@ async function renderShareCard(canvas, act, awardsList) {
   ctx.fillText("It's just you and your efforts", W / 2, H - 30);
   ctx.textAlign = "left";
 }
+
+// ── Segment Share Card ────────────────────────────────────────────
+
+async function renderSegmentShareCard(canvas, act, effort, segAwards) {
+  const W = 1080;
+  const pad = 60, left = pad + 48, maxTextW = W - left - pad - 48;
+  const rightEdge = W - pad - 48;
+
+  // Wait for fonts and logo
+  await Promise.all([
+    document.fonts.load('400 52px "Instrument Serif"'),
+    document.fonts.load('400 30px "IBM Plex Mono"'),
+    document.fonts.load('500 28px "DM Sans"'),
+    document.fonts.load('600 26px "DM Sans"'),
+    document.fonts.load('400 24px "Instrument Serif"'),
+    loadLogo(),
+  ]).catch(() => {});
+
+  // Pre-measure
+  const tmpCanvas = document.createElement("canvas");
+  tmpCanvas.width = W;
+  const tmpCtx = tmpCanvas.getContext("2d");
+
+  tmpCtx.font = '400 52px "Instrument Serif", serif';
+  const nameLines = wrapText(tmpCtx, effort.segment.name, maxTextW);
+
+  const metaParts = [formatDistance(effort.segment.distance), `${effort.segment.average_grade}% grade`, formatTime(effort.elapsed_time)];
+  if (effort.device_watts && effort.average_watts) metaParts.push(formatPower(effort.average_watts));
+  tmpCtx.font = '400 30px "IBM Plex Mono", monospace';
+  const metaText = metaParts.join("  ·  ");
+  const metaLines = wrapText(tmpCtx, metaText, maxTextW);
+
+  // Pill layout
+  const counts = {};
+  const pillOrder = ["year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "season_first", "anniversary", "reference_best"];
+  for (const a of segAwards) counts[a.type] = (counts[a.type] || 0) + 1;
+  tmpCtx.font = '600 26px "DM Sans", sans-serif';
+  const pillRows = layoutPillRows(tmpCtx, counts, pillOrder, left, maxTextW);
+
+  // Context line (activity name + date)
+  tmpCtx.font = '400 26px "DM Sans", sans-serif';
+  const contextText = `${act.name}  ·  ${formatDateShort(act.start_date_local)}`;
+  const contextLines = wrapText(tmpCtx, contextText, maxTextW);
+
+  // Height calculation
+  let contentH = 60; // top padding
+  contentH += 28 + 60; // header + gap
+  contentH += 48; // divider
+  contentH += nameLines.length * 62 + 8; // segment name
+  contentH += metaLines.length * 38 + 26; // meta
+
+  if (segAwards.length > 0) {
+    contentH += pillRows.length * 52 + 20 + 36; // pills + gap + divider
+    // Award details — show all (segment cards are focused)
+    const displayAwards = segAwards.slice(0, 5);
+    for (const a of displayAwards) {
+      contentH += 56; // message line
+    }
+    if (segAwards.length > displayAwards.length) contentH += 40;
+  }
+
+  contentH += 24 + contextLines.length * 32 + 24; // context section
+  contentH += 48; // bottom padding
+
+  const cardY = 60, cardBottom = 60, taglineH = 60;
+  const H = cardY + contentH + taglineH + cardBottom;
+
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+
+  // Background
+  ctx.fillStyle = "#F6F3EE";
+  ctx.fillRect(0, 0, W, H);
+
+  // Topo texture
+  ctx.strokeStyle = "rgba(26, 22, 16, 0.03)";
+  ctx.lineWidth = 1;
+  const centers = [
+    [W * 0.15, H * 0.3], [W * 0.75, H * 0.2], [W * 0.5, H * 0.7],
+    [W * 0.85, H * 0.6], [W * 0.25, H * 0.8],
+  ];
+  for (const [cx, cy] of centers) {
+    for (let r = 40; r < 400; r += 50) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // Card
+  const cardW = W - pad * 2, cardH = contentH;
+  ctx.fillStyle = "#FFFFFF";
+  roundRect(ctx, pad, cardY, cardW, cardH, 24);
+  ctx.fill();
+  ctx.strokeStyle = "#E5DFD4";
+  ctx.lineWidth = 1;
+  roundRect(ctx, pad, cardY, cardW, cardH, 24);
+  ctx.stroke();
+
+  // Logo watermark
+  drawLogoWatermark(ctx, W, H, cardY, cardH, pad);
+
+  let y = cardY + 60;
+
+  // Header
+  ctx.font = '400 28px "Instrument Serif", serif';
+  ctx.fillStyle = "#1A1610";
+  ctx.textAlign = "left";
+  ctx.fillText("aeyu", left, y);
+  const aeyuW = ctx.measureText("aeyu").width;
+  ctx.fillStyle = "#B85A28";
+  ctx.fillText(".io", left + aeyuW, y);
+
+  ctx.font = '400 28px "DM Sans", sans-serif';
+  ctx.fillStyle = "#8C8374";
+  ctx.textAlign = "right";
+  ctx.fillText("Segment Awards", rightEdge, y);
+  ctx.textAlign = "left";
+  y += 60;
+
+  // Divider
+  ctx.strokeStyle = "#E5DFD4";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(left, y);
+  ctx.lineTo(rightEdge, y);
+  ctx.stroke();
+  y += 48;
+
+  // Segment name
+  ctx.font = '400 52px "Instrument Serif", serif';
+  ctx.fillStyle = "#1A1610";
+  for (const line of nameLines) {
+    ctx.fillText(line, left, y);
+    y += 62;
+  }
+  y += 8;
+
+  // Meta
+  ctx.font = '400 30px "IBM Plex Mono", monospace';
+  ctx.fillStyle = "#5C5548";
+  for (const line of metaLines) {
+    ctx.fillText(line, left, y);
+    y += 38;
+  }
+  y += 26;
+
+  // Awards
+  if (segAwards.length > 0) {
+    // Pills
+    for (const row of pillRows) {
+      for (const pill of row) {
+        ctx.font = '600 26px "DM Sans", sans-serif';
+        const colors = AWARD_COLORS[pill.type];
+        if (!colors) continue;
+
+        const iconSize = 20;
+        const iconPad = 6;
+        const textW = ctx.measureText(pill.label).width;
+        const tw = 16 + iconSize + iconPad + textW + 16;
+
+        ctx.fillStyle = colors.bg;
+        roundRect(ctx, pill.x, y - 28, tw, 40, 20);
+        ctx.fill();
+        ctx.strokeStyle = colors.border;
+        ctx.lineWidth = 1;
+        roundRect(ctx, pill.x, y - 28, tw, 40, 20);
+        ctx.stroke();
+
+        drawIcon(ctx, pill.type, pill.x + 14, y - 26, iconSize, colors.accent, 2);
+
+        ctx.fillStyle = colors.text;
+        ctx.font = '600 26px "DM Sans", sans-serif';
+        ctx.fillText(pill.label, pill.x + 14 + iconSize + iconPad, y);
+      }
+      y += 52;
+    }
+    y += 20;
+
+    // Divider
+    ctx.strokeStyle = "#E5DFD4";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(left, y);
+    ctx.lineTo(rightEdge, y);
+    ctx.stroke();
+    y += 36;
+
+    // Award details
+    const displayAwards = segAwards.slice(0, 5);
+    for (const award of displayAwards) {
+      const colors = AWARD_COLORS[award.type];
+      if (!colors) continue;
+
+      drawIcon(ctx, award.type, left, y - 14, 20, colors.accent, 2);
+
+      ctx.font = '400 26px "DM Sans", sans-serif';
+      ctx.fillStyle = "#5C5548";
+      let msg = award.message || (AWARD_LABELS[award.type]?.label || "");
+      // Truncate long messages
+      while (ctx.measureText(msg).width > maxTextW - 28 && msg.length > 3) {
+        msg = msg.slice(0, -4) + "…";
+      }
+      ctx.fillText(msg, left + 28, y + 4);
+      y += 56;
+    }
+
+    const remaining = segAwards.length - displayAwards.length;
+    if (remaining > 0) {
+      ctx.font = '400 24px "DM Sans", sans-serif';
+      ctx.fillStyle = "#8C8374";
+      ctx.fillText(`+ ${remaining} more awards`, left, y + 8);
+    }
+  }
+
+  // Context — activity name + date at bottom of card
+  y = cardY + contentH - 48 - contextLines.length * 32;
+  ctx.strokeStyle = "#E5DFD4";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(left, y - 16);
+  ctx.lineTo(rightEdge, y - 16);
+  ctx.stroke();
+  ctx.font = '400 26px "DM Sans", sans-serif';
+  ctx.fillStyle = "#8C8374";
+  for (const line of contextLines) {
+    ctx.fillText(line, left, y + 8);
+    y += 32;
+  }
+
+  // Tagline
+  ctx.font = 'italic 24px "Instrument Serif", serif';
+  ctx.fillStyle = "#8C8374";
+  ctx.textAlign = "center";
+  ctx.fillText("It's just you and your efforts", W / 2, H - 30);
+  ctx.textAlign = "left";
+}
+
 
 /**
  * Build share card highlights: best award per segment, max 5 rows (#87).
@@ -532,32 +804,69 @@ export function ActivityDetail({ id }) {
   async function handleGenerateImage() {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    segmentCardGenerated.value = null;
     await renderShareCard(canvas, act, awards.value);
     canvas.style.display = "block";
     cardGenerated.value = true;
   }
 
-  function handleSaveImage() {
+  async function handleGenerateSegmentImage(effort, segAwards) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    cardGenerated.value = false;
+    await renderSegmentShareCard(canvas, act, effort, segAwards);
+    canvas.style.display = "block";
+    segmentCardGenerated.value = effort.segment.id;
+    // Scroll canvas into view
+    canvas.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function shareOrSaveCanvas(filename) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     canvas.toBlob((blob) => {
       if (!blob) return;
       if (navigator.share && navigator.canShare) {
-        const file = new File([blob], `${act.name.replace(/[^a-z0-9]/gi, "-")}-awards.png`, { type: "image/png" });
+        const file = new File([blob], filename, { type: "image/png" });
         if (navigator.canShare({ files: [file] })) {
-          navigator.share({ files: [file] }).catch(() => downloadBlob(blob));
+          navigator.share({ files: [file] }).catch(() => downloadBlob(blob, filename));
           return;
         }
       }
-      downloadBlob(blob);
+      downloadBlob(blob, filename);
     }, "image/png");
   }
 
-  function downloadBlob(blob) {
+  function copyCanvasToClipboard() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      navigator.clipboard.write([
+        new ClipboardItem({ "image/png": blob })
+      ]).then(() => {
+        copied.value = true;
+        setTimeout(() => { copied.value = false; }, 2000);
+      }).catch(() => {});
+    }, "image/png");
+  }
+
+  function handleSaveImage() {
+    const segId = segmentCardGenerated.value;
+    if (segId) {
+      const effort = act.segment_efforts?.find(e => e.segment.id === segId);
+      const name = effort ? effort.segment.name : "segment";
+      shareOrSaveCanvas(`${name.replace(/[^a-z0-9]/gi, "-")}-awards.png`);
+    } else {
+      shareOrSaveCanvas(`${act.name.replace(/[^a-z0-9]/gi, "-")}-awards.png`);
+    }
+  }
+
+  function downloadBlob(blob, filename) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${act.name.replace(/[^a-z0-9]/gi, "-")}-awards.png`;
+    a.download = filename || "awards.png";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -710,19 +1019,31 @@ export function ActivityDetail({ id }) {
                 </button>
               </div>
 
-              <!-- Canvas + save -->
+              <!-- Canvas + save/share/copy -->
               <canvas ref=${canvasRef} style="display:none; width:100%; max-width:540px; height:auto; margin-top:12px; border-radius:12px;"></canvas>
-              ${isCardGenerated && html`
-                <button
-                  onClick=${handleSaveImage}
-                  class="mt-3 inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg text-white transition-colors"
-                  style="background: var(--strava); font-family: var(--font-body);"
-                >
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
-                  </svg>
-                  Save / Share Image
-                </button>
+              ${(isCardGenerated || segmentCardGenerated.value) && html`
+                <div class="mt-3 flex flex-wrap gap-2">
+                  <button
+                    onClick=${handleSaveImage}
+                    class="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg text-white transition-colors"
+                    style="background: var(--strava); font-family: var(--font-body);"
+                  >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    Save / Share
+                  </button>
+                  <button
+                    onClick=${copyCanvasToClipboard}
+                    class="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors"
+                    style="border: 1px solid var(--border); color: var(--text-secondary); font-family: var(--font-body);"
+                  >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    ${copied.value ? "Copied!" : "Copy Image"}
+                  </button>
+                </div>
               `}
             </div>
           </div>
@@ -771,22 +1092,35 @@ export function ActivityDetail({ id }) {
                         }
                       )}
                     </div>
-                    <details class="mt-2">
-                      <summary class="text-xs cursor-pointer select-none" style="color: var(--text-tertiary); font-family: var(--font-body);">
-                        Award details
-                      </summary>
-                      <div class="mt-2 space-y-1.5 pl-1" style="border-left: 2px solid var(--border);">
-                        ${segAwards.map(a => {
-                          const al = AWARD_LABELS[a.type];
-                          return html`
-                            <div class="flex items-start gap-2 py-0.5 pl-2">
-                              ${al ? renderIconSVG(a.type, { size: 14, color: al.dot }) : null}
-                              <p class="text-xs" style="color: var(--text-secondary); font-family: var(--font-body);">${a.message}</p>
-                            </div>
-                          `;
-                        })}
-                      </div>
-                    </details>
+                    <div class="flex items-center gap-3 mt-2">
+                      <details class="flex-1">
+                        <summary class="text-xs cursor-pointer select-none" style="color: var(--text-tertiary); font-family: var(--font-body);">
+                          Award details
+                        </summary>
+                        <div class="mt-2 space-y-1.5 pl-1" style="border-left: 2px solid var(--border);">
+                          ${segAwards.map(a => {
+                            const al = AWARD_LABELS[a.type];
+                            return html`
+                              <div class="flex items-start gap-2 py-0.5 pl-2">
+                                ${al ? renderIconSVG(a.type, { size: 14, color: al.dot }) : null}
+                                <p class="text-xs" style="color: var(--text-secondary); font-family: var(--font-body);">${a.message}</p>
+                              </div>
+                            `;
+                          })}
+                        </div>
+                      </details>
+                      <button
+                        onClick=${() => handleGenerateSegmentImage(effort, segAwards)}
+                        class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-colors whitespace-nowrap"
+                        style="border: 1px solid var(--border); color: var(--text-tertiary); font-family: var(--font-body);"
+                        title="Share this segment's awards"
+                      >
+                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        Share Segment
+                      </button>
+                    </div>
                   `}
                 </div>
               `;
