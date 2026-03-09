@@ -114,18 +114,17 @@ export function Landing() {
                 `;
               }
               return html`
-                <button
-                  onClick=${() => startOAuth()}
-                  class="inline-flex items-center gap-2 font-semibold px-6 py-3 rounded-lg transition-colors"
-                  style="background: var(--strava); color: white; font-family: var(--font-body);"
-                  onMouseOver=${(e) => e.currentTarget.style.background = 'var(--strava-hover)'}
-                  onMouseOut=${(e) => e.currentTarget.style.background = 'var(--strava)'}
+                <a
+                  onClick=${(e) => { e.preventDefault(); startOAuth(); }}
+                  href="#"
+                  role="button"
+                  class="inline-block transition-opacity"
+                  style="opacity: 1; cursor: pointer;"
+                  onMouseOver=${(e) => e.currentTarget.style.opacity = '0.85'}
+                  onMouseOut=${(e) => e.currentTarget.style.opacity = '1'}
                 >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/>
-                  </svg>
-                  Connect with Strava
-                </button>
+                  <img src="assets/strava/btn_strava_connect_with_orange.svg" alt="Connect with Strava" width="237" height="48" style="display: block;" />
+                </a>
                 ${ctx.dismissed && ctx.isMobile && !ctx.isStandalone && html`
                   <p class="mt-2" style="font-family: var(--font-body); font-size: 0.75rem; color: var(--accent);">
                     Tip: If you install as an app later, you'll need to reconnect and sync again.
