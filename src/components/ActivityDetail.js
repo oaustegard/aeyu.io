@@ -63,6 +63,8 @@ const AWARD_LABELS = {
   comeback_elevation: { label: "Comeback Climbing", color: "bg-rose-100 text-rose-800", icon: "⛰" },
   comeback_endurance: { label: "Comeback Endurance", color: "bg-rose-100 text-rose-800", icon: "⏱" },
   reference_best: { label: "Reference Best", color: "bg-teal-200 text-teal-900", icon: "⊕" },
+  // Route-level Season First (#59)
+  route_season_first: { label: "Route Season First", color: "bg-green-200 text-green-900", icon: "🛤" },
   // Activity-level power awards (#45)
   season_first_power: { label: "First Power Ride", color: "bg-green-200 text-green-900", icon: "⚡" },
   np_year_best: { label: "NP Year Best", color: "bg-red-200 text-red-900", icon: "⚡" },
@@ -102,6 +104,8 @@ const AWARD_COLORS = {
   comeback_elevation: { bg: "#FFE4E6", text: "#9F1239", accent: "#F43F5E" },
   comeback_endurance: { bg: "#FFE4E6", text: "#9F1239", accent: "#F43F5E" },
   reference_best:     { bg: "#99F6E4", text: "#134E4A", accent: "#14B8A6" },
+  // Route-level Season First (#59)
+  route_season_first: { bg: "#BBF7D0", text: "#14532D", accent: "#16A34A" },
   // Activity-level power awards (#45)
   season_first_power: { bg: "#BBF7D0", text: "#14532D", accent: "#16A34A" },
   np_year_best:       { bg: "#FECACA", text: "#7F1D1D", accent: "#DC2626" },
@@ -287,7 +291,7 @@ function renderShareCard(canvas, act, awardsList) {
   if (awardsList.length > 0) {
     // Summary pills
     const counts = {};
-    const order = ["season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
+    const order = ["route_season_first", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record"];
     for (const a of awardsList) counts[a.type] = (counts[a.type] || 0) + 1;
 
     let pillX = left;
@@ -507,17 +511,50 @@ export function ActivityDetail({ id }) {
             <h2 class="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3">Awards Earned</h2>
             <div class="space-y-2">
               ${awards.value.map(
-                (award) => html`
-                  <div class="flex items-start gap-3 p-2 rounded-lg bg-gray-50">
-                    <span class="text-lg">${AWARD_LABELS[award.type]?.icon || "•"}</span>
-                    <div>
-                      <span class="text-xs px-2 py-0.5 rounded-full ${AWARD_LABELS[award.type]?.color || 'bg-gray-100'}">
-                        ${AWARD_LABELS[award.type]?.label || award.type}
-                      </span>
-                      <p class="text-sm text-gray-700 mt-1">${award.message}</p>
+                (award) => {
+                  // Route Season First: show collapsed award + expandable segment details (#59)
+                  if (award.type === "route_season_first" && award._collapsed_season_firsts) {
+                    return html`
+                      <div class="p-2 rounded-lg bg-gray-50">
+                        <div class="flex items-start gap-3">
+                          <span class="text-lg">${AWARD_LABELS[award.type]?.icon || "•"}</span>
+                          <div class="flex-1">
+                            <span class="text-xs px-2 py-0.5 rounded-full ${AWARD_LABELS[award.type]?.color || 'bg-gray-100'}">
+                              ${AWARD_LABELS[award.type]?.label || award.type}
+                            </span>
+                            <p class="text-sm text-gray-700 mt-1">${award.message}</p>
+                          </div>
+                        </div>
+                        <details class="mt-2 ml-9">
+                          <summary class="text-xs text-gray-400 cursor-pointer hover:text-gray-600">
+                            ${award._collapsed_season_firsts.length} segment Season Firsts
+                          </summary>
+                          <div class="mt-1 space-y-1 pl-2 border-l-2 border-green-200">
+                            ${award._collapsed_season_firsts.map(
+                              (sf) => html`
+                                <div class="flex items-start gap-2 py-1">
+                                  <span class="text-xs">${AWARD_LABELS.season_first?.icon || "🌱"}</span>
+                                  <p class="text-xs text-gray-600">${sf.message}</p>
+                                </div>
+                              `
+                            )}
+                          </div>
+                        </details>
+                      </div>
+                    `;
+                  }
+                  return html`
+                    <div class="flex items-start gap-3 p-2 rounded-lg bg-gray-50">
+                      <span class="text-lg">${AWARD_LABELS[award.type]?.icon || "•"}</span>
+                      <div>
+                        <span class="text-xs px-2 py-0.5 rounded-full ${AWARD_LABELS[award.type]?.color || 'bg-gray-100'}">
+                          ${AWARD_LABELS[award.type]?.label || award.type}
+                        </span>
+                        <p class="text-sm text-gray-700 mt-1">${award.message}</p>
+                      </div>
                     </div>
-                  </div>
-                `
+                  `;
+                }
               )}
             </div>
 

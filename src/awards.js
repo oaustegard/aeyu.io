@@ -59,8 +59,9 @@
  *   - Recovered (at or better than pre-injury): normal awards + "You're Back!"
  */
 
-import { getSegment, getResetEvent, recordRecoveryMilestone, getUserConfig } from "./db.js";
+import { getSegment, getResetEvent, recordRecoveryMilestone, getUserConfig, getAllActivities, putRoutes } from "./db.js";
 import { formatTime, formatDistance } from "./units.js";
+import { detectRoutes, findRouteForActivity } from "./routes.js";
 
 /** Minimum total efforts on a segment before comparative awards apply */
 const MIN_EFFORTS_FOR_AWARDS = 3;
@@ -1206,6 +1207,11 @@ export function computeRideLevelAwards(activity, allActivities, resetEvent = nul
 
 /**
  * Compute awards for multiple activities.
+ * Detects routes via segment fingerprinting (#59) and collapses
+ * multiple segment-level Season First awards into a single route-level award
+ * on the dashboard. Individual segment Season Firsts are preserved in
+ * the _collapsed_season_firsts field for the activity detail view.
+ *
  * @param {Array} activities — Activities with segment_efforts populated
  * @returns {Map} — Map of activity.id → awards array
  */
@@ -1214,10 +1220,21 @@ export async function computeAwardsForActivities(activities) {
   const userConfig = await getUserConfig();
   const referencePoints = userConfig.referencePoints || [];
   const result = new Map();
+
+  // Detect routes from ALL activities (not just the recent subset)
+  const allActivitiesForRoutes = await getAllActivities();
+  const withEfforts = allActivitiesForRoutes.filter((a) => a.has_efforts);
+  const routes = detectRoutes(withEfforts);
+
+  // Persist detected routes for future use
+  if (routes.length > 0) {
+    await putRoutes(routes);
+  }
+
   for (const activity of activities) {
     const segmentAwards = await computeAwards(activity, resetEvent, referencePoints);
     const rideAwards = computeRideLevelAwards(activity, activities, resetEvent);
-    const allAwards = [...segmentAwards, ...rideAwards];
+    let allAwards = [...segmentAwards, ...rideAwards];
 
     // Persist recovery milestones so they're only awarded once
     if (resetEvent) {
@@ -1228,6 +1245,32 @@ export async function computeAwardsForActivities(activities) {
           delete award._milestone_threshold;
           delete award._milestone_segment_id;
         }
+      }
+    }
+
+    // --- Route-level Season First collapse (#59) ---
+    // If this activity matches a known route and has 2+ season_first awards,
+    // collapse them into a single route_season_first award.
+    const seasonFirsts = allAwards.filter((a) => a.type === "season_first");
+    if (seasonFirsts.length >= 2) {
+      const route = findRouteForActivity(activity, routes);
+      if (route) {
+        const nonSeasonFirsts = allAwards.filter((a) => a.type !== "season_first");
+        const routeAward = {
+          type: "route_season_first",
+          segment: null,
+          segment_id: null,
+          time: null,
+          power: null,
+          comparison: null,
+          delta: null,
+          route_name: route.name,
+          route_frequency: route.frequency,
+          collapsed_count: seasonFirsts.length,
+          _collapsed_season_firsts: seasonFirsts,
+          message: `Season First on ${route.name}! First time this year on this route (${seasonFirsts.length} segments) — ${route.frequency} times total`,
+        };
+        allAwards = [...nonSeasonFirsts, routeAward];
       }
     }
 

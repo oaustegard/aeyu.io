@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = "participation-awards";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise = null;
 
@@ -37,6 +37,10 @@ export function openDB() {
 
       if (!db.objectStoreNames.contains("sync_state")) {
         db.createObjectStore("sync_state");
+      }
+
+      if (!db.objectStoreNames.contains("routes")) {
+        db.createObjectStore("routes", { keyPath: "id", autoIncrement: true });
       }
 
       // Migration from v1 → v2: add power indexes to existing activities store
@@ -369,10 +373,36 @@ export async function updateSyncState(updates) {
   });
 }
 
+// --- Routes (#59) ---
+
+export async function putRoutes(routes) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("routes", "readwrite");
+    const store = tx.objectStore("routes");
+    store.clear(); // Replace all routes each time
+    for (const route of routes) {
+      store.put(route);
+    }
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function getAllRoutes() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("routes", "readonly");
+    const req = tx.objectStore("routes").getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
 export async function clearAllData() {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const storeNames = ["auth", "activities", "segments", "sync_state"];
+    const storeNames = ["auth", "activities", "segments", "sync_state", "routes"];
     const tx = db.transaction(storeNames, "readwrite");
     for (const name of storeNames) {
       tx.objectStore(name).clear();
