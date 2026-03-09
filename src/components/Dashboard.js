@@ -60,11 +60,12 @@ const resetDate = signal("");
 const referencePoints = signal([]);
 const showRefForm = signal(false);
 const refType = signal("since_date");
+const pendingCount = signal(0);
 const refLabel = signal("");
 const refDate = signal("");
-const refCount = signal(10);
+const refCount = signal("10");
 const refBirthday = signal("");
-const refAge = signal(40);
+const refAge = signal("40");
 
 const AWARD_LABELS = {
   season_first:       { label: "Season First",      dot: "#3D7A4A", bg: "#E8F2E6", text: "#1E4D28", border: "#C0D8B8" },
@@ -128,6 +129,10 @@ async function loadDashboard() {
     // Check sync completion state
     const state = await getSyncState();
     backfillComplete.value = state.backfill_complete;
+
+    // Count activities awaiting detail fetch (no efforts yet)
+    const pending = await getActivitiesWithoutEfforts();
+    pendingCount.value = pending.length;
 
     // Always compute awards for activities that have efforts — even during
     // backfill. As more data syncs across sessions, segment histories grow
@@ -273,7 +278,7 @@ export function Dashboard() {
                 ${syncing && html`
                   <div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                 `}
-                ${syncing ? "Syncing..." : "Sync Now"}
+                ${syncing ? "Syncing..." : html`Sync Now${pendingCount.value > 0 ? html`\u00a0<span class="bg-blue-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">${pendingCount.value}</span>` : ""}`}
               </button>
             `}
             <button
@@ -517,7 +522,10 @@ export function Dashboard() {
                     ["elevation_record", "Most Climbing", "Most elevation gain in a single ride this year."],
                     ["segment_count", "Most Segments", "Most segments hit in a single ride this year."],
                     ["endurance_record", "Longest by Time", "Longest ride by moving time this year — your biggest endurance effort."],
-                    ["reference_best", "Reference Best", "Best effort within a user-defined window — since a date, in last N rides, or since turning an age. Configure in settings below."],
+                    ["reference_best", "Reference Best", "Best effort within a user-defined window — since a date, in last N efforts, or since turning an age. Configure in settings below."],
+                    ["comeback_pb", "Comeback PB", "Post-injury personal best on a segment. Only appears when Comeback Mode is active."],
+                    ["recovery_milestone", "Recovery", "You've reached 80%, 90%, or 95% of your pre-injury best on a segment."],
+                    ["comeback_full", "You're Back!", "You've matched or beaten your pre-injury best. Full recovery on this segment."],
                   ].map(([type, label, desc]) => {
                     const al = AWARD_LABELS[type];
                     return html`
@@ -580,6 +588,19 @@ export function Dashboard() {
                 </summary>
                 <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
                   Power is shown for rides with a power meter (measured watts only — estimated power is excluded). Average watts appear in ride summaries and per-segment details. YTD Power awards compare your power output by date across years.
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer text-sm font-medium text-gray-700 hover:text-gray-900">
+                  Comeback Mode vs Reference Points?
+                  <svg class="w-4 h-4 text-gray-400 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 text-sm text-gray-600 space-y-2">
+                  <p>Both track progress from a point in time, but they serve different purposes:</p>
+                  <p><strong class="text-rose-700">Comeback Mode</strong> is for injury recovery. It shields you from demoralizing comparisons to your pre-injury self. While you're rebuilding, awards like Year Best and Top Quartile are temporarily hidden — replaced by recovery milestones (80%, 90%, 95%) and a "You're Back!" celebration when you match your old form. One active at a time.</p>
+                  <p><strong class="text-teal-700">Reference Points</strong> are lightweight personal markers — "since I got my new bike", "last 20 efforts", "since turning 50". They add "best since" awards without changing how other awards work. Stack as many as you like.</p>
+                  <p class="text-xs text-gray-400">In short: Comeback Mode protects; Reference Points observe.</p>
                 </div>
               </details>
             </div>
@@ -661,7 +682,7 @@ export function Dashboard() {
                     >
                       Set a reset date (injury recovery)
                     </button>
-                    <p class="text-xs mt-1" style="color: var(--border);">Awards will adjust to celebrate your recovery progress instead of comparing to pre-injury bests.</p>
+                    <p class="text-xs mt-1" style="color: var(--border);">Hides demoralizing comparisons while you rebuild. Tracks recovery milestones toward your pre-injury best.</p>
                   `}
                 `}
               </div>
@@ -671,7 +692,7 @@ export function Dashboard() {
               <!-- Reference Points Settings -->
               <div>
                 <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Reference Points</p>
-                <p class="text-xs mb-2" style="color: var(--text-tertiary);">Custom "best since" awards — compare your efforts within a personal time window.</p>
+                <p class="text-xs mb-2" style="color: var(--text-tertiary);">Lightweight "best since" markers — track progress from a date, last N efforts, or an age. Doesn't change other awards.</p>
 
                 ${referencePoints.value.length > 0 && html`
                   <div class="space-y-1.5 mb-2">
@@ -681,7 +702,7 @@ export function Dashboard() {
                           <p class="text-xs font-medium" style="color: var(--text);">${rp.label}</p>
                           <p class="text-xs" style="color: var(--text-secondary);">
                             ${rp.type === "since_date" ? `Since ${new Date(rp.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}` : ""}
-                            ${rp.type === "last_n" ? `Last ${rp.count} rides` : ""}
+                            ${rp.type === "last_n" ? `Last ${rp.count} efforts` : ""}
                             ${rp.type === "since_age" ? `Since turning ${rp.age} (${new Date(rp.birthday).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })})` : ""}
                           </p>
                         </div>
@@ -709,20 +730,20 @@ export function Dashboard() {
                       onChange=${(e) => {
                         refType.value = e.target.value;
                         if (e.target.value === "since_date") refLabel.value = "";
-                        if (e.target.value === "last_n") refLabel.value = "last " + refCount.value + " rides";
+                        if (e.target.value === "last_n") refLabel.value = "last " + refCount.value + " efforts";
                         if (e.target.value === "since_age") refLabel.value = "";
                       }}
                       class="w-full text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1"
                       style="border: 1px solid var(--border); font-family: var(--font-body); background: var(--surface);"
                     >
                       <option value="since_date">Best since date</option>
-                      <option value="last_n">Best in last N rides</option>
+                      <option value="last_n">Best in last N efforts</option>
                       <option value="since_age">Best since turning age</option>
                     </select>
 
                     <input
                       type="text"
-                      placeholder=${refType.value === "since_date" ? "Label (e.g. Since new bike)" : refType.value === "last_n" ? "Label (e.g. Last 10 rides)" : "Label (e.g. Since turning 40)"}
+                      placeholder=${refType.value === "since_date" ? "Label (e.g. Since new bike)" : refType.value === "last_n" ? "Label (e.g. Last 10 efforts)" : "Label (e.g. Since turning 40)"}
                       value=${refLabel.value}
                       onInput=${(e) => { refLabel.value = e.target.value; }}
                       class="w-full text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1" style="border: 1px solid var(--border); font-family: var(--font-body);"
@@ -744,10 +765,10 @@ export function Dashboard() {
                           min="2"
                           max="100"
                           value=${refCount.value}
-                          onInput=${(e) => { refCount.value = parseInt(e.target.value) || 10; }}
+                          onInput=${(e) => { refCount.value = e.target.value; }}
                           class="w-20 text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1" style="border: 1px solid var(--border); font-family: var(--font-mono);"
                         />
-                        <span class="text-xs" style="color: var(--text-secondary);">rides per segment</span>
+                        <span class="text-xs" style="color: var(--text-secondary);">efforts per segment</span>
                       </div>
                     `}
 
@@ -769,7 +790,7 @@ export function Dashboard() {
                             min="1"
                             max="120"
                             value=${refAge.value}
-                            onInput=${(e) => { refAge.value = parseInt(e.target.value) || 40; }}
+                            onInput=${(e) => { refAge.value = e.target.value; }}
                             class="w-20 text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1" style="border: 1px solid var(--border); font-family: var(--font-mono);"
                           />
                         </div>
@@ -786,11 +807,11 @@ export function Dashboard() {
                             if (!refDate.value) return;
                             rp.date = refDate.value;
                           } else if (refType.value === "last_n") {
-                            rp.count = refCount.value;
+                            rp.count = parseInt(refCount.value) || 10;
                           } else if (refType.value === "since_age") {
-                            if (!refBirthday.value || !refAge.value) return;
+                            if (!refBirthday.value || !parseInt(refAge.value)) return;
                             rp.birthday = refBirthday.value;
-                            rp.age = refAge.value;
+                            rp.age = parseInt(refAge.value);
                           }
                           const updated = [...referencePoints.value, rp];
                           referencePoints.value = updated;
@@ -801,9 +822,9 @@ export function Dashboard() {
                           refType.value = "since_date";
                           await loadDashboard();
                         }}
-                        disabled=${!refLabel.value.trim() || (refType.value === "since_date" && !refDate.value) || (refType.value === "since_age" && (!refBirthday.value || !refAge.value))}
+                        disabled=${!refLabel.value.trim() || (refType.value === "since_date" && !refDate.value) || (refType.value === "since_age" && (!refBirthday.value || !parseInt(refAge.value)))}
                         class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
-                        style=${refLabel.value.trim() && (refType.value !== "since_date" || refDate.value) && (refType.value !== "since_age" || (refBirthday.value && refAge.value))
+                        style=${refLabel.value.trim() && (refType.value !== "since_date" || refDate.value) && (refType.value !== "since_age" || (refBirthday.value && parseInt(refAge.value)))
                           ? "background: var(--accent); color: white;"
                           : "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"}
                       >

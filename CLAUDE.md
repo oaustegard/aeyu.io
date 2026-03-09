@@ -6,6 +6,18 @@ A 100% client-side cycling awards app. Connects to Strava via OAuth, syncs activ
 
 **No backend stores user data.** The only server component is a Cloudflare Worker (`worker/`) that proxies OAuth token exchange (Strava requires server-side client_secret). All data lives in the user's browser.
 
+## Code Navigation
+
+**Read `_MAP.md` files before reading source files.** Every directory has a `_MAP.md` showing all exported functions with signatures, classes, imports, and line numbers. Start with the root `_MAP.md`, follow links to subdirectory maps, and only open source files when you need implementation details. This avoids reading thousands of lines to find a function signature.
+
+```
+_MAP.md              → root overview, subdirectory links
+src/_MAP.md          → all src modules with exports and signatures
+src/components/_MAP.md → component exports
+worker/_MAP.md       → worker endpoints
+test/_MAP.md         → harness functions
+```
+
 ## Tech Stack
 
 - **Preact + HTM + Signals** — no build step, ESM imports from esm.sh CDN
