@@ -6,7 +6,7 @@ Generates realistic Strava mock data with deterministic scenarios that
 guarantee every award type fires. Serves the app locally, injects data
 into IndexedDB via Playwright, runs an awards audit, and takes screenshots.
 
-Award coverage (26 types):
+Award coverage (33 types):
   Segment-level: year_best, season_first, recent_best, beat_median,
     top_quartile, top_decile, consistency, monthly_best, improvement_streak,
     comeback, milestone, best_month_ever, closing_in, anniversary,
@@ -14,6 +14,8 @@ Award coverage (26 types):
   Comeback: comeback_pb, recovery_milestone, comeback_full
   Ride-level: distance_record, elevation_record, segment_count,
     endurance_record, comeback_distance, comeback_elevation, comeback_endurance
+  Power (#45): season_first_power, np_year_best, np_recent_best,
+    work_year_best, work_recent_best, peak_power, peak_power_recent
 
 Data quality rules tested:
   - Min 3 efforts gate
@@ -179,6 +181,19 @@ def make_ride(dt, efforts_data, seg_efforts_store, name=None, extra_dist=0,
         act["average_watts"] = avg_watts or int(sum(
             e.get("average_watts", 0) for e in efforts if e.get("average_watts")
         ) / max(1, sum(1 for e in efforts if e.get("average_watts"))))
+        # Normalized Power is typically ~5-10% above average watts
+        act["weighted_average_watts"] = int(act["average_watts"] * random.uniform(1.04, 1.12))
+        # Max watts: sprint peaks, typically 2-4x average
+        act["max_watts"] = int(act["average_watts"] * random.uniform(2.0, 3.5))
+        # Kilojoules ≈ average_watts * moving_time_hours * 3.6
+        act["kilojoules"] = round(act["average_watts"] * act["moving_time"] / 1000 * random.uniform(0.95, 1.05), 1)
+    else:
+        act["device_watts"] = False
+        act["average_watts"] = None
+        act["weighted_average_watts"] = None
+        act["max_watts"] = None
+        act["kilojoules"] = None
+    act["trainer"] = False
     return act, aid
 
 
@@ -340,6 +355,57 @@ def generate_mock_data(seed=42):
                            device_watts=True, avg_watts=watts)
         activities.append(act)
 
+    # --- Scenario E: Power Awards (#45) ---
+    # Need 5+ powered activities same sport/year for year-best awards.
+    # Random history already provides many powered rides; add explicit
+    # March 2026 powered rides with escalating NP/kJ/peak to guarantee awards.
+    # First, ensure a strong recent-best baseline via 4 powered rides.
+    power_baseline = [
+        (datetime(2026, 3, 1, 8, 0),  200, 500, 350),   # NP, kJ, peak
+        (datetime(2026, 3, 2, 8, 0),  210, 520, 360),
+        (datetime(2026, 3, 3, 8, 0),  205, 510, 355),
+        (datetime(2026, 3, 4, 8, 0),  215, 530, 365),
+    ]
+    for dt, np_w, kj, peak in power_baseline:
+        avg_w = int(np_w / 1.08)
+        act, _ = make_ride(dt,
+            [(seg_by_id(100002), 88, True, avg_w), (seg_by_id(100006), 63, True, avg_w)],
+            seg_efforts, name="Power Baseline",
+            device_watts=True, avg_watts=avg_w)
+        # Override computed power fields with deterministic values
+        act["weighted_average_watts"] = np_w
+        act["kilojoules"] = kj
+        act["max_watts"] = peak
+        activities.append(act)
+
+    # Season First Power: first powered GravelRide of 2026
+    # (Random history only generates "Ride" sport_type, so GravelRide is clean)
+    dt_sfp = datetime(2026, 3, 5, 9, 0)
+    act_sfp, _ = make_ride(dt_sfp,
+        [(seg_by_id(100004), 370, True, 195)],
+        seg_efforts, name="Gravel Opener",
+        device_watts=True, avg_watts=195)
+    act_sfp["sport_type"] = "GravelRide"
+    act_sfp["weighted_average_watts"] = 210
+    act_sfp["kilojoules"] = 450
+    act_sfp["max_watts"] = 550
+    activities.append(act_sfp)
+
+    # The killer ride: beats all baselines + all random history
+    dt_power = datetime(2026, 3, 9, 7, 30)
+    act_power, _ = make_ride(dt_power,
+        [(seg_by_id(100001), int(seg_by_id(100001)["base_time"] * 0.88), True, 260),
+         (seg_by_id(100003), int(seg_by_id(100003)["base_time"] * 0.90), True, 255),
+         (seg_by_id(100005), int(seg_by_id(100005)["base_time"] * 0.87), True, 270)],
+        seg_efforts, name="Power PR Day",
+        extra_dist=35000, extra_time=5400, extra_elev=800,
+        device_watts=True, avg_watts=250)
+    # Set extreme power values to guarantee Year Best on all power categories
+    act_power["weighted_average_watts"] = 310  # above any baseline or random
+    act_power["kilojoules"] = 1800             # massive work output
+    act_power["max_watts"] = 900               # sprint peak
+    activities.append(act_power)
+
     # --- Scenario F: Closing In on PR (River Road 100001) ---
     rr_efforts = seg_efforts.get(100001, [])
     if rr_efforts:
@@ -487,7 +553,7 @@ INJECT_JS = """(async () => {
     const DB = "participation-awards";
     await new Promise(r => { const q = indexedDB.deleteDatabase(DB); q.onsuccess = r; q.onerror = r; });
     const db = await new Promise((res, rej) => {
-        const q = indexedDB.open(DB, 1);
+        const q = indexedDB.open(DB, 2);
         q.onupgradeneeded = e => {
             const d = e.target.result;
             if (!d.objectStoreNames.contains("auth")) d.createObjectStore("auth");
@@ -495,6 +561,8 @@ INJECT_JS = """(async () => {
                 const s = d.createObjectStore("activities", { keyPath: "id" });
                 s.createIndex("start_date_local", "start_date_local");
                 s.createIndex("sport_type", "sport_type");
+                s.createIndex("device_watts", "device_watts");
+                s.createIndex("trainer", "trainer");
             }
             if (!d.objectStoreNames.contains("segments")) {
                 const s = d.createObjectStore("segments", { keyPath: "id" });
@@ -572,6 +640,8 @@ AUDIT_JS = """(async () => {
         "distance_record", "elevation_record", "segment_count",
         "endurance_record",
         "comeback_distance", "comeback_elevation", "comeback_endurance",
+        "season_first_power", "np_year_best", "np_recent_best",
+        "work_year_best", "work_recent_best", "peak_power", "peak_power_recent",
     ];
 
     const found = Object.keys(typeCounts);
