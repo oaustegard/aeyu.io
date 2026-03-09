@@ -114,6 +114,9 @@ function toActivitySummary(a) {
     device_watts: a.device_watts || false,
     kilojoules: a.kilojoules || null,
     trainer: a.trainer || false,
+    // Group ride detection fields (#58)
+    start_latlng: a.start_latlng || null,
+    athlete_count: a.athlete_count || 1,
     has_efforts: false,
     segment_efforts: [],
   };
@@ -267,6 +270,9 @@ async function fetchActivityDetails() {
         device_watts: full.device_watts || activity.device_watts || false,
         kilojoules: full.kilojoules || activity.kilojoules || null,
         trainer: full.trainer || activity.trainer || false,
+        // Group ride detection fields (#58)
+        start_latlng: full.start_latlng || activity.start_latlng || null,
+        athlete_count: full.athlete_count || activity.athlete_count || 1,
       };
 
       await putActivity(updated);
@@ -690,6 +696,8 @@ export async function resyncActivity(activityId) {
     device_watts: full.device_watts || false,
     kilojoules: full.kilojoules || null,
     trainer: full.trainer || false,
+    start_latlng: full.start_latlng || existing.start_latlng || null,
+    athlete_count: full.athlete_count || existing.athlete_count || 1,
     has_efforts: true,
     segment_efforts: efforts,
   };
