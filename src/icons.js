@@ -280,6 +280,28 @@ const ICON_DEFS = {
     { type: "polygon", points: [[4,20],[3,22],[5,22]] },                  // small bolt at origin
   ],
 
+  // 🌱⚡ Season First Power — sprouting seedling with bolt
+  season_first_power: [
+    { type: "path", d: "M12 22V12" },
+    { type: "path", d: "M8 8c0-3 4-6 4-6s4 3 4 6c0 2.5-1.8 4-4 4S8 10.5 8 8z" },
+    { type: "polygon", points: [[19,3],[16,8],[18,8],[17,11],[20,6],[18,6]], strokeWidth: 0.8 },
+  ],
+
+  // ↗⊙ Work Recent Best — gauge with trend arrow
+  work_recent_best: [
+    { type: "circle", cx: 12, cy: 13, r: 9 },
+    { type: "path", d: "M12 13L16 8" },                                   // needle
+    { type: "circle", cx: 12, cy: 13, r: 1.5 },
+    { type: "polyline", points: [[16,5],[22,5],[22,11]] },                 // trend corner
+  ],
+
+  // ⚡↗ Peak Power Recent — bolt with trend
+  peak_power_recent: [
+    { type: "polygon", points: [[11,2],[3,12],[10,12],[9,19],[17,9],[10,9]] },  // bolt
+    { type: "polyline", points: [[17,4],[22,4],[22,9]] },                        // trend corner
+    { type: "line", x1: 22, y1: 4, x2: 17, y2: 9 },                           // trend diagonal
+  ],
+
   // ≡W Power Consistency — steady watt lines (low variance)
   power_consistency: [
     { type: "path", d: "M2 10c2-1 4-1 6 0s4 1 6 0 4-1 6 0" },           // gentle wave

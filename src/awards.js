@@ -33,6 +33,15 @@
  *   - Endurance Record: Longest moving time this year (#31)
  *   - Comeback Distance/Elevation/Endurance: Post-reset records (#60)
  *
+ * Activity-level power awards (Phase 1, #45):
+ *   - Season First Power: First power-metered ride of the year
+ *   - NP Year Best: Year's highest normalized power (weighted avg watts)
+ *   - NP Recent Best: Best NP among last 5 powered rides
+ *   - Work Year Best: Highest kilojoules in a single ride this year
+ *   - Work Recent Best: Best work output among last 5 powered rides
+ *   - Peak Power: Highest max watts recorded this year
+ *   - Peak Power Recent: Best peak power among last 5 powered rides
+ *
  * Data quality rules:
  *   - Minimum effort threshold: comparative awards (Year Best, Recent Best,
  *     Beat Median, Top Quartile, Monthly Best, YTD Best) require ≥3 total efforts.
@@ -863,6 +872,35 @@ export function computeRideLevelAwards(activity, allActivities, resetEvent = nul
       a.id !== activity.id
   );
 
+  // --- Season First Power (exempt from min-activity gate, like season_first) ---
+  if (activity.device_watts && activity.weighted_average_watts > 0) {
+    const poweredSameTypeThisYear = sameTypeThisYear.filter(
+      (a) => a.device_watts && a.weighted_average_watts > 0
+    );
+    if (poweredSameTypeThisYear.length === 0) {
+      const priorYearsPowered = allActivities.filter(
+        (a) =>
+          a.sport_type === activity.sport_type &&
+          a.device_watts &&
+          a.weighted_average_watts > 0 &&
+          new Date(a.start_date_local).getFullYear() < currentYear
+      );
+      const label = activity.sport_type === "Ride" ? "ride" : "activity";
+      awards.push({
+        type: "season_first_power",
+        segment: null,
+        segment_id: null,
+        time: null,
+        power: activity.weighted_average_watts,
+        comparison: null,
+        delta: null,
+        message: priorYearsPowered.length > 0
+          ? `First power-metered ${label} of the year! Welcome back to the pain cave — ${Math.round(activity.weighted_average_watts)}W NP`
+          : `First power-metered ${label} of the year! ${Math.round(activity.weighted_average_watts)}W NP`,
+      });
+    }
+  }
+
   // Need at least 5 prior activities this year to make records meaningful
   if (sameTypeThisYear.length < 5) return awards;
 
@@ -937,6 +975,157 @@ export function computeRideLevelAwards(activity, allActivities, resetEvent = nul
         delta: null,
         message: `Longest ${label} by time this year! ${formatTime(activity.moving_time)} moving time`,
       });
+    }
+  }
+
+  // ── Activity-Level Power Awards (Phase 1, #45) ──────────────────
+  // All require device_watts === true (measured power, not estimated).
+  // Compared within same sport_type to respect different power profiles.
+  // (Season First Power is computed above, before the min-activity gate.)
+  if (activity.device_watts && activity.weighted_average_watts > 0) {
+    const poweredSameTypeThisYear = sameTypeThisYear.filter(
+      (a) => a.device_watts && a.weighted_average_watts > 0
+    );
+
+    // Power awards require 5+ prior powered activities (same threshold as other ride-level)
+    if (poweredSameTypeThisYear.length >= 5) {
+      const activityDate = new Date(activity.start_date_local);
+      const afterCalendarGate = (activityDate.getMonth() + 1) >= YEAR_BEST_CALENDAR_GATE_MONTH;
+
+      // --- NP Year Best ---
+      // Year's highest weighted average watts (normalized power)
+      if (afterCalendarGate) {
+        const maxPriorNP = Math.max(
+          ...poweredSameTypeThisYear.map((a) => a.weighted_average_watts)
+        );
+        if (activity.weighted_average_watts > maxPriorNP) {
+          awards.push({
+            type: "np_year_best",
+            segment: null,
+            segment_id: null,
+            time: null,
+            power: activity.weighted_average_watts,
+            comparison: null,
+            delta: Math.round(activity.weighted_average_watts - maxPriorNP),
+            message: `Year's best Normalized Power! ${Math.round(activity.weighted_average_watts)}W NP — ${Math.round(activity.weighted_average_watts - maxPriorNP)}W above previous best`,
+          });
+        }
+      }
+
+      // --- Work/Energy Year Best ---
+      // Highest kilojoules in a single ride this year
+      if (afterCalendarGate && activity.kilojoules > 0) {
+        const poweredWithKJ = poweredSameTypeThisYear.filter((a) => a.kilojoules > 0);
+        if (poweredWithKJ.length >= 5) {
+          const maxPriorKJ = Math.max(...poweredWithKJ.map((a) => a.kilojoules));
+          if (activity.kilojoules > maxPriorKJ) {
+            awards.push({
+              type: "work_year_best",
+              segment: null,
+              segment_id: null,
+              time: null,
+              power: activity.weighted_average_watts,
+              comparison: null,
+              delta: Math.round(activity.kilojoules - maxPriorKJ),
+              message: `Year's highest work output! ${Math.round(activity.kilojoules)} kJ — ${Math.round(activity.kilojoules - maxPriorKJ)} kJ above previous best`,
+            });
+          }
+        }
+      }
+
+      // --- Peak Power Year Best ---
+      // Highest max watts recorded this year
+      if (afterCalendarGate && activity.max_watts > 0) {
+        const poweredWithMax = poweredSameTypeThisYear.filter((a) => a.max_watts > 0);
+        if (poweredWithMax.length >= 5) {
+          const maxPriorPeak = Math.max(...poweredWithMax.map((a) => a.max_watts));
+          if (activity.max_watts > maxPriorPeak) {
+            awards.push({
+              type: "peak_power",
+              segment: null,
+              segment_id: null,
+              time: null,
+              power: activity.max_watts,
+              comparison: null,
+              delta: activity.max_watts - maxPriorPeak,
+              message: `Year's highest peak power! ${activity.max_watts}W — ${activity.max_watts - maxPriorPeak}W above previous best`,
+            });
+          }
+        }
+      }
+    }
+
+    // --- NP Recent Best ---
+    // Best normalized power among last 5 powered rides (same sport type)
+    const allPoweredSameType = allActivities
+      .filter(
+        (a) =>
+          a.sport_type === activity.sport_type &&
+          a.device_watts &&
+          a.weighted_average_watts > 0 &&
+          a.id !== activity.id
+      )
+      .sort((a, b) => b.start_date_local.localeCompare(a.start_date_local));
+    const recentPowered = allPoweredSameType.slice(0, 4); // last 4 others + this = 5
+
+    if (recentPowered.length >= 3) {
+      const bestRecentNP = Math.max(...recentPowered.map((a) => a.weighted_average_watts));
+      if (activity.weighted_average_watts > bestRecentNP) {
+        awards.push({
+          type: "np_recent_best",
+          segment: null,
+          segment_id: null,
+          time: null,
+          power: activity.weighted_average_watts,
+          comparison: null,
+          delta: Math.round(activity.weighted_average_watts - bestRecentNP),
+          message: `Best NP of your last ${recentPowered.length + 1} powered ${activity.sport_type === "Ride" ? "rides" : "activities"}! ${Math.round(activity.weighted_average_watts)}W`,
+        });
+      }
+    }
+
+    // --- Work/Energy Recent Best ---
+    if (activity.kilojoules > 0) {
+      const recentWithKJ = allPoweredSameType
+        .filter((a) => a.kilojoules > 0)
+        .slice(0, 4);
+      if (recentWithKJ.length >= 3) {
+        const bestRecentKJ = Math.max(...recentWithKJ.map((a) => a.kilojoules));
+        if (activity.kilojoules > bestRecentKJ) {
+          awards.push({
+            type: "work_recent_best",
+            segment: null,
+            segment_id: null,
+            time: null,
+            power: activity.weighted_average_watts,
+            comparison: null,
+            delta: Math.round(activity.kilojoules - bestRecentKJ),
+            message: `Best work output of your last ${recentWithKJ.length + 1} powered ${activity.sport_type === "Ride" ? "rides" : "activities"}! ${Math.round(activity.kilojoules)} kJ`,
+          });
+        }
+      }
+    }
+
+    // --- Peak Power Recent Best ---
+    if (activity.max_watts > 0) {
+      const recentWithMax = allPoweredSameType
+        .filter((a) => a.max_watts > 0)
+        .slice(0, 4);
+      if (recentWithMax.length >= 3) {
+        const bestRecentPeak = Math.max(...recentWithMax.map((a) => a.max_watts));
+        if (activity.max_watts > bestRecentPeak) {
+          awards.push({
+            type: "peak_power_recent",
+            segment: null,
+            segment_id: null,
+            time: null,
+            power: activity.max_watts,
+            comparison: null,
+            delta: activity.max_watts - bestRecentPeak,
+            message: `Best peak power of your last ${recentWithMax.length + 1} powered ${activity.sport_type === "Ride" ? "rides" : "activities"}! ${activity.max_watts}W`,
+          });
+        }
+      }
     }
   }
 

@@ -63,6 +63,14 @@ const AWARD_LABELS = {
   comeback_elevation: { label: "Comeback Climbing", color: "bg-rose-100 text-rose-800", icon: "⛰" },
   comeback_endurance: { label: "Comeback Endurance", color: "bg-rose-100 text-rose-800", icon: "⏱" },
   reference_best: { label: "Reference Best", color: "bg-teal-200 text-teal-900", icon: "⊕" },
+  // Activity-level power awards (#45)
+  season_first_power: { label: "First Power Ride", color: "bg-green-200 text-green-900", icon: "⚡" },
+  np_year_best: { label: "NP Year Best", color: "bg-red-200 text-red-900", icon: "⚡" },
+  np_recent_best: { label: "NP Recent Best", color: "bg-red-100 text-red-800", icon: "⚡" },
+  work_year_best: { label: "Work Year Best", color: "bg-orange-200 text-orange-900", icon: "⊙" },
+  work_recent_best: { label: "Work Recent Best", color: "bg-orange-100 text-orange-800", icon: "⊙" },
+  peak_power: { label: "Peak Power", color: "bg-yellow-200 text-yellow-900", icon: "⚡" },
+  peak_power_recent: { label: "Peak Recent", color: "bg-yellow-100 text-yellow-800", icon: "⚡" },
 };
 
 const AWARD_COLORS = {
@@ -94,6 +102,14 @@ const AWARD_COLORS = {
   comeback_elevation: { bg: "#FFE4E6", text: "#9F1239", accent: "#F43F5E" },
   comeback_endurance: { bg: "#FFE4E6", text: "#9F1239", accent: "#F43F5E" },
   reference_best:     { bg: "#99F6E4", text: "#134E4A", accent: "#14B8A6" },
+  // Activity-level power awards (#45)
+  season_first_power: { bg: "#BBF7D0", text: "#14532D", accent: "#16A34A" },
+  np_year_best:       { bg: "#FECACA", text: "#7F1D1D", accent: "#DC2626" },
+  np_recent_best:     { bg: "#FEE2E2", text: "#991B1B", accent: "#EF4444" },
+  work_year_best:     { bg: "#FED7AA", text: "#7C2D12", accent: "#EA580C" },
+  work_recent_best:   { bg: "#FFEDD5", text: "#9A3412", accent: "#F97316" },
+  peak_power:         { bg: "#FDE68A", text: "#78350F", accent: "#D97706" },
+  peak_power_recent:  { bg: "#FEF9C3", text: "#854D0E", accent: "#EAB308" },
 };
 
 async function loadActivity(id) {

@@ -93,6 +93,14 @@ const AWARD_LABELS = {
   comeback_elevation: { label: "Comeback Climbing", color: "bg-rose-100 text-rose-800" },
   comeback_endurance: { label: "Comeback Endurance", color: "bg-rose-100 text-rose-800" },
   reference_best: { label: "Reference Best", color: "bg-teal-200 text-teal-900" },
+  // Activity-level power awards (#45)
+  season_first_power: { label: "First Power Ride", color: "bg-green-200 text-green-900" },
+  np_year_best: { label: "NP Year Best", color: "bg-red-200 text-red-900" },
+  np_recent_best: { label: "NP Recent Best", color: "bg-red-100 text-red-800" },
+  work_year_best: { label: "Work Year Best", color: "bg-orange-200 text-orange-900" },
+  work_recent_best: { label: "Work Recent Best", color: "bg-orange-100 text-orange-800" },
+  peak_power: { label: "Peak Power", color: "bg-yellow-200 text-yellow-900" },
+  peak_power_recent: { label: "Peak Recent", color: "bg-yellow-100 text-yellow-800" },
 };
 
 async function loadDashboard() {
