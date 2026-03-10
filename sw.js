@@ -1,10 +1,10 @@
 /**
  * aeyu.io Service Worker
- * Strategy: Network-first for app shell (fast deploys), cache-first for CDN assets.
+ * Strategy: Network-first for app shell (fast deploys), all deps vendored locally.
  * All Strava data lives in IndexedDB — SW just needs to serve the app offline.
  */
 
-const CACHE_NAME = "aeyu-v8";
+const CACHE_NAME = "aeyu-v9";
 
 const APP_SHELL = [
   "/",
@@ -31,11 +31,16 @@ const APP_SHELL = [
   "/src/components/SyncProgress.js",
   "/src/components/ActivityDetail.js",
   "/src/components/InstallBanner.js",
+  "/vendor/preact.mjs",
+  "/vendor/hooks.mjs",
+  "/vendor/signals.mjs",
+  "/vendor/signals-core.mjs",
+  "/vendor/htm.mjs",
+  "/vendor/htm-preact.mjs",
+  "/vendor/tailwind.css",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
 ];
-
-const CDN_HOSTS = ["cdn.tailwindcss.com", "esm.sh"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -65,22 +70,6 @@ self.addEventListener("fetch", (event) => {
     url.hostname.includes("strava.com") ||
     url.hostname.includes("workers.dev")
   ) {
-    return;
-  }
-
-  // CDN assets: cache-first (these are versioned by URL, rarely change)
-  if (CDN_HOSTS.some((h) => url.hostname.includes(h))) {
-    event.respondWith(
-      caches.open(CACHE_NAME).then((cache) =>
-        cache.match(event.request).then((cached) => {
-          const fetched = fetch(event.request).then((response) => {
-            if (response.ok) cache.put(event.request, response.clone());
-            return response;
-          });
-          return cached || fetched;
-        })
-      )
-    );
     return;
   }
 

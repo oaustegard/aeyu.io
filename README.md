@@ -140,7 +140,7 @@ Testing
 
 **No backend stores user data.** Privacy by architecture. Your Strava data never leaves your browser. The worker only touches OAuth tokens in transit.
 
-**No build step.** Edit a JS file, push, done. Import maps resolve Preact/HTM/Signals from `esm.sh`. Tailwind loads from CDN. This keeps the development loop as simple as possible.
+**No build step.** Edit a JS file, push, done. Preact/HTM/Signals are vendored ESM bundles in `vendor/`. Tailwind CSS is pre-built via `npx @tailwindcss/cli -i vendor/tailwind-input.css -o vendor/tailwind.css --minify` (regenerate when adding new utility classes).
 
 **Resumable sync.** Strava rate limits are real. Sync state persists in IndexedDB so backfill can span multiple sessions without re-fetching.
 
