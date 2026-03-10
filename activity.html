@@ -45,7 +45,7 @@
       {
         "imports": {
           "preact": "/vendor/preact.mjs",
-          "preact/": "/vendor/",
+          "preact/hooks": "/vendor/hooks.mjs",
           "@preact/signals": "/vendor/signals.mjs",
           "htm/preact": "/vendor/htm-preact.mjs"
         }
@@ -142,7 +142,7 @@
       setTimeout(function() {
         if (!window.__appRendered) {
           var detail = !window.__appModuleLoaded
-            ? "Module failed to load (CDN or network issue)"
+            ? "Module failed to load (missing vendor file or import error)"
             : "App loaded but failed to render";
           showLoadError(detail);
         }
@@ -151,7 +151,7 @@
       setTimeout(function() {
         if (!window.__appRendered) {
           var detail = !window.__appModuleLoaded
-            ? "Module failed to load — CDN may be unreachable"
+            ? "Module failed to load — check browser console for details"
             : "App module loaded but rendering failed";
           showLoadError(detail);
         }
