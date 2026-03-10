@@ -235,7 +235,7 @@ export function Dashboard() {
           }] : []),
           ...(!isDemo.value ? [{
             label: "Delete all data",
-            onClick: () => { showDeleteConfirm.value = true; deleteConfirmText.value = ""; },
+            onClick: () => { showSettings.value = true; showDeleteConfirm.value = true; deleteConfirmText.value = ""; },
             danger: true,
           }] : []),
         ]}
@@ -848,45 +848,6 @@ export function Dashboard() {
               </details>
             </div>
 
-            <!-- Delete confirmation dialog (triggered from avatar menu) -->
-            ${showDeleteConfirm.value && html`
-              <div class="mt-4 p-3 rounded-lg" style="background: #F6DED4; border: 1px solid #E4B8A4;">
-                <p class="text-xs mb-2" style="color: #7A2E18;">
-                  This will delete all your data from this browser. To confirm, type <span style="font-family: var(--font-mono); font-weight: 700;">delete my data</span> below.
-                </p>
-                <input
-                  type="text"
-                  value=${deleteConfirmText.value}
-                  onInput=${(e) => { deleteConfirmText.value = e.target.value; }}
-                  placeholder="delete my data"
-                  class="w-full text-xs rounded px-2 py-1.5 mb-2 focus:outline-none focus:ring-1"
-                  style="border: 1px solid #E4B8A4; font-family: var(--font-mono);"
-                />
-                <div class="flex gap-2">
-                  <button
-                    onClick=${async () => {
-                      await clearAllData();
-                      navigate("/");
-                      window.location.reload();
-                    }}
-                    disabled=${deleteConfirmText.value !== "delete my data"}
-                    class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
-                    style=${deleteConfirmText.value === "delete my data"
-                      ? "background: #A03020; color: white;"
-                      : "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"}
-                  >
-                    Delete everything
-                  </button>
-                  <button
-                    onClick=${() => { showDeleteConfirm.value = false; deleteConfirmText.value = ""; }}
-                    class="text-xs px-3 py-1.5 rounded transition-colors"
-                    style="color: var(--text-secondary);"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            `}
           </div>
         </div>
       `}
@@ -895,13 +856,13 @@ export function Dashboard() {
       ${showSettings.value && html`
         <div
           class="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm overflow-y-auto p-4 pt-16 sm:pt-24"
-          onClick=${(e) => { if (e.target === e.currentTarget) showSettings.value = false; }}
+          onClick=${(e) => { if (e.target === e.currentTarget) { showSettings.value = false; showDeleteConfirm.value = false; deleteConfirmText.value = ""; } }}
         >
           <div class="rounded-xl shadow-xl w-full max-w-lg p-6 my-4" style="background: var(--surface); border: 1px solid var(--border);">
             <div class="flex items-center justify-between mb-4">
               <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text);">Settings</h2>
               <button
-                onClick=${() => { showSettings.value = false; }}
+                onClick=${() => { showSettings.value = false; showDeleteConfirm.value = false; deleteConfirmText.value = ""; }}
                 class="text-sm transition-colors"
                 style="color: var(--text-tertiary);"
               >Close</button>
@@ -1231,6 +1192,58 @@ export function Dashboard() {
                 `}
               </div>
             </div>
+
+            ${!isDemo.value && html`
+            <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
+              <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Delete Data</p>
+              ${!showDeleteConfirm.value ? html`
+                <button
+                  onClick=${() => { showDeleteConfirm.value = true; deleteConfirmText.value = ""; }}
+                  class="text-xs transition-colors"
+                  style="color: #A03020;"
+                >
+                  Delete all data from this browser
+                </button>
+              ` : html`
+                <div class="p-3 rounded-lg" style="background: #F6DED4; border: 1px solid #E4B8A4;">
+                  <p class="text-xs mb-2" style="color: #7A2E18;">
+                    This will delete all your data from this browser. To confirm, type <span style="font-family: var(--font-mono); font-weight: 700;">delete my data</span> below.
+                  </p>
+                  <input
+                    type="text"
+                    value=${deleteConfirmText.value}
+                    onInput=${(e) => { deleteConfirmText.value = e.target.value; }}
+                    placeholder="delete my data"
+                    class="w-full text-xs rounded px-2 py-1.5 mb-2 focus:outline-none focus:ring-1"
+                    style="border: 1px solid #E4B8A4; font-family: var(--font-mono);"
+                  />
+                  <div class="flex gap-2">
+                    <button
+                      onClick=${async () => {
+                        await clearAllData();
+                        navigate("/");
+                        window.location.reload();
+                      }}
+                      disabled=${deleteConfirmText.value !== "delete my data"}
+                      class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
+                      style=${deleteConfirmText.value === "delete my data"
+                        ? "background: #A03020; color: white;"
+                        : "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"}
+                    >
+                      Delete everything
+                    </button>
+                    <button
+                      onClick=${() => { showDeleteConfirm.value = false; deleteConfirmText.value = ""; }}
+                      class="text-xs px-3 py-1.5 rounded transition-colors"
+                      style="color: var(--text-secondary);"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              `}
+            </div>
+            `}
           </div>
         </div>
       `}
