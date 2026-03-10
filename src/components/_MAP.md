@@ -15,6 +15,10 @@
 > Imports: `preact, signals, auth.js, demo.js, app.js`...
 - **Landing** (f) `()` :48
 
+### SegmentSparkline.js
+> Imports: `preact, hooks, units.js`
+- **SegmentSparkline** (f) `({ segment, currentEffortId })` :63
+
 ### SyncProgress.js
 > Imports: `preact, hooks, sync.js, auth.js, app.js`
 - **SyncProgress** (f) `()` :12

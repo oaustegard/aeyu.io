@@ -24,6 +24,7 @@ import {
 import { renderIconSVG, drawIcon } from "../icons.js";
 import { AWARD_LABELS, AWARD_COLORS } from "../award-config.js";
 import { StickyHeader } from "./StickyHeader.js";
+import { SegmentSparkline } from "./SegmentSparkline.js";
 
 const activity = signal(null);
 const awards = signal([]);
@@ -1226,6 +1227,9 @@ export function ActivityDetail({ id }) {
                   </div>
                   ${effort.pr_rank && html`
                     <div class="mt-1" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--strava);">Strava PR #${effort.pr_rank}</div>
+                  `}
+                  ${seg && seg.efforts && seg.efforts.length >= 2 && html`
+                    <${SegmentSparkline} segment=${seg} currentEffortId=${effort.id} />
                   `}
                   ${hasAwards && html`
                     <div class="flex flex-wrap gap-1 mt-2">
