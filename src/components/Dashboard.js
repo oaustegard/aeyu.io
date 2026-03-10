@@ -478,7 +478,7 @@ export function Dashboard() {
           <div class="mb-6 rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
             <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin-bottom: 1rem;">Form Indicators</h2>
 
-            <div class="grid grid-cols-1 gap-4" style="${fitnessData.value.performanceCapacity.hasData && fitnessData.value.aerobicEfficiency.hasData ? 'display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;' : ''}">
+            <div class="${fitnessData.value.performanceCapacity.hasData && fitnessData.value.aerobicEfficiency.hasData ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'grid grid-cols-1 gap-4'}">
 
               <!-- Performance Capacity -->
               ${fitnessData.value.performanceCapacity.hasData && html`
