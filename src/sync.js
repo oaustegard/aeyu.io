@@ -129,9 +129,14 @@ function toActivitySummary(a) {
 
 /**
  * Fetch a single page of activities from the Strava API.
- * Returns { summaries, hasMore, newestDate }.
+ * @param {number} page - Page number (1-based)
+ * @param {Object} opts
+ * @param {number|null} opts.afterEpoch - Strava `after` param (epoch seconds). Only used for incremental sync.
+ * @param {number|null} opts.cutoffEpoch - Client-side cutoff: discard activities before this epoch.
+ *   Used during backfill so we don't pass `after` to Strava (which changes sort order to oldest-first).
+ * Returns { summaries, hasMore, newestDate, hitCutoff }.
  */
-async function fetchActivityListPage(page, afterEpoch) {
+async function fetchActivityListPage(page, { afterEpoch = null, cutoffEpoch = null } = {}) {
   if (isRateLimited()) {
     throw new RateLimitError(900);
   }
@@ -148,19 +153,35 @@ async function fetchActivityListPage(page, afterEpoch) {
   const activities = await stravaFetch(`/athlete/activities?${params}`);
 
   if (activities.length === 0) {
-    return { summaries: [], hasMore: false, newestDate: null };
+    return { summaries: [], hasMore: false, newestDate: null, hitCutoff: false };
   }
 
-  const summaries = activities.map(toActivitySummary);
+  // Without `after`, Strava returns newest first. Apply client-side cutoff
+  // to stop at the sync window boundary without changing sort order.
+  let filtered = activities;
+  let hitCutoff = false;
+  if (cutoffEpoch && !afterEpoch) {
+    filtered = activities.filter(
+      (a) => new Date(a.start_date).getTime() / 1000 >= cutoffEpoch
+    );
+    hitCutoff = filtered.length < activities.length;
+  }
+
+  if (filtered.length === 0) {
+    return { summaries: [], hasMore: false, newestDate: null, hitCutoff: true };
+  }
+
+  const summaries = filtered.map(toActivitySummary);
   await putActivities(summaries);
 
-  // Strava returns newest first (when no `after` param); track the most recent date
-  const newestDate = activities[0].start_date;
+  // Strava returns newest first (without `after` param); track the most recent date
+  const newestDate = filtered[0].start_date;
 
   return {
     summaries,
-    hasMore: activities.length >= LIST_PAGE_SIZE,
+    hasMore: activities.length >= LIST_PAGE_SIZE && !hitCutoff,
     newestDate,
+    hitCutoff,
   };
 }
 
@@ -182,7 +203,7 @@ async function fetchAllNewActivities(lastActivityDate) {
   };
 
   while (true) {
-    const result = await fetchActivityListPage(page, afterEpoch);
+    const result = await fetchActivityListPage(page, { afterEpoch });
     if (result.summaries.length === 0) break;
 
     allNew.push(...result.summaries);
@@ -198,8 +219,11 @@ async function fetchAllNewActivities(lastActivityDate) {
   }
 
   // Update last_activity_fetch if we found newer activities
+  // Note: with `after` param, Strava may not return newest first,
+  // so find the actual newest date across all results
   if (allNew.length > 0) {
-    const newestDate = allNew[0].start_date; // Strava returns newest first
+    const newestDate = allNew.reduce((latest, a) =>
+      !latest || a.start_date > latest ? a.start_date : latest, null);
     const state = await getSyncState();
     const currentNewest = state.last_activity_fetch;
     if (!currentNewest || newestDate > currentNewest) {
@@ -458,8 +482,8 @@ export async function startBackfill() {
       let lastActivityDate = state.last_activity_fetch;
       let totalFetched = 0;
 
-      // Apply sync window cutoff (#111) — Strava `after` param is epoch seconds
-      // Default to 3 years on first backfill if no preference set
+      // Apply sync window cutoff (#111) — used as client-side filter (not Strava `after` param)
+      // so that Strava returns newest activities first. Default to 3 years on first backfill.
       let syncAfterEpoch = state.sync_after_epoch;
       if (syncAfterEpoch === null && page === 1) {
         syncAfterEpoch = Math.floor(Date.now() / 1000 - 3 * 365.25 * 24 * 3600);
@@ -479,7 +503,7 @@ export async function startBackfill() {
           message: `Fetching activities ${windowLabel} (page ${page})...`,
         };
 
-        const result = await fetchActivityListPage(page, syncAfterEpoch);
+        const result = await fetchActivityListPage(page, { cutoffEpoch: syncAfterEpoch });
 
         if (result.summaries.length === 0) break;
 
