@@ -503,7 +503,7 @@ export function Dashboard() {
                 <div class="rounded-lg p-4" style="background: var(--bg); border: 1px solid var(--border);">
                   <div class="flex items-center gap-2 mb-2">
                     <span class="group relative cursor-help" style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary);">Performance Capacity
-                      <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 text-white text-xs rounded px-3 py-2 whitespace-nowrap z-10" style="background: var(--text); font-family: var(--font-body); bottom: 100%; margin-bottom: 0.5rem;">What your body can produce — climb power vs. your history</span>
+                      <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 text-white text-xs rounded px-3 py-2 z-10" style="background: var(--text); font-family: var(--font-body); bottom: 100%; margin-bottom: 0.5rem; white-space: normal; width: 220px; text-align: center;">0-100 score from your climb segments. Bars show each climb\u2019s percentile vs. your all-time history (last 90 days, recency-weighted).</span>
                     </span>
                     ${fitnessData.value.performanceCapacity.trend != null && html`
                       <span style="font-size: 0.75rem; color: ${fitnessData.value.performanceCapacity.trend > 2 ? '#3D7A4A' : fitnessData.value.performanceCapacity.trend < -2 ? '#A05060' : 'var(--text-tertiary)'};">
@@ -511,17 +511,24 @@ export function Dashboard() {
                       </span>
                     `}
                   </div>
-                  <div style="font-family: var(--font-display); font-size: 2rem; color: var(--text);">${fitnessData.value.performanceCapacity.score}</div>
-                  <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem;">
-                    from ${fitnessData.value.performanceCapacity.segments.length} climb${fitnessData.value.performanceCapacity.segments.length !== 1 ? 's' : ''}
-                  </div>
-                  <!-- Mini segment breakdown -->
-                  ${fitnessData.value.performanceCapacity.segments.slice(0, 3).map((seg) => html`
-                    <div class="mt-2 flex justify-between items-center" style="font-size: 0.75rem; color: var(--text-secondary);">
-                      <span class="truncate" style="max-width: 70%;">${seg.segmentName}</span>
-                      <span style="font-family: var(--font-mono); color: var(--text);">${Math.round(seg.score)}</span>
+                  <div class="flex items-baseline gap-2">
+                    <div style="font-family: var(--font-display); font-size: 2rem; color: var(--text);">${fitnessData.value.performanceCapacity.score}</div>
+                    <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">
+                      from ${fitnessData.value.performanceCapacity.segments.length} climb${fitnessData.value.performanceCapacity.segments.length !== 1 ? 's' : ''}
                     </div>
-                  `)}
+                  </div>
+                  <!-- Segment bar chart -->
+                  <div class="mt-3" style="display: flex; flex-direction: column; gap: 6px;">
+                    ${fitnessData.value.performanceCapacity.segments.slice(0, 5).map((seg) => html`
+                      <div style="display: flex; align-items: center; gap: 6px;" title="${seg.segmentName}: ${Math.round(seg.score)}/100 from ${seg.effortCount} efforts (${seg.recentCount} recent)">
+                        <span class="truncate" style="font-size: 0.6875rem; color: var(--text-secondary); width: 40%; min-width: 0; flex-shrink: 0;">${seg.segmentName}</span>
+                        <div style="flex: 1; height: 14px; background: var(--border); border-radius: 3px; overflow: hidden; position: relative;">
+                          <div style="height: 100%; width: ${Math.round(seg.score)}%; background: ${seg.score >= 70 ? '#3D7A4A' : seg.score >= 40 ? '#4882A8' : '#A05060'}; border-radius: 3px; transition: width 0.3s;"></div>
+                        </div>
+                        <span style="font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text); min-width: 1.5rem; text-align: right;">${Math.round(seg.score)}</span>
+                      </div>
+                    `)}
+                  </div>
                 </div>
               `}
 
@@ -530,7 +537,7 @@ export function Dashboard() {
                 <div class="rounded-lg p-4" style="background: var(--bg); border: 1px solid var(--border);">
                   <div class="flex items-center gap-2 mb-2">
                     <span class="group relative cursor-help" style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary);">Aerobic Efficiency
-                      <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 text-white text-xs rounded px-3 py-2 whitespace-nowrap z-10" style="background: var(--text); font-family: var(--font-body); bottom: 100%; margin-bottom: 0.5rem;">Output per heartbeat — higher is better</span>
+                      <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 text-white text-xs rounded px-3 py-2 z-10" style="background: var(--text); font-family: var(--font-body); bottom: 100%; margin-bottom: 0.5rem; white-space: normal; width: 220px; text-align: center;">Efficiency Factor (power or speed \u00F7 heart rate). Each dot is a ride; the dashed line shows your trend over time.</span>
                     </span>
                     ${fitnessData.value.aerobicEfficiency.ef.trend != null && html`
                       <span style="font-size: 0.75rem; color: ${fitnessData.value.aerobicEfficiency.ef.trend > 2 ? '#3D7A4A' : fitnessData.value.aerobicEfficiency.ef.trend < -2 ? '#A05060' : 'var(--text-tertiary)'};">
@@ -539,29 +546,78 @@ export function Dashboard() {
                       </span>
                     `}
                   </div>
-                  <div style="font-family: var(--font-display); font-size: 2rem; color: var(--text);">${fitnessData.value.aerobicEfficiency.ef.current}</div>
-                  <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem;">
-                    EF ${fitnessData.value.aerobicEfficiency.ef.hasPowerData ? '(W/bpm)' : '(speed/bpm)'}
-                    \u2022 ${fitnessData.value.aerobicEfficiency.ef.recentCount} recent rides
-                  </div>
-                  <!-- Monthly EF trend (last 6 months) -->
-                  ${fitnessData.value.aerobicEfficiency.ef.monthlyHistory.length > 1 && html`
-                    <div class="mt-3" style="display: flex; align-items: flex-end; gap: 2px; height: 40px;">
-                      ${fitnessData.value.aerobicEfficiency.ef.monthlyHistory.slice(-6).map((m) => {
-                        const allEf = fitnessData.value.aerobicEfficiency.ef.monthlyHistory;
-                        const maxEf = Math.max(...allEf.map((x) => x.ef));
-                        const minEf = Math.min(...allEf.map((x) => x.ef));
-                        const range = maxEf - minEf || 1;
-                        const pct = ((m.ef - minEf) / range) * 100;
-                        return html`
-                          <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;">
-                            <div style="width: 100%; background: #4882A8; border-radius: 2px; min-height: 4px; height: ${Math.max(15, pct)}%;" title="${m.month}: EF ${m.ef}"></div>
-                            <span style="font-size: 0.5625rem; color: var(--text-tertiary); font-family: var(--font-mono);">${m.month.slice(5)}</span>
-                          </div>
-                        `;
-                      })}
+                  <div class="flex items-baseline gap-2">
+                    <div style="font-family: var(--font-display); font-size: 2rem; color: var(--text);">${fitnessData.value.aerobicEfficiency.ef.current}</div>
+                    <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">
+                      EF ${fitnessData.value.aerobicEfficiency.ef.hasPowerData ? '(W/bpm)' : '(speed/bpm)'}
+                      \u2022 ${fitnessData.value.aerobicEfficiency.ef.recentCount} recent rides
                     </div>
-                  `}
+                  </div>
+                  <!-- EF scatter plot with trend line -->
+                  ${fitnessData.value.aerobicEfficiency.ef.history.length > 2 && (() => {
+                    const pts = fitnessData.value.aerobicEfficiency.ef.history;
+                    const efs = pts.map((p) => p.ef);
+                    const dates = pts.map((p) => p.date);
+                    const minEf = Math.min(...efs);
+                    const maxEf = Math.max(...efs);
+                    const efRange = maxEf - minEf || 0.1;
+                    const padded = { min: minEf - efRange * 0.1, max: maxEf + efRange * 0.1 };
+                    const pRange = padded.max - padded.min;
+                    const minDate = Math.min(...dates);
+                    const maxDate = Math.max(...dates);
+                    const dateRange = maxDate - minDate || 1;
+                    // SVG dimensions: left margin for y-axis, bottom margin for x-axis
+                    const W = 280, H = 90, ML = 32, MR = 4, MT = 4, MB = 18;
+                    const cW = W - ML - MR, cH = H - MT - MB;
+                    const x = (d) => ML + ((d - minDate) / dateRange) * cW;
+                    const y = (ef) => MT + cH - ((ef - padded.min) / pRange) * cH;
+                    // Linear regression for trend line
+                    const n = pts.length;
+                    const sumX = dates.reduce((s, d) => s + d, 0);
+                    const sumY = efs.reduce((s, e) => s + e, 0);
+                    const sumXY = pts.reduce((s, p) => s + p.date * p.ef, 0);
+                    const sumX2 = dates.reduce((s, d) => s + d * d, 0);
+                    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+                    const intercept = (sumY - slope * sumX) / n;
+                    const trendY1 = slope * minDate + intercept;
+                    const trendY2 = slope * maxDate + intercept;
+                    // Y-axis tick values (3 ticks: min, mid, max of padded range)
+                    const yTicks = [padded.min, padded.min + pRange / 2, padded.max].map((v) => +v.toFixed(2));
+                    // X-axis month labels
+                    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                    const xLabels = [];
+                    const startDate = new Date(minDate);
+                    const endDate = new Date(maxDate);
+                    let cur = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 1);
+                    while (cur <= endDate) {
+                      xLabels.push({ date: cur.getTime(), label: monthNames[cur.getMonth()] });
+                      cur = new Date(cur.getFullYear(), cur.getMonth() + 2, 1);
+                    }
+                    // Only show ~4-6 labels max
+                    const labelStep = Math.max(1, Math.ceil(xLabels.length / 5));
+                    const shownLabels = xLabels.filter((_, i) => i % labelStep === 0);
+                    return html`
+                      <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; margin-top: 0.75rem; overflow: visible;">
+                        <!-- Y-axis ticks -->
+                        ${yTicks.map((v) => html`
+                          <text x="${ML - 3}" y="${y(v) + 1}" text-anchor="end" style="font-size: 7px; fill: var(--text-tertiary); font-family: var(--font-mono);">${v}</text>
+                          <line x1="${ML}" y1="${y(v)}" x2="${W - MR}" y2="${y(v)}" stroke="var(--border)" stroke-width="0.5" stroke-dasharray="2,2" />
+                        `)}
+                        <!-- X-axis labels -->
+                        ${shownLabels.map((l) => html`
+                          <text x="${x(l.date)}" y="${H - 2}" text-anchor="middle" style="font-size: 7px; fill: var(--text-tertiary); font-family: var(--font-mono);">${l.label}</text>
+                        `)}
+                        <!-- Trend line -->
+                        <line x1="${x(minDate)}" y1="${y(trendY1)}" x2="${x(maxDate)}" y2="${y(trendY2)}" stroke="${slope > 0 ? '#3D7A4A' : '#A05060'}" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.7" />
+                        <!-- Data points -->
+                        ${pts.map((p) => {
+                          const d = new Date(p.date);
+                          const label = `${d.toLocaleDateString()}: EF ${p.ef.toFixed(2)}`;
+                          return html`<circle cx="${x(p.date)}" cy="${y(p.ef)}" r="2.5" fill="#4882A8" opacity="0.7"><title>${label}</title></circle>`;
+                        })}
+                      </svg>
+                    `;
+                  })()}
                 </div>
               `}
             </div>
@@ -800,9 +856,9 @@ export function Dashboard() {
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
                 <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
-                  <p><strong>Performance Capacity</strong> (0-100) measures what your body can produce. It tracks your climb segment times, converts them to estimated power-to-weight (VAM/Ferrari formula), and ranks recent efforts against your own history. Requires at least 3 climb segments with 3+ efforts each.</p>
-                  <p><strong>Aerobic Efficiency</strong> measures output per heartbeat (Efficiency Factor = power/HR or speed/HR). Higher is better. Only appears when your activities include heart rate data.</p>
-                  <p>Together they tell a training story: rising capacity + rising efficiency = ideal. Rising capacity + falling efficiency = possible overreaching.</p>
+                  <p><strong>Performance Capacity</strong> (0-100) measures what your body can produce. It tracks your climb segment times, converts them to estimated power-to-weight (VAM/Ferrari formula), and ranks recent efforts (last 90 days) against your all-time history. The horizontal bar chart shows your top climb segments colored by percentile: green (\u226570), blue (\u226540), or red (below 40). Long-press or hover a bar for effort counts. Requires at least 3 climb segments with 3+ efforts each.</p>
+                  <p><strong>Aerobic Efficiency</strong> measures output per heartbeat (Efficiency Factor = power/HR or speed/HR). Higher means more work per heartbeat = fitter. The scatter plot shows individual ride EF values over time. A dashed trend line shows the overall direction: green = improving, red = declining. Long-press or hover a dot for the date and exact EF. Only appears when your activities include heart rate data.</p>
+                  <p>Together they tell a training story: rising capacity + rising efficiency = ideal. Rising capacity + falling efficiency = possible overreaching. The colored banner below interprets the combination.</p>
                 </div>
               </details>
 
@@ -877,7 +933,7 @@ export function Dashboard() {
                 <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
                   <p>Each segment effort in the activity detail view has a <strong>sparkline</strong> — a small inline chart showing your recent effort history (up to 20 efforts). The current effort is highlighted in orange.</p>
                   <p>A <strong>trend line</strong> overlays the chart using linear regression. Green means you're getting faster, red means you're slowing down, gray means stable. Tap the sparkline to expand it and see your best time, effort count, and improvement rate (seconds gained or lost per month).</p>
-                  <p>The Aerobic Efficiency section on the dashboard also shows a <strong>monthly bar chart</strong> of your last 6 months of Efficiency Factor values. Hover a bar to see the exact EF for that month.</p>
+                  <p>The dashboard Form Indicators also include charts. <strong>Performance Capacity</strong> shows horizontal bars for your top climb segments, colored by percentile (green \u226570, blue \u226540, red below). <strong>Aerobic Efficiency</strong> shows a scatter plot of individual ride EF values over time with a dashed trend line (green = improving, red = declining). Long-press or hover any bar or dot for details.</p>
                 </div>
               </details>
 
