@@ -8,7 +8,7 @@
 
 A client-side cycling awards app that connects to [Strava](https://www.strava.com/) and surfaces achievements Strava doesn't offer: year bests, season firsts, consistency streaks, comeback tracking, power curve milestones, and more. All data stays in your browser — no backend stores user data.
 
-🚴 **Live at [aeyu.io](https://aeyu.io)** · [Try the demo](https://aeyu.io/#demo)
+🚴 **Live at [aeyu.io](https://aeyu.io)** · [Try the demo](https://aeyu.io/demo)
 
 ---
 
