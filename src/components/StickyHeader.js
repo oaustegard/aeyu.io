@@ -31,6 +31,8 @@ const avatarMenuOpen = signal(false);
  *   syncing      — whether sync is in progress
  *   unitSystem   — current unit system value
  *   onUnitToggle — callback to toggle units
+ *   onSearch     — callback to toggle search (if provided, search icon is active)
+ *   searchActive — whether search is currently open
  */
 export function StickyHeader({
   onHelp,
@@ -42,6 +44,8 @@ export function StickyHeader({
   syncing = false,
   unitSystem: units,
   onUnitToggle,
+  onSearch,
+  searchActive = false,
 }) {
   const auth = authState.value;
   const athlete = auth?.athlete;
@@ -127,6 +131,20 @@ export function StickyHeader({
             </div>
           `}
 
+          <!-- Search button (full header) -->
+          ${onSearch && html`
+            <button
+              onClick=${onSearch}
+              class="transition-colors flex-shrink-0"
+              style="color: ${searchActive ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.7)'};"
+              title="Search activities"
+            >
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+              </svg>
+            </button>
+          `}
+
           <!-- Avatar button -->
           ${avatarUrl ? html`
             <button
@@ -198,17 +216,19 @@ export function StickyHeader({
         <div class="flex items-center gap-2">
           ${rightSlot}
 
-          <!-- Search placeholder (future) -->
-          <button
-            class="transition-colors flex-shrink-0"
-            style="color: rgba(255,255,255,0.4); cursor: default;"
-            title="Search (coming soon)"
-            disabled
-          >
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-            </svg>
-          </button>
+          <!-- Search button (compact header) -->
+          ${onSearch && html`
+            <button
+              onClick=${onSearch}
+              class="transition-colors flex-shrink-0"
+              style="color: ${searchActive ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.7)'};"
+              title="Search activities"
+            >
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+              </svg>
+            </button>
+          `}
 
           <!-- Avatar (compact) -->
           ${avatarUrl ? html`
