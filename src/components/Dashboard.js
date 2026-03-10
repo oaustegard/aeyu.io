@@ -172,7 +172,7 @@ export function Dashboard() {
 
   async function handleDisconnect() {
     await disconnect();
-    navigate("");
+    navigate("/");
   }
 
   async function handleUnitToggle() {
@@ -229,7 +229,7 @@ export function Dashboard() {
             </button>
             ${isDemo.value ? html`
               <button
-                onClick=${async () => { const restored = await exitDemo(); authState.value = restored; navigate(""); }}
+                onClick=${async () => { const restored = await exitDemo(); authState.value = restored; navigate("/"); }}
                 class="text-xs font-medium transition-colors"
                 style="color: rgba(255,255,255,0.9);"
               >Exit Demo</button>
@@ -587,7 +587,7 @@ export function Dashboard() {
               return html`
                 <button
                   key=${activity.id}
-                  onClick=${() => navigate(`activity/${activity.id}`)}
+                  onClick=${() => navigate(`/activity?id=${activity.id}`)}
                   class="w-full text-left rounded-xl p-4 transition-colors"
                   style="background: var(--surface); border: 1px solid var(--border);"
                   onMouseOver=${(e) => e.currentTarget.style.background = 'var(--surface-hover)'}
@@ -1146,7 +1146,7 @@ export function Dashboard() {
               ${isDemo.value ? html`
                 <div>
                   <button
-                    onClick=${async () => { const restored = await exitDemo(); authState.value = restored; navigate(""); }}
+                    onClick=${async () => { const restored = await exitDemo(); authState.value = restored; navigate("/"); }}
                     class="text-xs font-medium transition-colors"
                     style="color: var(--accent);"
                   >
@@ -1192,7 +1192,7 @@ export function Dashboard() {
                       <button
                         onClick=${async () => {
                           await clearAllData();
-                          navigate("");
+                          navigate("/");
                           window.location.reload();
                         }}
                         disabled=${deleteConfirmText.value !== "delete my data"}

@@ -789,7 +789,7 @@ export function ActivityDetail({ id }) {
       <div class="min-h-screen flex items-center justify-center" style="background: var(--bg);">
         <div class="text-center">
           <p style="color: var(--text-secondary);">Activity not found</p>
-          <button onClick=${() => navigate("dashboard")} class="mt-4" style="color: var(--accent);">
+          <button onClick=${() => navigate("/dashboard")} class="mt-4" style="color: var(--accent);">
             Back to dashboard
           </button>
         </div>
@@ -904,7 +904,7 @@ export function ActivityDetail({ id }) {
     <div class="min-h-screen" style="background: var(--bg);">
       <header style="background: var(--accent);">
         <div class="max-w-3xl mx-auto px-6 py-4">
-          <button onClick=${() => navigate("dashboard")} class="text-sm mb-2 block" style="color: rgba(255,255,255,0.75);">
+          <button onClick=${() => navigate("/dashboard")} class="text-sm mb-2 block" style="color: rgba(255,255,255,0.75);">
             ← Back to dashboard
           </button>
           <div class="flex items-center justify-between gap-3">

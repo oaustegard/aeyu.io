@@ -1,6 +1,6 @@
 /**
  * Participation Awards — Main App Component
- * Hash-based routing, auth state management, Preact + HTM + Signals
+ * Path-based routing (History API), auth state management, Preact + HTM + Signals
  */
 
 import { html } from "htm/preact";
@@ -15,24 +15,40 @@ import { ActivityDetail } from "./components/ActivityDetail.js";
 
 // --- Router ---
 
-export const route = signal(parseHash());
-export const routeParams = signal({});
-
-function parseHash() {
-  const hash = window.location.hash.slice(1) || "";
-  const [path, ...rest] = hash.split("/");
-  return path || "";
+function parsePath() {
+  const path = window.location.pathname.replace(/\.html$/, "").replace(/^\//, "") || "";
+  const params = Object.fromEntries(new URLSearchParams(window.location.search));
+  return { path, params };
 }
 
-window.addEventListener("hashchange", () => {
-  const hash = window.location.hash.slice(1) || "";
+const initial = parsePath();
+export const route = signal(initial.path);
+export const routeParams = signal(initial.params);
+
+// Handle legacy hash-based URLs: redirect #route to /route
+(function migrateHash() {
+  const hash = window.location.hash.slice(1);
+  if (!hash) return;
   const parts = hash.split("/");
-  route.value = parts[0] || "";
-  routeParams.value = { id: parts[1] || null };
+  const path = "/" + (parts[0] || "");
+  const query = parts[1] ? "?id=" + parts[1] : "";
+  history.replaceState(null, "", path + query);
+  const updated = parsePath();
+  route.value = updated.path;
+  routeParams.value = updated.params;
+})();
+
+window.addEventListener("popstate", () => {
+  const { path, params } = parsePath();
+  route.value = path;
+  routeParams.value = params;
 });
 
-export function navigate(path) {
-  window.location.hash = path;
+export function navigate(url) {
+  history.pushState(null, "", url);
+  const { path, params } = parsePath();
+  route.value = path;
+  routeParams.value = params;
 }
 
 // --- Error Boundary ---
@@ -81,12 +97,12 @@ function App() {
   const auth = authState.value;
   const currentRoute = route.value;
 
-  // Not authenticated — show landing (except callback and demo routes)
-  if (!auth && currentRoute !== "callback" && currentRoute !== "demo") {
+  // Not authenticated — show landing (except demo route)
+  if (!auth && currentRoute !== "demo") {
     return html`<${Landing} />`;
   }
 
-  // Route based on hash
+  // Route based on path
   switch (currentRoute) {
     case "activity":
       return html`<${ActivityDetail} id=${routeParams.value.id} />`;

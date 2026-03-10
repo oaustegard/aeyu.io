@@ -25,7 +25,7 @@ async function handleDemo() {
       expires_at: Math.floor(Date.now() / 1000) + 86400,
       athlete: { id: 99999999, firstname: "Demo", lastname: "Rider", profile: "" },
     };
-    navigate("dashboard");
+    navigate("/dashboard");
   } catch (err) {
     console.error("Demo load failed:", err);
     demoLoading.value = false;

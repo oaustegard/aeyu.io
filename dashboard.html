@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>aeyu.io — Participation Awards</title>
+    <meta name="description" content="Giving recognition for efforts where effort was given">
+
+    <!-- Open Graph / Link Preview -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://aeyu.io/dashboard">
+    <meta property="og:title" content="aeyu.io — Participation Awards">
+    <meta property="og:description" content="Connect your Strava. Celebrate every ride. Giving recognition for efforts where effort was given.">
+    <meta property="og:image" content="https://aeyu.io/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="aeyu.io">
+
+    <!-- Twitter / X Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="aeyu.io — Participation Awards">
+    <meta name="twitter:description" content="Connect your Strava. Celebrate every ride. Giving recognition for efforts where effort was given.">
+    <meta name="twitter:image" content="https://aeyu.io/og-image.png">
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#F6F3EE">
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="aeyu.io">
+    <link rel="apple-touch-icon" href="/icons/icon-180.png">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png">
+
+    <!-- Fonts (non-render-blocking: load as print, swap to all on load) -->
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "preact": "https://esm.sh/preact@10.23.1",
+          "preact/": "https://esm.sh/preact@10.23.1/",
+          "@preact/signals": "https://esm.sh/@preact/signals@1.3.0?external=preact",
+          "htm/preact": "https://esm.sh/htm@3.1.1/preact?external=preact"
+        }
+      }
+    </script>
+    <style>
+        :root {
+          /* Surfaces */
+          --bg: #F6F3EE;
+          --surface: #FFFFFF;
+          --surface-hover: #FAF8F4;
+          --border: #E5DFD4;
+          --border-light: #EDE8E0;
+          /* Text */
+          --text: #1A1610;
+          --text-secondary: #5C5548;
+          --text-tertiary: #8C8374;
+          --text-on-dark: #FAF7F2;
+          /* Accents */
+          --strava: #FC4C02;
+          --strava-hover: #E04400;
+          --accent: #B85A28;
+          /* Fonts */
+          --font-display: 'Instrument Serif', serif;
+          --font-body: 'DM Sans', sans-serif;
+          --font-mono: 'IBM Plex Mono', monospace;
+        }
+        /* Safe area insets for notched devices */
+        body {
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+            font-family: var(--font-body);
+        }
+    </style>
+</head>
+<body style="background: var(--bg); color: var(--text);">
+    <div id="app">
+        <div class="min-h-screen flex items-center justify-center">
+            <p style="color: var(--text-tertiary);">Loading...</p>
+        </div>
+    </div>
+    <script type="module" src="./src/app.js"></script>
+    <script>
+      // Register service worker
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js").catch(function() {});
+      }
+
+      // Global error handlers
+      window.__appModuleLoaded = false;
+      window.__appRendered = false;
+
+      window.onerror = function(msg, url, line, col, error) {
+        console.error("Global error:", msg, url, line, col, error);
+        showLoadError("JS error: " + msg);
+      };
+
+      window.addEventListener("unhandledrejection", function(event) {
+        console.error("Unhandled rejection:", event.reason);
+        showLoadError("Async error: " + (event.reason && event.reason.message || event.reason));
+      });
+
+      setTimeout(function() {
+        if (!window.__appRendered) {
+          var detail = !window.__appModuleLoaded
+            ? "Module failed to load (CDN or network issue)"
+            : "App loaded but failed to render";
+          showLoadError(detail);
+        }
+      }, 8000);
+
+      setTimeout(function() {
+        if (!window.__appRendered) {
+          var detail = !window.__appModuleLoaded
+            ? "Module failed to load — CDN may be unreachable"
+            : "App module loaded but rendering failed";
+          showLoadError(detail);
+        }
+      }, 15000);
+
+      function showLoadError(detail) {
+        if (window.__appRendered) return;
+        var app = document.getElementById("app");
+        if (!app) return;
+        app.innerHTML =
+          '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:1rem;text-align:center;">' +
+          '<p style="color: var(--text-secondary, #5C5548); font-family: var(--font-body, sans-serif);">' +
+          'Failed to load the app.</p>' +
+          '<p style="color: var(--text-tertiary, #8C8374); font-family: var(--font-mono, monospace); font-size: 0.75rem; max-width: 400px; word-break: break-word;">' +
+          (detail || "Unknown error") + '</p>' +
+          '<button onclick="clearCacheAndReload()" style="background: var(--strava, #FC4C02); color: white; ' +
+          'padding: 0.5rem 1.5rem; border-radius: 0.5rem; border: none; cursor: pointer; ' +
+          'font-family: var(--font-body, sans-serif);">Clear Cache & Reload</button>' +
+          '<button onclick="window.location.reload()" style="background: none; border: none; cursor: pointer; ' +
+          'font-family: var(--font-body, sans-serif); color: var(--text-tertiary, #8C8374); font-size: 0.875rem;">' +
+          'Simple Reload</button></div>';
+      }
+
+      function clearCacheAndReload() {
+        if ("caches" in window) {
+          caches.keys().then(function(names) {
+            return Promise.all(names.map(function(n) { return caches.delete(n); }));
+          }).then(function() {
+            if (navigator.serviceWorker) {
+              navigator.serviceWorker.getRegistrations().then(function(regs) {
+                regs.forEach(function(r) { r.unregister(); });
+                window.location.reload();
+              });
+            } else {
+              window.location.reload();
+            }
+          });
+        } else {
+          window.location.reload();
+        }
+      }
+    </script>
+</body>
+</html>
