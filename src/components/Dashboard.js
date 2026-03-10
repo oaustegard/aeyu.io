@@ -55,6 +55,9 @@ const stats = signal({ segments: 0, awards: 0 });
 const loading = signal(true);
 const backfillComplete = signal(false);
 const showFaq = signal(false);
+const searchQuery = signal("");
+const showSearch = signal(false);
+const allActivities = signal([]);
 const deleteConfirmText = signal("");
 const showDeleteConfirm = signal(false);
 const activeResetEvent = signal(null);
@@ -88,6 +91,7 @@ async function loadDashboard() {
     activities.sort((a, b) => b.start_date_local.localeCompare(a.start_date_local));
     const recent = activities.slice(0, 20);
     recentActivities.value = recent;
+    allActivities.value = activities;
 
     // Compute streak data (#58) — uses all activities, not just recent 20
     if (activities.length > 0) {
@@ -240,6 +244,16 @@ export function Dashboard() {
               </div>
             ` : ""}
             <button
+              onClick=${() => { showSearch.value = !showSearch.value; if (!showSearch.value) searchQuery.value = ""; }}
+              class="transition-colors"
+              style="color: ${showSearch.value ? 'rgba(255,255,255,1)' : 'rgba(255,255,255,0.7)'};"
+              title="Search activities"
+            >
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+              </svg>
+            </button>
+            <button
               onClick=${() => { showFaq.value = !showFaq.value; }}
               class="transition-colors"
               style="color: rgba(255,255,255,0.7);"
@@ -253,7 +267,41 @@ export function Dashboard() {
         </div>
       </header>
 
+      ${showSearch.value && html`
+        <div style="background: var(--accent);">
+          <div class="max-w-3xl mx-auto px-6 pb-4">
+            <div class="relative">
+              <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style="color: rgba(255,255,255,0.5);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+              </svg>
+              <input
+                type="text"
+                placeholder="Search activities by name, date, or award..."
+                value=${searchQuery.value}
+                onInput=${(e) => { searchQuery.value = e.target.value; }}
+                onKeyDown=${(e) => { if (e.key === "Escape") { searchQuery.value = ""; showSearch.value = false; } }}
+                class="search-input w-full rounded-lg py-2 pl-9 pr-8 text-sm"
+                style="background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.2); font-family: var(--font-body); outline: none;"
+                ref=${(el) => { if (el) setTimeout(() => el.focus(), 0); }}
+              />
+              ${searchQuery.value && html`
+                <button
+                  onClick=${() => { searchQuery.value = ""; }}
+                  class="absolute right-2 top-1/2 -translate-y-1/2"
+                  style="color: rgba(255,255,255,0.6);"
+                >
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              `}
+            </div>
+          </div>
+        </div>
+      `}
+
       <main class="max-w-3xl mx-auto px-6 py-6">
+        ${!searchQuery.value.trim() && html`
         <!-- Inline sync progress -->
         ${syncing && html`
           <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
@@ -555,21 +603,54 @@ export function Dashboard() {
           </div>
         `}
 
+        `}
+
         <!-- Loading -->
         ${loading.value && html`
           <div class="text-center py-12" style="color: var(--text-tertiary);">Loading activities...</div>
         `}
 
         <!-- Activity list -->
-        ${!loading.value && html`
+        ${!loading.value && (() => {
+          const query = searchQuery.value.trim().toLowerCase();
+          const isSearching = query.length > 0;
+          const sourceActivities = isSearching ? allActivities.value : recentActivities.value;
+          const displayActivities = isSearching
+            ? sourceActivities.filter((activity) => {
+                // Search by activity name
+                if (activity.name && activity.name.toLowerCase().includes(query)) return true;
+                // Search by date
+                if (activity.start_date_local && activity.start_date_local.toLowerCase().includes(query)) return true;
+                // Search by formatted date
+                try {
+                  const formatted = formatDateWeekday(activity.start_date_local).toLowerCase();
+                  if (formatted.includes(query)) return true;
+                } catch (e) {}
+                // Search by award labels
+                const awards = activityAwards.value.get(activity.id) || [];
+                for (const award of awards) {
+                  const al = AWARD_LABELS[award.type];
+                  if (al && al.label.toLowerCase().includes(query)) return true;
+                  if (award.segment_name && award.segment_name.toLowerCase().includes(query)) return true;
+                }
+                return false;
+              })
+            : sourceActivities;
+          return html`
           <div class="space-y-3">
-            <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text);">Recent Activities</h2>
-            ${recentActivities.value.length === 0 && html`
+            <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text);">
+              ${isSearching
+                ? `${displayActivities.length} result${displayActivities.length !== 1 ? "s" : ""} for "${searchQuery.value.trim()}"`
+                : "Recent Activities"}
+            </h2>
+            ${displayActivities.length === 0 && html`
               <p class="text-center py-8" style="color: var(--text-tertiary);">
-                ${syncing ? "Activities will appear here as they sync..." : "No activities yet. Tap Sync Now to get started."}
+                ${isSearching
+                  ? "No activities match your search."
+                  : syncing ? "Activities will appear here as they sync..." : "No activities yet. Tap Sync Now to get started."}
               </p>
             `}
-            ${recentActivities.value.map((activity) => {
+            ${displayActivities.map((activity) => {
               const awards = activityAwards.value.get(activity.id) || [];
               const typeCounts = new Map();
               for (const a of awards) {
@@ -635,7 +716,8 @@ export function Dashboard() {
               `;
             })}
           </div>
-        `}
+        `;
+        })()}
 
       </main>
 
