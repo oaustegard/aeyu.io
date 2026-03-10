@@ -73,9 +73,11 @@ export function Landing() {
           <h1 class="mb-2" style="font-family: var(--font-display); font-size: 4rem; font-weight: 400; line-height: 1;">
             <span style="color: var(--text);">aeyu</span><span style="color: var(--accent);">.io</span>
           </h1>
-          <p class="mb-8 group relative inline-block cursor-help" style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text-tertiary); font-style: italic;">
+          <p class="mb-8 group relative inline-block cursor-help" style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text-tertiary); font-style: italic;"
+            onClick=${(e) => { const tip = e.currentTarget.querySelector('.landing-tip'); if (tip) tip.classList.toggle('visible'); }}
+          >
             The sound you make at the top of the climb
-            <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 top-full mt-2 text-white text-xs rounded px-3 py-2 whitespace-nowrap z-10" style="background: var(--text); font-family: var(--font-body); font-style: normal;">
+            <span class="landing-tip invisible group-hover:visible absolute left-1/2 -translate-x-1/2 top-full mt-2 text-white text-xs rounded px-3 py-2 whitespace-nowrap z-10" style="background: var(--text); font-family: var(--font-body); font-style: normal;">
               It's Norwegian — like "ow" but with more suffering
             </span>
           </p>

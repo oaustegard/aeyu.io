@@ -972,6 +972,16 @@ export function Dashboard() {
                   The app automatically detects recurring routes by comparing which segments appear on each ride. If two activities share 70%+ of their segments, they're considered the same route. This powers the Route Season First award — rather than listing a Season First for every segment on a familiar ride, it collapses them into a single route-level award.
                 </div>
               </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  How do I see award descriptions on my phone?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  Long-press any award pill to see its description. On desktop you can hover, but touch screens don't have hover — so a half-second press triggers the tooltip instead.
+                </div>
+              </details>
             </div>
 
           </div>

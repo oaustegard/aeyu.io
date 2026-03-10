@@ -132,6 +132,7 @@ export function SegmentSparkline({ segment, currentEffortId }) {
               stroke=${p.isCurrent ? "#fff" : "none"}
               stroke-width=${p.isCurrent ? 1.5 : 0}
               onMouseEnter=${() => expanded && setTooltip({ x: p.x, y: p.y, time: p.time, date: p.date, idx: i })}
+              onTouchStart=${(e) => { if (expanded) { e.stopPropagation(); setTooltip({ x: p.x, y: p.y, time: p.time, date: p.date, idx: i }); } }}
               style=${expanded ? "cursor: pointer;" : ""}
             />
           `)}
