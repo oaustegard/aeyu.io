@@ -97,25 +97,28 @@ function App() {
   const auth = authState.value;
   const currentRoute = route.value;
 
-  // Not authenticated — show landing (except demo route)
-  if (!auth && currentRoute !== "demo") {
+  // /demo is always accessible — start demo if needed
+  if (currentRoute === "demo") {
+    if (isDemo.value) return html`<${Dashboard} />`;
+    startDemo().then(() => safeRender());
+    return html`<div class="min-h-screen flex items-center justify-center"
+      style="color: var(--text-secondary); font-family: var(--font-body);">Loading demo…</div>`;
+  }
+
+  // All other routes require auth — redirect to landing
+  if (!auth) {
+    if (currentRoute !== "") navigate("/");
     return html`<${Landing} />`;
   }
 
-  // Route based on path
+  // Authenticated routes
   switch (currentRoute) {
     case "activity":
       return html`<${ActivityDetail} id=${routeParams.value.id} />`;
-    case "demo":
-      if (isDemo.value) return html`<${Dashboard} />`;
-      // Start demo mode (backs up real session if authenticated)
-      startDemo().then(() => safeRender());
-      return html`<div class="min-h-screen flex items-center justify-center"
-        style="color: var(--text-secondary); font-family: var(--font-body);">Loading demo…</div>`;
     case "sync": // legacy — now handled by dashboard
     case "dashboard":
     default:
-      return auth ? html`<${Dashboard} />` : html`<${Landing} />`;
+      return html`<${Dashboard} />`;
   }
 }
 

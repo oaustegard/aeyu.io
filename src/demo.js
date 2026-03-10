@@ -4,7 +4,7 @@
  */
 
 import { signal } from "@preact/signals";
-import { openDB, switchToDemoDB, switchToRealDB, deleteDemoDB } from "./db.js";
+import { openDB, switchToDemoDB, switchToRealDB, deleteDemoDB, getAuth } from "./db.js";
 import { authState } from "./auth.js";
 
 export const isDemo = signal(false);
@@ -94,11 +94,12 @@ export async function startDemo() {
   isDemo.value = true;
 }
 
-/** Exit demo — clear auth state, delete demo DB, switch back to real DB */
+/** Exit demo — switch back to real DB, restore real auth if present, delete demo DB */
 export async function exitDemo() {
-  authState.value = null;
   isDemo.value = false;
   sessionStorage.removeItem("aeyu_demo_active");
   switchToRealDB();
   await deleteDemoDB();
+  const realSession = await getAuth();
+  authState.value = realSession || null;
 }
