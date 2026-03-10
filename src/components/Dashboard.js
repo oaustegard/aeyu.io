@@ -56,6 +56,7 @@ const stats = signal({ segments: 0, awards: 0 });
 const loading = signal(true);
 const backfillComplete = signal(false);
 const showFaq = signal(false);
+const showSettings = signal(false);
 const searchQuery = signal("");
 const showSearch = signal(false);
 const allActivities = signal([]);
@@ -224,6 +225,10 @@ export function Dashboard() {
             onClick: async () => { try { await manualSync(); } catch(e) { console.error("Manual sync error:", e); } await loadDashboard(); },
             hidden: syncing,
           }]),
+          {
+            label: "Settings",
+            onClick: () => { showSettings.value = true; },
+          },
           ...(!isDemo.value ? [{
             label: "Disconnect Strava",
             onClick: handleDisconnect,
@@ -703,7 +708,7 @@ export function Dashboard() {
         >
           <div class="rounded-xl shadow-xl w-full max-w-lg p-6 my-4" style="background: var(--surface); border: 1px solid var(--border);">
             <div class="flex items-center justify-between mb-4">
-              <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text);">FAQ & Settings</h2>
+              <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text);">FAQ</h2>
               <button
                 onClick=${() => { showFaq.value = false; }}
                 class="text-sm transition-colors"
@@ -843,90 +848,145 @@ export function Dashboard() {
               </details>
             </div>
 
-            <div class="mt-4 pt-4 space-y-3" style="border-top: 1px solid var(--border-light);">
-              <!-- Comeback Mode Settings (#60) -->
+            <!-- Delete confirmation dialog (triggered from avatar menu) -->
+            ${showDeleteConfirm.value && html`
+              <div class="mt-4 p-3 rounded-lg" style="background: #F6DED4; border: 1px solid #E4B8A4;">
+                <p class="text-xs mb-2" style="color: #7A2E18;">
+                  This will delete all your data from this browser. To confirm, type <span style="font-family: var(--font-mono); font-weight: 700;">delete my data</span> below.
+                </p>
+                <input
+                  type="text"
+                  value=${deleteConfirmText.value}
+                  onInput=${(e) => { deleteConfirmText.value = e.target.value; }}
+                  placeholder="delete my data"
+                  class="w-full text-xs rounded px-2 py-1.5 mb-2 focus:outline-none focus:ring-1"
+                  style="border: 1px solid #E4B8A4; font-family: var(--font-mono);"
+                />
+                <div class="flex gap-2">
+                  <button
+                    onClick=${async () => {
+                      await clearAllData();
+                      navigate("/");
+                      window.location.reload();
+                    }}
+                    disabled=${deleteConfirmText.value !== "delete my data"}
+                    class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
+                    style=${deleteConfirmText.value === "delete my data"
+                      ? "background: #A03020; color: white;"
+                      : "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"}
+                  >
+                    Delete everything
+                  </button>
+                  <button
+                    onClick=${() => { showDeleteConfirm.value = false; deleteConfirmText.value = ""; }}
+                    class="text-xs px-3 py-1.5 rounded transition-colors"
+                    style="color: var(--text-secondary);"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            `}
+          </div>
+        </div>
+      `}
+
+      <!-- Settings Modal Overlay -->
+      ${showSettings.value && html`
+        <div
+          class="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm overflow-y-auto p-4 pt-16 sm:pt-24"
+          onClick=${(e) => { if (e.target === e.currentTarget) showSettings.value = false; }}
+        >
+          <div class="rounded-xl shadow-xl w-full max-w-lg p-6 my-4" style="background: var(--surface); border: 1px solid var(--border);">
+            <div class="flex items-center justify-between mb-4">
+              <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text);">Settings</h2>
+              <button
+                onClick=${() => { showSettings.value = false; }}
+                class="text-sm transition-colors"
+                style="color: var(--text-tertiary);"
+              >Close</button>
+            </div>
+
+            ${!isDemo.value && html`
+            <div class="space-y-3">
+              <!-- Sync Window Settings (#111) -->
               <div>
-                <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Comeback Mode</p>
-                ${activeResetEvent.value ? html`
-                  <div class="flex items-center justify-between rounded-lg px-3 py-2" style="background: #F4E4E8;">
-                    <div>
-                      <p class="text-xs font-medium" style="color: #6E2E3C;">${activeResetEvent.value.name}</p>
-                      <p class="text-xs" style="color: #A05060;">Since ${new Date(activeResetEvent.value.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
-                    </div>
-                    <button
-                      onClick=${async () => {
-                        activeResetEvent.value = null;
-                        await clearResetEvent();
-                        await loadDashboard();
-                      }}
-                      class="text-xs px-2 py-1 rounded transition-colors"
-                      style="color: #A05060;"
-                    >
-                      End comeback
-                    </button>
-                  </div>
-                ` : html`
-                  ${showResetForm.value ? html`
-                    <div class="rounded-lg p-3 space-y-2" style="background: var(--bg);">
-                      <input
-                        type="text"
-                        placeholder="Event name (e.g. Knee surgery)"
-                        value=${resetName.value}
-                        onInput=${(e) => { resetName.value = e.target.value; }}
-                        class="w-full text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1"
-                        style="border: 1px solid var(--border); font-family: var(--font-body); focus:ring-color: #A05060;"
-                      />
-                      <input
-                        type="date"
-                        value=${resetDate.value}
-                        onInput=${(e) => { resetDate.value = e.target.value; }}
-                        class="w-full text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1"
-                        style="border: 1px solid var(--border); font-family: var(--font-mono);"
-                      />
-                      <div class="flex gap-2">
-                        <button
-                          onClick=${async () => {
-                            if (!resetName.value.trim() || !resetDate.value) return;
-                            const event = { name: resetName.value.trim(), date: resetDate.value, sport_types: null };
-                            await setResetEvent(event);
-                            activeResetEvent.value = event;
-                            showResetForm.value = false;
-                            resetName.value = "";
-                            resetDate.value = "";
-                            await loadDashboard();
-                          }}
-                          disabled=${!resetName.value.trim() || !resetDate.value}
-                          class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
-                          style=${resetName.value.trim() && resetDate.value
-                            ? "background: #A05060; color: white;"
-                            : "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"}
-                        >
-                          Start comeback
-                        </button>
-                        <button
-                          onClick=${() => { showResetForm.value = false; resetName.value = ""; resetDate.value = ""; }}
-                          class="text-xs px-3 py-1.5 rounded transition-colors"
-                          style="color: var(--text-secondary);"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ` : html`
-                    <button
-                      onClick=${() => { showResetForm.value = true; }}
-                      class="text-xs transition-colors"
-                      style="color: var(--text-tertiary);"
-                    >
-                      Set a reset date (injury recovery)
-                    </button>
-                    <p class="text-xs mt-1" style="color: var(--border);">Hides demoralizing comparisons while you rebuild. Tracks recovery milestones toward your pre-injury best.</p>
-                  `}
+                <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Sync Window</p>
+                <p class="text-xs mb-2" style="color: var(--text-tertiary);">How far back to sync activities from Strava. Shorter windows sync faster and use less storage.</p>
+
+                <div class="flex flex-wrap gap-1.5 mb-2">
+                  ${["2y", "3y", "4y", "all"].map((opt) => {
+                    const labels = { "2y": "Last 2 years", "3y": "Last 3 years", "4y": "Last 4 years", "all": "All time" };
+                    const isActive = syncWindowChoice.value === opt;
+                    return html`
+                      <button
+                        key=${opt}
+                        onClick=${() => { syncWindowChoice.value = opt; }}
+                        class="text-xs px-2.5 py-1.5 rounded-lg transition-colors"
+                        style=${isActive
+                          ? "background: var(--text); color: var(--surface); font-family: var(--font-body);"
+                          : "border: 1px solid var(--border); color: var(--text-secondary); font-family: var(--font-body);"}
+                      >
+                        ${labels[opt]}
+                      </button>
+                    `;
+                  })}
+                  <button
+                    onClick=${() => { syncWindowChoice.value = "custom"; }}
+                    class="text-xs px-2.5 py-1.5 rounded-lg transition-colors"
+                    style=${syncWindowChoice.value === "custom"
+                      ? "background: var(--text); color: var(--surface); font-family: var(--font-body);"
+                      : "border: 1px solid var(--border); color: var(--text-secondary); font-family: var(--font-body);"}
+                  >
+                    Custom
+                  </button>
+                </div>
+
+                ${syncWindowChoice.value === "custom" && html`
+                  <input
+                    type="date"
+                    value=${syncWindowCustomDate.value}
+                    onInput=${(e) => { syncWindowCustomDate.value = e.target.value; }}
+                    class="w-full text-xs rounded px-2 py-1.5 mb-2 focus:outline-none focus:ring-1"
+                    style="border: 1px solid var(--border); font-family: var(--font-mono);"
+                  />
+                `}
+
+                <button
+                  onClick=${async () => {
+                    let epoch = null;
+                    const now = Date.now() / 1000;
+                    if (syncWindowChoice.value === "2y") epoch = Math.floor(now - 2 * 365.25 * 24 * 3600);
+                    else if (syncWindowChoice.value === "3y") epoch = Math.floor(now - 3 * 365.25 * 24 * 3600);
+                    else if (syncWindowChoice.value === "4y") epoch = Math.floor(now - 4 * 365.25 * 24 * 3600);
+                    else if (syncWindowChoice.value === "custom" && syncWindowCustomDate.value) {
+                      epoch = Math.floor(new Date(syncWindowCustomDate.value).getTime() / 1000);
+                    }
+                    // null = all time
+                    if (epoch === currentSyncAfterEpoch.value) return;
+                    await updateSyncWindow(epoch);
+                    currentSyncAfterEpoch.value = epoch;
+                    await loadDashboard();
+                  }}
+                  disabled=${syncing || (syncWindowChoice.value === "custom" && !syncWindowCustomDate.value)}
+                  class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
+                  style=${syncing || (syncWindowChoice.value === "custom" && !syncWindowCustomDate.value)
+                    ? "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"
+                    : "background: var(--strava); color: white;"}
+                >
+                  Apply
+                </button>
+
+                ${currentSyncAfterEpoch.value && html`
+                  <p class="text-xs mt-1.5" style="color: var(--text-tertiary); font-family: var(--font-mono);">
+                    Currently syncing since ${new Date(currentSyncAfterEpoch.value * 1000).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                  </p>
                 `}
               </div>
             </div>
+            `}
 
-            <div class="mt-4 pt-4 space-y-3" style="border-top: 1px solid var(--border-light);">
+            <div class="${!isDemo.value ? 'mt-4 pt-4' : ''} space-y-3" style="${!isDemo.value ? 'border-top: 1px solid var(--border-light);' : ''}">
               <!-- Reference Points Settings -->
               <div>
                 <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Reference Points</p>
@@ -1089,130 +1149,88 @@ export function Dashboard() {
               </div>
             </div>
 
-            ${!isDemo.value && html`
             <div class="mt-4 pt-4 space-y-3" style="border-top: 1px solid var(--border-light);">
-              <!-- Sync Window Settings (#111) -->
+              <!-- Comeback Mode Settings (#60) -->
               <div>
-                <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Sync Window</p>
-                <p class="text-xs mb-2" style="color: var(--text-tertiary);">How far back to sync activities from Strava. Shorter windows sync faster and use less storage.</p>
-
-                <div class="flex flex-wrap gap-1.5 mb-2">
-                  ${["2y", "3y", "4y", "all"].map((opt) => {
-                    const labels = { "2y": "Last 2 years", "3y": "Last 3 years", "4y": "Last 4 years", "all": "All time" };
-                    const isActive = syncWindowChoice.value === opt;
-                    return html`
-                      <button
-                        key=${opt}
-                        onClick=${() => { syncWindowChoice.value = opt; }}
-                        class="text-xs px-2.5 py-1.5 rounded-lg transition-colors"
-                        style=${isActive
-                          ? "background: var(--text); color: var(--surface); font-family: var(--font-body);"
-                          : "border: 1px solid var(--border); color: var(--text-secondary); font-family: var(--font-body);"}
-                      >
-                        ${labels[opt]}
-                      </button>
-                    `;
-                  })}
-                  <button
-                    onClick=${() => { syncWindowChoice.value = "custom"; }}
-                    class="text-xs px-2.5 py-1.5 rounded-lg transition-colors"
-                    style=${syncWindowChoice.value === "custom"
-                      ? "background: var(--text); color: var(--surface); font-family: var(--font-body);"
-                      : "border: 1px solid var(--border); color: var(--text-secondary); font-family: var(--font-body);"}
-                  >
-                    Custom
-                  </button>
-                </div>
-
-                ${syncWindowChoice.value === "custom" && html`
-                  <input
-                    type="date"
-                    value=${syncWindowCustomDate.value}
-                    onInput=${(e) => { syncWindowCustomDate.value = e.target.value; }}
-                    class="w-full text-xs rounded px-2 py-1.5 mb-2 focus:outline-none focus:ring-1"
-                    style="border: 1px solid var(--border); font-family: var(--font-mono);"
-                  />
-                `}
-
-                <button
-                  onClick=${async () => {
-                    let epoch = null;
-                    const now = Date.now() / 1000;
-                    if (syncWindowChoice.value === "2y") epoch = Math.floor(now - 2 * 365.25 * 24 * 3600);
-                    else if (syncWindowChoice.value === "3y") epoch = Math.floor(now - 3 * 365.25 * 24 * 3600);
-                    else if (syncWindowChoice.value === "4y") epoch = Math.floor(now - 4 * 365.25 * 24 * 3600);
-                    else if (syncWindowChoice.value === "custom" && syncWindowCustomDate.value) {
-                      epoch = Math.floor(new Date(syncWindowCustomDate.value).getTime() / 1000);
-                    }
-                    // null = all time
-                    if (epoch === currentSyncAfterEpoch.value) return;
-                    await updateSyncWindow(epoch);
-                    currentSyncAfterEpoch.value = epoch;
-                    await loadDashboard();
-                  }}
-                  disabled=${syncing || (syncWindowChoice.value === "custom" && !syncWindowCustomDate.value)}
-                  class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
-                  style=${syncing || (syncWindowChoice.value === "custom" && !syncWindowCustomDate.value)
-                    ? "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"
-                    : "background: var(--strava); color: white;"}
-                >
-                  Apply
-                </button>
-
-                ${currentSyncAfterEpoch.value && html`
-                  <p class="text-xs mt-1.5" style="color: var(--text-tertiary); font-family: var(--font-mono);">
-                    Currently syncing since ${new Date(currentSyncAfterEpoch.value * 1000).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
-                  </p>
+                <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Comeback Mode</p>
+                ${activeResetEvent.value ? html`
+                  <div class="flex items-center justify-between rounded-lg px-3 py-2" style="background: #F4E4E8;">
+                    <div>
+                      <p class="text-xs font-medium" style="color: #6E2E3C;">${activeResetEvent.value.name}</p>
+                      <p class="text-xs" style="color: #A05060;">Since ${new Date(activeResetEvent.value.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                    </div>
+                    <button
+                      onClick=${async () => {
+                        activeResetEvent.value = null;
+                        await clearResetEvent();
+                        await loadDashboard();
+                      }}
+                      class="text-xs px-2 py-1 rounded transition-colors"
+                      style="color: #A05060;"
+                    >
+                      End comeback
+                    </button>
+                  </div>
+                ` : html`
+                  ${showResetForm.value ? html`
+                    <div class="rounded-lg p-3 space-y-2" style="background: var(--bg);">
+                      <input
+                        type="text"
+                        placeholder="Event name (e.g. Knee surgery)"
+                        value=${resetName.value}
+                        onInput=${(e) => { resetName.value = e.target.value; }}
+                        class="w-full text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1"
+                        style="border: 1px solid var(--border); font-family: var(--font-body); focus:ring-color: #A05060;"
+                      />
+                      <input
+                        type="date"
+                        value=${resetDate.value}
+                        onInput=${(e) => { resetDate.value = e.target.value; }}
+                        class="w-full text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1"
+                        style="border: 1px solid var(--border); font-family: var(--font-mono);"
+                      />
+                      <div class="flex gap-2">
+                        <button
+                          onClick=${async () => {
+                            if (!resetName.value.trim() || !resetDate.value) return;
+                            const event = { name: resetName.value.trim(), date: resetDate.value, sport_types: null };
+                            await setResetEvent(event);
+                            activeResetEvent.value = event;
+                            showResetForm.value = false;
+                            resetName.value = "";
+                            resetDate.value = "";
+                            await loadDashboard();
+                          }}
+                          disabled=${!resetName.value.trim() || !resetDate.value}
+                          class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
+                          style=${resetName.value.trim() && resetDate.value
+                            ? "background: #A05060; color: white;"
+                            : "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"}
+                        >
+                          Start comeback
+                        </button>
+                        <button
+                          onClick=${() => { showResetForm.value = false; resetName.value = ""; resetDate.value = ""; }}
+                          class="text-xs px-3 py-1.5 rounded transition-colors"
+                          style="color: var(--text-secondary);"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ` : html`
+                    <button
+                      onClick=${() => { showResetForm.value = true; }}
+                      class="text-xs transition-colors"
+                      style="color: var(--text-tertiary);"
+                    >
+                      Set a reset date (injury recovery)
+                    </button>
+                    <p class="text-xs mt-1" style="color: var(--border);">Hides demoralizing comparisons while you rebuild. Tracks recovery milestones toward your pre-injury best.</p>
+                  `}
                 `}
               </div>
             </div>
-            `}
-
-            <div class="mt-4 pt-4 space-y-3" style="border-top: 1px solid var(--border-light);">
-              <p class="text-xs" style="color: var(--text-tertiary);">
-                Sync, disconnect, and account options are in the avatar menu (top right).
-              </p>
-            </div>
-
-            <!-- Delete confirmation dialog (triggered from avatar menu) -->
-            ${showDeleteConfirm.value && html`
-              <div class="mt-4 p-3 rounded-lg" style="background: #F6DED4; border: 1px solid #E4B8A4;">
-                <p class="text-xs mb-2" style="color: #7A2E18;">
-                  This will delete all your data from this browser. To confirm, type <span style="font-family: var(--font-mono); font-weight: 700;">delete my data</span> below.
-                </p>
-                <input
-                  type="text"
-                  value=${deleteConfirmText.value}
-                  onInput=${(e) => { deleteConfirmText.value = e.target.value; }}
-                  placeholder="delete my data"
-                  class="w-full text-xs rounded px-2 py-1.5 mb-2 focus:outline-none focus:ring-1"
-                  style="border: 1px solid #E4B8A4; font-family: var(--font-mono);"
-                />
-                <div class="flex gap-2">
-                  <button
-                    onClick=${async () => {
-                      await clearAllData();
-                      navigate("/");
-                      window.location.reload();
-                    }}
-                    disabled=${deleteConfirmText.value !== "delete my data"}
-                    class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
-                    style=${deleteConfirmText.value === "delete my data"
-                      ? "background: #A03020; color: white;"
-                      : "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"}
-                  >
-                    Delete everything
-                  </button>
-                  <button
-                    onClick=${() => { showDeleteConfirm.value = false; deleteConfirmText.value = ""; }}
-                    class="text-xs px-3 py-1.5 rounded transition-colors"
-                    style="color: var(--text-secondary);"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            `}
           </div>
         </div>
       `}
