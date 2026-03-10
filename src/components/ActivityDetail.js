@@ -1251,7 +1251,7 @@ export function ActivityDetail({ id }) {
                   const pillStyle = al ? `background: ${al.bg}; color: ${al.text}; border: 1px solid ${al.border};` : "background: #ECEAE6; color: #3E3A36;";
                   const label = al?.label || type;
                   return html`
-                    <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style=${pillStyle}>
+                    <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full cursor-help" style=${pillStyle} title=${al?.tip || ""}>
                       ${al ? renderIconSVG(type, { size: 12, color: al.dot }) : null}
                       ${count > 1 ? `${count}× ${label}` : label}
                     </span>
@@ -1413,7 +1413,7 @@ export function ActivityDetail({ id }) {
                             ? ` · ${rankSuffix(a.rank)} of ${a.totalInSet}${isYtd ? ` ${setLabel}` : ""}${a.pctDelta ? `, ${a.pctDelta}% ${deltaLabel}` : ""}`
                             : "";
                           return html`
-                            <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style=${pillStyle}>
+                            <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full cursor-help" style=${pillStyle} title=${al?.tip || ""}>
                               ${al ? renderIconSVG(a.type, { size: 12, color: al.dot }) : null}
                               ${al?.label || a.type}${rankInfo}
                             </span>
