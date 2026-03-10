@@ -145,7 +145,7 @@ async function loadDashboard() {
       stats.value = { segments: segments.length, awards: 0 };
     }
 
-    // Compute fitness indicators (#106)
+    // Compute form indicators (#106)
     try {
       fitnessData.value = await computeFitnessSummary();
     } catch (e) {
@@ -468,10 +468,10 @@ export function Dashboard() {
           </div>
         </div>
 
-        <!-- Fitness Indicators (#106) -->
+        <!-- Form Indicators (#106) -->
         ${!loading.value && fitnessData.value && (fitnessData.value.performanceCapacity.hasData || fitnessData.value.aerobicEfficiency.hasData) && html`
           <div class="mb-6 rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
-            <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin-bottom: 1rem;">Fitness Indicators</h2>
+            <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin-bottom: 1rem;">Form Indicators</h2>
 
             <div class="grid grid-cols-1 gap-4" style="${fitnessData.value.performanceCapacity.hasData && fitnessData.value.aerobicEfficiency.hasData ? 'display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;' : ''}">
 
@@ -769,7 +769,7 @@ export function Dashboard() {
 
               <details class="group py-3">
                 <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
-                  What are the Fitness Indicators?
+                  What are the Form Indicators?
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
                 <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">

@@ -1,7 +1,7 @@
 /**
- * Fitness Indicators — Performance Capacity + Aerobic Efficiency (#106)
+ * Form Indicators — Performance Capacity + Aerobic Efficiency (#106)
  *
- * Two complementary fitness indicators computed entirely from local IndexedDB data.
+ * Two complementary form indicators computed entirely from local IndexedDB data.
  * No new API calls required — uses segment efforts and activity data already synced.
  *
  * Indicator 1: Performance Capacity (no HR required)
@@ -279,6 +279,11 @@ export async function computeAerobicEfficiency() {
     ? recentEF.reduce((sum, d) => sum + d.ef, 0) / recentEF.length
     : null;
 
+  // If no recent rides, don't claim we have data — the card would show stale/empty info
+  if (currentEF == null) {
+    return { ef: null, hasData: false, reason: "no_recent_data" };
+  }
+
   const olderEFAvg = olderEF.length > 0
     ? olderEF.reduce((sum, d) => sum + d.ef, 0) / olderEF.length
     : null;
@@ -326,10 +331,10 @@ function buildMonthlyHistory(efData) {
     .sort((a, b) => a.month.localeCompare(b.month));
 }
 
-// --- Combined Fitness Summary ---
+// --- Combined Form Summary ---
 
 /**
- * Compute all fitness indicators and return a combined summary.
+ * Compute all form indicators and return a combined summary.
  * This is the main entry point for the Dashboard UI.
  */
 export async function computeFitnessSummary() {
