@@ -94,11 +94,11 @@ export async function startDemo() {
   isDemo.value = true;
 }
 
-/** Exit demo — delete the demo database and switch back to real DB */
+/** Exit demo — clear auth state, delete demo DB, switch back to real DB */
 export async function exitDemo() {
+  authState.value = null;
   isDemo.value = false;
   sessionStorage.removeItem("aeyu_demo_active");
   switchToRealDB();
   await deleteDemoDB();
-  return null;
 }

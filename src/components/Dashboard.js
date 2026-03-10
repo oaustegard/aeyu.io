@@ -219,7 +219,7 @@ export function Dashboard() {
         menuItems=${[
           ...(isDemo.value ? [{
             label: "Exit Demo",
-            onClick: async () => { await exitDemo(); navigate("/"); window.location.reload(); },
+            onClick: async () => { navigate("/"); await exitDemo(); },
           }] : [{
             label: syncing ? "Syncing…" : "Sync now",
             onClick: async () => { try { await manualSync(loadDashboard); } catch(e) { console.error("Manual sync error:", e); } await loadDashboard(); },
