@@ -454,8 +454,9 @@ async function runHeartRateMigration() {
  * Fetches one page of activities (~100), then their details, then the next page.
  * This gives users visible data much faster than loading all activities first.
  * Resumable: checks has_efforts flag and sync_state on restart.
+ * @param {Function} [onProgress] - called after each page+detail cycle so the UI can refresh
  */
-export async function startBackfill() {
+export async function startBackfill(onProgress) {
   if (isSyncing.value) return;
   isSyncing.value = true;
 
@@ -529,6 +530,9 @@ export async function startBackfill() {
 
         // Detail-fetch everything pending (includes this page + any prior)
         await fetchActivityDetails();
+
+        // Notify UI so dashboard refreshes with newly synced activities
+        if (onProgress) onProgress();
 
         if (!result.hasMore) break;
 
@@ -679,13 +683,13 @@ export async function updateSyncWindow(newEpoch) {
  * Runs backfill or incremental as appropriate, same as auto-sync cycle.
  * Returns without error on rate-limit (progress signal shows status).
  */
-export async function manualSync() {
+export async function manualSync(onProgress) {
   if (isSyncing.value) return;
 
   const state = await getSyncState();
 
   if (!state.backfill_complete) {
-    await startBackfill();
+    await startBackfill(onProgress);
   } else {
     await incrementalSync();
   }
@@ -741,7 +745,8 @@ async function runAutoSyncCycle() {
 
     if (!state.backfill_complete) {
       // Initial backfill — interleaved list+detail
-      await startBackfill();
+      // Pass callback so dashboard refreshes after each page+detail cycle
+      await startBackfill(autoSyncCallback);
     } else {
       // Incremental — check for new activities, resume pending details
       await incrementalSync();

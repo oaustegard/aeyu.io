@@ -222,7 +222,7 @@ export function Dashboard() {
             onClick: async () => { const restored = await exitDemo(); authState.value = restored; navigate("/"); },
           }] : [{
             label: syncing ? "Syncing…" : "Sync now",
-            onClick: async () => { try { await manualSync(); } catch(e) { console.error("Manual sync error:", e); } await loadDashboard(); },
+            onClick: async () => { try { await manualSync(loadDashboard); } catch(e) { console.error("Manual sync error:", e); } await loadDashboard(); },
             hidden: syncing,
           }]),
           {
@@ -313,7 +313,7 @@ export function Dashboard() {
             <div class="flex items-center justify-between mb-1">
               <p class="font-medium">Initial sync paused</p>
               <button
-                onClick=${() => manualSync().catch(() => {}).then(() => loadDashboard())}
+                onClick=${() => manualSync(loadDashboard).catch(() => {}).then(() => loadDashboard())}
                 class="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
                 style="background: var(--strava); color: white;"
               >Sync Now</button>
