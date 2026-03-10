@@ -1,7 +1,7 @@
 /**
  * StickyHeader — Shared header component for Dashboard and ActivityDetail
  *
- * Full mode (at page top): aeyu logo + "Participation Awards" subtitle + athlete name
+ * Full mode (at page top): aeyu.io logo + "Participation Awards" subtitle + athlete name
  * Compact mode (scrolled): Thin sticky bar with avatar menu, nav context, help, search placeholder
  *
  * Avatar dropdown contains: sync controls, unit toggle, disconnect, delete data
@@ -110,7 +110,7 @@ export function StickyHeader({
           `}
           <div>
             <h1 style="font-family: var(--font-display); font-size: 1.75rem; color: var(--text-on-dark); line-height: 1.1; white-space: nowrap;">
-              aeyu
+              aeyu<span style="color: var(--accent);">.io</span>
             </h1>
             <p style="font-family: var(--font-body); font-size: 0.7rem; color: rgba(255,255,255,0.6); letter-spacing: 0.04em; margin-top: 1px;">
               Participation Awards
@@ -205,7 +205,7 @@ export function StickyHeader({
             <img src="icons/icon-192.png" alt="aeyu.io" style="height: 24px; width: 24px; border-radius: 4px;" />
           `}
           <span style="font-family: var(--font-display); font-size: 1rem; color: var(--text-on-dark); white-space: nowrap;">
-            ${onBack && contextLabel ? contextLabel : "aeyu"}
+            ${onBack && contextLabel ? contextLabel : "aeyu.io"}
           </span>
           ${syncing && !onBack && html`
             <div class="inline-flex items-center gap-1 text-xs" style="color: rgba(255,255,255,0.7);">
