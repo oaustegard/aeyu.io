@@ -48,6 +48,7 @@ import { isDemo, exitDemo } from "../demo.js";
 import { renderIconSVG } from "../icons.js";
 import { AWARD_LABELS } from "../award-config.js";
 import { computeFitnessSummary } from "../fitness.js";
+import { StickyHeader, headerCompact } from "./StickyHeader.js";
 
 const recentActivities = signal([]);
 const activityAwards = signal(new Map());
@@ -55,6 +56,9 @@ const stats = signal({ segments: 0, awards: 0 });
 const loading = signal(true);
 const backfillComplete = signal(false);
 const showFaq = signal(false);
+const searchQuery = signal("");
+const showSearch = signal(false);
+const allActivities = signal([]);
 const deleteConfirmText = signal("");
 const showDeleteConfirm = signal(false);
 const activeResetEvent = signal(null);
@@ -88,6 +92,7 @@ async function loadDashboard() {
     activities.sort((a, b) => b.start_date_local.localeCompare(a.start_date_local));
     const recent = activities.slice(0, 20);
     recentActivities.value = recent;
+    allActivities.value = activities;
 
     // Compute streak data (#58) — uses all activities, not just recent 20
     if (activities.length > 0) {
@@ -203,57 +208,69 @@ export function Dashboard() {
   return html`
     <div class="min-h-screen" style="background: var(--bg);">
       <!-- Header -->
-      <header style="background: var(--accent);">
-        <div class="max-w-3xl mx-auto px-6 py-5 flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <img src="icons/icon-192.png" alt="aeyu.io" style="height: 44px; width: 44px; border-radius: 8px;" />
-            <div>
-              <h1 style="font-family: var(--font-display); font-size: 1.75rem; color: var(--text-on-dark); line-height: 1.1;">Participation Awards</h1>
-              ${auth && html`
-                <p style="font-family: var(--font-body); font-size: 0.8rem; color: rgba(255,255,255,0.75);">
-                  ${auth.athlete.firstname} ${auth.athlete.lastname}
-                  ${isDemo.value && html`<span class="ml-2 text-xs px-2 py-0.5 rounded-full font-medium" style="background: rgba(255,255,255,0.2); color: white;">Demo</span>`}
-                </p>
+      <${StickyHeader}
+        onHelp=${() => { showFaq.value = !showFaq.value; }}
+        onSearch=${() => { showSearch.value = !showSearch.value; if (!showSearch.value) searchQuery.value = ""; }}
+        searchActive=${showSearch.value}
+        syncing=${syncing}
+        unitSystem=${units}
+        onUnitToggle=${handleUnitToggle}
+        menuItems=${[
+          ...(isDemo.value ? [{
+            label: "Exit Demo",
+            onClick: async () => { const restored = await exitDemo(); authState.value = restored; navigate("/"); },
+          }] : [{
+            label: syncing ? "Syncing…" : "Sync now",
+            onClick: async () => { try { await manualSync(); } catch(e) { console.error("Manual sync error:", e); } await loadDashboard(); },
+            hidden: syncing,
+          }]),
+          ...(!isDemo.value ? [{
+            label: "Disconnect Strava",
+            onClick: handleDisconnect,
+          }] : []),
+          {
+            label: "Delete all data",
+            onClick: () => { showDeleteConfirm.value = true; deleteConfirmText.value = ""; },
+            danger: true,
+          },
+        ]}
+      />
+
+      ${showSearch.value && html`
+        <div style="background: var(--accent);">
+          <div class="max-w-3xl mx-auto px-6 pb-4">
+            <div class="relative">
+              <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2" style="color: rgba(255,255,255,0.5);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/>
+              </svg>
+              <input
+                type="text"
+                placeholder="Search activities by name, date, or award..."
+                value=${searchQuery.value}
+                onInput=${(e) => { searchQuery.value = e.target.value; }}
+                onKeyDown=${(e) => { if (e.key === "Escape") { searchQuery.value = ""; showSearch.value = false; } }}
+                class="search-input w-full rounded-lg py-2 pl-9 pr-8 text-sm"
+                style="background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.2); font-family: var(--font-body); outline: none;"
+                ref=${(el) => { if (el) setTimeout(() => el.focus(), 0); }}
+              />
+              ${searchQuery.value && html`
+                <button
+                  onClick=${() => { searchQuery.value = ""; }}
+                  class="absolute right-2 top-1/2 -translate-y-1/2"
+                  style="color: rgba(255,255,255,0.6);"
+                >
+                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
               `}
             </div>
           </div>
-          <div class="flex items-center gap-3">
-            <!-- Unit toggle -->
-            <button
-              onClick=${handleUnitToggle}
-              class="text-xs px-2.5 py-1.5 rounded-lg transition-colors"
-              style="border: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.9); font-family: var(--font-mono); background: rgba(255,255,255,0.1);"
-              title="Toggle metric/imperial"
-            >
-              ${units === "metric" ? "km" : "mi"}
-            </button>
-            ${isDemo.value ? html`
-              <button
-                onClick=${async () => { const restored = await exitDemo(); authState.value = restored; navigate("/"); }}
-                class="text-xs font-medium transition-colors"
-                style="color: rgba(255,255,255,0.9);"
-              >Exit Demo</button>
-            ` : syncing ? html`
-              <div class="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg" style="font-family: var(--font-body); color: rgba(255,255,255,0.9);">
-                <div class="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin flex-shrink-0" style="border-color: white; border-top-color: transparent;"></div>
-                <span>Syncing</span>
-              </div>
-            ` : ""}
-            <button
-              onClick=${() => { showFaq.value = !showFaq.value; }}
-              class="transition-colors"
-              style="color: rgba(255,255,255,0.7);"
-              title="FAQ & Help"
-            >
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </button>
-          </div>
         </div>
-      </header>
+      `}
 
       <main class="max-w-3xl mx-auto px-6 py-6">
+        ${!searchQuery.value.trim() && html`
         <!-- Inline sync progress -->
         ${syncing && html`
           <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
@@ -555,21 +572,54 @@ export function Dashboard() {
           </div>
         `}
 
+        `}
+
         <!-- Loading -->
         ${loading.value && html`
           <div class="text-center py-12" style="color: var(--text-tertiary);">Loading activities...</div>
         `}
 
         <!-- Activity list -->
-        ${!loading.value && html`
+        ${!loading.value && (() => {
+          const query = searchQuery.value.trim().toLowerCase();
+          const isSearching = query.length > 0;
+          const sourceActivities = isSearching ? allActivities.value : recentActivities.value;
+          const displayActivities = isSearching
+            ? sourceActivities.filter((activity) => {
+                // Search by activity name
+                if (activity.name && activity.name.toLowerCase().includes(query)) return true;
+                // Search by date
+                if (activity.start_date_local && activity.start_date_local.toLowerCase().includes(query)) return true;
+                // Search by formatted date
+                try {
+                  const formatted = formatDateWeekday(activity.start_date_local).toLowerCase();
+                  if (formatted.includes(query)) return true;
+                } catch (e) {}
+                // Search by award labels
+                const awards = activityAwards.value.get(activity.id) || [];
+                for (const award of awards) {
+                  const al = AWARD_LABELS[award.type];
+                  if (al && al.label.toLowerCase().includes(query)) return true;
+                  if (award.segment_name && award.segment_name.toLowerCase().includes(query)) return true;
+                }
+                return false;
+              })
+            : sourceActivities;
+          return html`
           <div class="space-y-3">
-            <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text);">Recent Activities</h2>
-            ${recentActivities.value.length === 0 && html`
+            <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text);">
+              ${isSearching
+                ? `${displayActivities.length} result${displayActivities.length !== 1 ? "s" : ""} for "${searchQuery.value.trim()}"`
+                : "Recent Activities"}
+            </h2>
+            ${displayActivities.length === 0 && html`
               <p class="text-center py-8" style="color: var(--text-tertiary);">
-                ${syncing ? "Activities will appear here as they sync..." : "No activities yet. Tap Sync Now to get started."}
+                ${isSearching
+                  ? "No activities match your search."
+                  : syncing ? "Activities will appear here as they sync..." : "No activities yet. Tap Sync Now to get started."}
               </p>
             `}
-            ${recentActivities.value.map((activity) => {
+            ${displayActivities.map((activity) => {
               const awards = activityAwards.value.get(activity.id) || [];
               const typeCounts = new Map();
               for (const a of awards) {
@@ -635,7 +685,8 @@ export function Dashboard() {
               `;
             })}
           </div>
-        `}
+        `;
+        })()}
 
       </main>
 
@@ -1118,103 +1169,50 @@ export function Dashboard() {
             `}
 
             <div class="mt-4 pt-4 space-y-3" style="border-top: 1px solid var(--border-light);">
-              ${!isDemo.value && html`
-                <div>
+              <p class="text-xs" style="color: var(--text-tertiary);">
+                Sync, disconnect, and account options are in the avatar menu (top right).
+              </p>
+            </div>
+
+            <!-- Delete confirmation dialog (triggered from avatar menu) -->
+            ${showDeleteConfirm.value && html`
+              <div class="mt-4 p-3 rounded-lg" style="background: #F6DED4; border: 1px solid #E4B8A4;">
+                <p class="text-xs mb-2" style="color: #7A2E18;">
+                  This will delete all your data from this browser. To confirm, type <span style="font-family: var(--font-mono); font-weight: 700;">delete my data</span> below.
+                </p>
+                <input
+                  type="text"
+                  value=${deleteConfirmText.value}
+                  onInput=${(e) => { deleteConfirmText.value = e.target.value; }}
+                  placeholder="delete my data"
+                  class="w-full text-xs rounded px-2 py-1.5 mb-2 focus:outline-none focus:ring-1"
+                  style="border: 1px solid #E4B8A4; font-family: var(--font-mono);"
+                />
+                <div class="flex gap-2">
                   <button
                     onClick=${async () => {
-                      try {
-                        await manualSync();
-                      } catch (e) {
-                        console.error("Manual sync error:", e);
-                      }
-                      await loadDashboard();
+                      await clearAllData();
+                      navigate("/");
+                      window.location.reload();
                     }}
-                    disabled=${syncing}
-                    class="text-xs font-medium transition-colors inline-flex items-center gap-1.5"
-                    style=${syncing
-                      ? "color: var(--text-tertiary); cursor: not-allowed;"
-                      : "color: var(--strava);"}
+                    disabled=${deleteConfirmText.value !== "delete my data"}
+                    class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
+                    style=${deleteConfirmText.value === "delete my data"
+                      ? "background: #A03020; color: white;"
+                      : "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"}
                   >
-                    ${syncing ? html`
-                      <div class="w-3 h-3 border-2 border-t-transparent rounded-full animate-spin flex-shrink-0" style="border-color: var(--strava); border-top-color: transparent;"></div>
-                      Syncing…
-                    ` : "Sync now"}
+                    Delete everything
                   </button>
-                  <p class="text-xs mt-1" style="color: var(--border);">Check Strava for new activities. The app syncs automatically every 5 minutes.</p>
-                </div>
-              `}
-              ${isDemo.value ? html`
-                <div>
                   <button
-                    onClick=${async () => { const restored = await exitDemo(); authState.value = restored; navigate("/"); }}
-                    class="text-xs font-medium transition-colors"
-                    style="color: var(--accent);"
+                    onClick=${() => { showDeleteConfirm.value = false; deleteConfirmText.value = ""; }}
+                    class="text-xs px-3 py-1.5 rounded transition-colors"
+                    style="color: var(--text-secondary);"
                   >
-                    Exit Demo Mode
+                    Cancel
                   </button>
-                  <p class="text-xs mt-1" style="color: var(--border);">Returns to the landing page. Demo data is discarded.</p>
                 </div>
-              ` : html`
-                <div>
-                  <button
-                    onClick=${handleDisconnect}
-                    class="text-xs transition-colors"
-                    style="color: var(--text-tertiary);"
-                  >
-                    Disconnect Strava
-                  </button>
-                  <p class="text-xs mt-1" style="color: var(--border);">Removes your login session. Synced data stays in your browser.</p>
-                </div>
-              `}
-              <div>
-                <button
-                  onClick=${() => { showDeleteConfirm.value = !showDeleteConfirm.value; deleteConfirmText.value = ""; }}
-                  class="text-xs transition-colors"
-                  style="color: var(--text-tertiary);"
-                >
-                  Delete all data
-                </button>
-                <p class="text-xs mt-1" style="color: var(--border);">Permanently removes all synced activities, segments, and login from this browser.</p>
-                ${showDeleteConfirm.value && html`
-                  <div class="mt-2 p-3 rounded-lg" style="background: #F6DED4; border: 1px solid #E4B8A4;">
-                    <p class="text-xs mb-2" style="color: #7A2E18;">
-                      This will delete all your data from this browser. To confirm, type <span style="font-family: var(--font-mono); font-weight: 700;">delete my data</span> below.
-                    </p>
-                    <input
-                      type="text"
-                      value=${deleteConfirmText.value}
-                      onInput=${(e) => { deleteConfirmText.value = e.target.value; }}
-                      placeholder="delete my data"
-                      class="w-full text-xs rounded px-2 py-1.5 mb-2 focus:outline-none focus:ring-1"
-                      style="border: 1px solid #E4B8A4; font-family: var(--font-mono);"
-                    />
-                    <div class="flex gap-2">
-                      <button
-                        onClick=${async () => {
-                          await clearAllData();
-                          navigate("/");
-                          window.location.reload();
-                        }}
-                        disabled=${deleteConfirmText.value !== "delete my data"}
-                        class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
-                        style=${deleteConfirmText.value === "delete my data"
-                          ? "background: #A03020; color: white;"
-                          : "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"}
-                      >
-                        Delete everything
-                      </button>
-                      <button
-                        onClick=${() => { showDeleteConfirm.value = false; deleteConfirmText.value = ""; }}
-                        class="text-xs px-3 py-1.5 rounded transition-colors"
-                        style="color: var(--text-secondary);"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                `}
               </div>
-            </div>
+            `}
           </div>
         </div>
       `}

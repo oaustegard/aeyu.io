@@ -23,6 +23,7 @@ import {
 } from "../units.js";
 import { renderIconSVG, drawIcon } from "../icons.js";
 import { AWARD_LABELS, AWARD_COLORS } from "../award-config.js";
+import { StickyHeader } from "./StickyHeader.js";
 
 const activity = signal(null);
 const awards = signal([]);
@@ -902,36 +903,38 @@ export function ActivityDetail({ id }) {
 
   return html`
     <div class="min-h-screen" style="background: var(--bg);">
-      <header style="background: var(--accent);">
-        <div class="max-w-3xl mx-auto px-6 py-4">
-          <button onClick=${() => navigate("/dashboard")} class="text-sm mb-2 block" style="color: rgba(255,255,255,0.75);">
-            ← Back to dashboard
+      <${StickyHeader}
+        onBack=${() => navigate("/dashboard")}
+        backLabel="Dashboard"
+        contextLabel=${act.name}
+        rightSlot=${!isDemo.value && html`
+          <button
+            onClick=${handleResync}
+            disabled=${resyncing.value}
+            class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            style="border: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.9); font-family: var(--font-body); background: rgba(255,255,255,0.1);"
+            title="Re-fetch this activity from Strava"
+          >
+            <svg class="w-3 h-3 ${resyncing.value ? 'animate-spin' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            ${resyncing.value ? "Resyncing…" : "Resync"}
           </button>
-          <div class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <h1 style="font-family: var(--font-display); font-size: 1.25rem; color: var(--text-on-dark);">${act.name}</h1>
-              <a href=${`https://www.strava.com/activities/${act.id}`} target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 flex-shrink-0 text-xs font-semibold" style="color: rgba(255,255,255,0.8); text-decoration: none; transition: opacity 0.15s;" onMouseOver=${e => e.currentTarget.style.opacity = '0.7'} onMouseOut=${e => e.currentTarget.style.opacity = '1'}>
-                View on Strava
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-              </a>
-            </div>
-            ${!isDemo.value && html`
-              <button
-                onClick=${handleResync}
-                disabled=${resyncing.value}
-                class="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
-                style="border: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.9); font-family: var(--font-body); background: rgba(255,255,255,0.1);"
-                title="Re-fetch this activity from Strava"
-              >
-                <svg class="w-3.5 h-3.5 ${resyncing.value ? 'animate-spin' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-                </svg>
-                ${resyncing.value ? "Resyncing…" : "Resync"}
-              </button>
-            `}
+        `}
+      />
+
+      <!-- Activity title bar (below sticky header) -->
+      <div style="background: var(--accent);">
+        <div class="max-w-3xl mx-auto px-4 pb-4">
+          <div class="flex items-center gap-2 mb-1">
+            <h1 style="font-family: var(--font-display); font-size: 1.25rem; color: var(--text-on-dark);">${act.name}</h1>
+            <a href=${`https://www.strava.com/activities/${act.id}`} target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 flex-shrink-0 text-xs font-semibold" style="color: rgba(255,255,255,0.8); text-decoration: none; transition: opacity 0.15s;" onMouseOver=${e => e.currentTarget.style.opacity = '0.7'} onMouseOut=${e => e.currentTarget.style.opacity = '1'}>
+              View on Strava
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </a>
           </div>
           ${resyncError.value && html`
-            <div class="mt-1 text-xs" style="color: #FFB0A0;">${resyncError.value}</div>
+            <div class="mb-1 text-xs" style="color: #FFB0A0;">${resyncError.value}</div>
           `}
           <p style="font-family: var(--font-mono); font-size: 14px; color: rgba(255,255,255,0.7);">
             ${formatDateFull(act.start_date_local)}
@@ -941,7 +944,7 @@ export function ActivityDetail({ id }) {
             ${ridePower ? ` · ${ridePower} avg` : ""}
           </p>
         </div>
-      </header>
+      </div>
 
       <main class="max-w-3xl mx-auto px-6 py-6">
         <!-- Awards summary — compact pill row + ride-level awards + share (#88) -->

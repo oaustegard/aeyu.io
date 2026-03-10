@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>aeyu.io — Participation Awards</title>
+    <title>aeyu — Participation Awards</title>
     <meta name="description" content="Giving recognition for efforts where effort was given">
 
     <!-- Open Graph / Link Preview -->
@@ -73,10 +73,39 @@
           --font-body: 'DM Sans', sans-serif;
           --font-mono: 'IBM Plex Mono', monospace;
         }
+        .search-input::placeholder { color: rgba(255,255,255,0.5); }
         /* Safe area insets for notched devices */
         body {
             padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
             font-family: var(--font-body);
+        }
+
+        /* Sticky header transitions */
+        .sticky-header-full {
+            transition: transform 0.25s ease, opacity 0.2s ease;
+        }
+        .sticky-header-full--hidden {
+            /* Keep in flow but visually hidden — compact takes over */
+        }
+        .sticky-header-compact {
+            transform: translateY(-100%);
+            opacity: 0;
+            transition: transform 0.25s ease, opacity 0.2s ease;
+            pointer-events: none;
+        }
+        .sticky-header-compact--visible {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Avatar dropdown animation */
+        .avatar-dropdown {
+            animation: dropdown-in 0.15s ease-out;
+        }
+        @keyframes dropdown-in {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
