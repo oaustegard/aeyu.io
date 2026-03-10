@@ -219,7 +219,7 @@ export function Dashboard() {
         menuItems=${[
           ...(isDemo.value ? [{
             label: "Exit Demo",
-            onClick: async () => { const restored = await exitDemo(); authState.value = restored; navigate("/"); },
+            onClick: async () => { await exitDemo(); navigate("/"); window.location.reload(); },
           }] : [{
             label: syncing ? "Syncing…" : "Sync now",
             onClick: async () => { try { await manualSync(loadDashboard); } catch(e) { console.error("Manual sync error:", e); } await loadDashboard(); },
@@ -233,11 +233,11 @@ export function Dashboard() {
             label: "Disconnect Strava",
             onClick: handleDisconnect,
           }] : []),
-          {
+          ...(!isDemo.value ? [{
             label: "Delete all data",
             onClick: () => { showDeleteConfirm.value = true; deleteConfirmText.value = ""; },
             danger: true,
-          },
+          }] : []),
         ]}
       />
 
