@@ -285,11 +285,35 @@ export function Dashboard() {
         <!-- Sync paused banner (not actively syncing, but backfill incomplete) -->
         ${!syncing && !backfillComplete.value && !loading.value && html`
           <div class="rounded-xl p-4 mb-6" style="background: #FBF0D8; border: 1px solid #E8D4A0; font-family: var(--font-body); font-size: 0.875rem; color: #6E5010;">
-            <p class="font-medium mb-1">Initial sync paused</p>
-            <p>
-              Your full activity history is still loading. Strava limits API requests,
-              so this happens over a few sessions. Sync will resume automatically.
-            </p>
+            <div class="flex items-center justify-between mb-1">
+              <p class="font-medium">Initial sync paused</p>
+              <button
+                onClick=${() => manualSync().catch(() => {}).then(() => loadDashboard())}
+                class="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+                style="background: var(--strava); color: white;"
+              >Sync Now</button>
+            </div>
+            ${progress.phase === "error" ? html`
+              <p>${progress.message}</p>
+            ` : dailyPct > 80 ? html`
+              <p>
+                Strava's daily API limit has been reached. Sync will resume tomorrow.
+              </p>
+            ` : shortPct > 80 ? html`
+              <p>
+                Strava's 15-minute rate limit reached. Sync will resume shortly.
+              </p>
+            ` : html`
+              <p>
+                Your full activity history is still loading. Strava limits API requests,
+                so this happens over a few sessions. Sync will resume automatically.
+              </p>
+            `}
+            ${(dailyPct > 0 || shortPct > 0) && html`
+              <p class="mt-2" style="font-family: var(--font-mono); font-size: 0.75rem; color: #8A6B10;">
+                API usage: ${rateLimit.shortUsage}/${rateLimit.shortLimit} (15-min) · ${rateLimit.dailyUsage}/${rateLimit.dailyLimit} (daily)
+              </p>
+            `}
           </div>
         `}
 
