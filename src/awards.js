@@ -362,7 +362,7 @@ function dayOfYear(date) {
  * @param {Array} allEfforts - All efforts on this segment
  * @param {Date} activityDate - Date of the current activity
  * @param {string} field - "elapsed_time" (lower=better) or "average_watts" (higher=better)
- * @returns {{ sinceYear: number, span: number } | null}
+ * @returns {{ sinceYear: number, span: number, rank: number, totalYears: number, pctDelta: number } | null}
  */
 function computeYtdComparison(currentValue, allEfforts, activityDate, field) {
   if (currentValue == null) return null;
@@ -422,7 +422,19 @@ function computeYtdComparison(currentValue, allEfforts, activityDate, field) {
   }
 
   if (sinceYear == null) return null;
-  return { sinceYear, span: currentYear - sinceYear };
+
+  // Rank among all years' bests and % delta from average
+  const allBests = Object.values(bestByYear);
+  const totalYears = allBests.length;
+  const rank = lowerIsBetter
+    ? allBests.filter((v) => v < currentValue).length + 1
+    : allBests.filter((v) => v > currentValue).length + 1;
+  const avg = allBests.reduce((s, v) => s + v, 0) / allBests.length;
+  const pctDelta = avg !== 0
+    ? Math.round(Math.abs(currentValue - avg) / avg * 1000) / 10
+    : 0;
+
+  return { sinceYear, span: currentYear - sinceYear, rank, totalYears, pctDelta };
 }
 
 
@@ -627,6 +639,12 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
           .sort((a, b) => a.elapsed_time - b.elapsed_time);
         const previousBest = otherEfforts.length > 0 ? otherEfforts[0] : null;
 
+        const yearTimes = thisYearEfforts.map((e) => e.elapsed_time);
+        const yearAvg = yearTimes.reduce((s, v) => s + v, 0) / yearTimes.length;
+        const ybPctDelta = yearAvg !== 0
+          ? Math.round(Math.abs(effort.elapsed_time - yearAvg) / yearAvg * 1000) / 10
+          : 0;
+
         awards.push({
           type: "year_best",
           segment: segment.name,
@@ -637,6 +655,9 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
           delta: previousBest
             ? previousBest.elapsed_time - effort.elapsed_time
             : null,
+          rank: 1,
+          totalInSet: thisYearEfforts.length,
+          pctDelta: ybPctDelta,
           message: previousBest
             ? `Year Best on ${segment.name}! ${formatTime(effort.elapsed_time)} (previous: ${formatTime(previousBest.elapsed_time)} on ${formatDate(previousBest.start_date_local)})`
             : `Year Best on ${segment.name}! ${formatTime(effort.elapsed_time)}`,
@@ -654,6 +675,12 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
       const bestOfLast5 = Math.min(...last5.map((e) => e.elapsed_time));
 
       if (effort.elapsed_time === bestOfLast5) {
+        const recentTimes = last5.map((e) => e.elapsed_time);
+        const recentAvg = recentTimes.reduce((s, v) => s + v, 0) / recentTimes.length;
+        const rbPctDelta = recentAvg !== 0
+          ? Math.round(Math.abs(effort.elapsed_time - recentAvg) / recentAvg * 1000) / 10
+          : 0;
+
         awards.push({
           type: "recent_best",
           segment: segment.name,
@@ -662,6 +689,9 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
           power: effort.average_watts || null,
           comparison: null,
           delta: null,
+          rank: 1,
+          totalInSet: last5.length,
+          pctDelta: rbPctDelta,
           message: `Best of your last ${last5.length} on ${segment.name}! ${formatTime(effort.elapsed_time)}`,
         });
       }
@@ -748,6 +778,12 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
       const bestThisMonth = Math.min(...thisMonthEfforts.map((e) => e.elapsed_time));
       if (effort.elapsed_time === bestThisMonth) {
         const monthName = activityDate.toLocaleDateString("en-US", { month: "long" });
+        const monthTimes = thisMonthEfforts.map((e) => e.elapsed_time);
+        const monthAvg = monthTimes.reduce((s, v) => s + v, 0) / monthTimes.length;
+        const mbPctDelta = monthAvg !== 0
+          ? Math.round(Math.abs(effort.elapsed_time - monthAvg) / monthAvg * 1000) / 10
+          : 0;
+
         awards.push({
           type: "monthly_best",
           segment: segment.name,
@@ -756,6 +792,9 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
           power: effort.average_watts || null,
           comparison: null,
           delta: null,
+          rank: 1,
+          totalInSet: thisMonthEfforts.length,
+          pctDelta: mbPctDelta,
           message: `${monthName} Best on ${segment.name}! ${formatTime(effort.elapsed_time)} — fastest of ${thisMonthEfforts.length} efforts this month`,
         });
       }
@@ -831,6 +870,12 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
           if (hasPriorYears) {
             const monthName = activityDate.toLocaleDateString("en-US", { month: "long" });
             const yearsSpanned = new Set(sameMonthEfforts.map((e) => new Date(e.start_date_local).getFullYear())).size;
+            const sameMonthTimes = sameMonthEfforts.map((e) => e.elapsed_time);
+            const sameMonthAvg = sameMonthTimes.reduce((s, v) => s + v, 0) / sameMonthTimes.length;
+            const bmePctDelta = sameMonthAvg !== 0
+              ? Math.round(Math.abs(effort.elapsed_time - sameMonthAvg) / sameMonthAvg * 1000) / 10
+              : 0;
+
             awards.push({
               type: "best_month_ever",
               segment: segment.name,
@@ -839,6 +884,9 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
               power: effort.average_watts || null,
               comparison: null,
               delta: null,
+              rank: 1,
+              totalInSet: sameMonthEfforts.length,
+              pctDelta: bmePctDelta,
               message: `Best ${monthName} ever on ${segment.name}! ${formatTime(effort.elapsed_time)} — fastest across ${yearsSpanned} years`,
             });
           }
@@ -909,6 +957,9 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
           power: effort.average_watts || null,
           comparison: null,
           delta: null,
+          rank: ytdTime.rank,
+          totalInSet: ytdTime.totalYears,
+          pctDelta: ytdTime.pctDelta,
           message: `Fastest by ${monthDay} since ${ytdTime.sinceYear}! ${formatTime(effort.elapsed_time)} on ${segment.name} — best YTD across ${ytdTime.span + 1} years`,
         });
       }
@@ -941,6 +992,9 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
             power: effort.average_watts,
             comparison: null,
             delta: null,
+            rank: ytdPower.rank,
+            totalInSet: ytdPower.totalYears,
+            pctDelta: ytdPower.pctDelta,
             message: `Best power by ${monthDay} since ${ytdPower.sinceYear}! ${Math.round(effort.average_watts)}W on ${segment.name} — best YTD across ${ytdPower.span + 1} years`,
           });
         }
