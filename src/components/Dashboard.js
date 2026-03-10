@@ -852,6 +852,102 @@ export function Dashboard() {
                   <p class="text-xs text-gray-400">In short: Comeback Mode protects; Reference Points observe.</p>
                 </div>
               </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  What are the segment charts?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  <p>Each segment effort in the activity detail view has a <strong>sparkline</strong> — a small inline chart showing your recent effort history (up to 20 efforts). The current effort is highlighted in orange.</p>
+                  <p>A <strong>trend line</strong> overlays the chart using linear regression. Green means you're getting faster, red means you're slowing down, gray means stable. Tap the sparkline to expand it and see your best time, effort count, and improvement rate (seconds gained or lost per month).</p>
+                  <p>The Aerobic Efficiency section on the dashboard also shows a <strong>monthly bar chart</strong> of your last 6 months of Efficiency Factor values. Hover a bar to see the exact EF for that month.</p>
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  How do share cards work?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  <p>From the activity detail view, you can generate shareable images of your rides or individual segment efforts. These are rendered locally on a canvas — nothing is uploaded.</p>
+                  <p><strong>Activity share cards</strong> show the ride summary (distance, time, elevation, power), award highlights, and top awards. <strong>Segment share cards</strong> include a performance chart of your effort history on that segment, plus award details. Both can be saved as images or shared directly.</p>
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  How does search work?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  The search bar (magnifying glass icon in the header) filters your activity list by name, date, award type, or segment name. It searches across all loaded activities in real time. Press Escape to close the search.
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  What is Ride Streak?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  <p>Ride Streak counts consecutive weeks where you've ridden at least once. One missed week is forgiven (a "mulligan") — two consecutive missed weeks break the streak. When your streak is at risk, you'll see a warning banner.</p>
+                  <p><strong>Group Rides</strong> are automatically detected by matching recurring rides on the same day of the week, similar time, and similar starting location. Your attendance streak is tracked for each group ride, also with mulligan forgiveness.</p>
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  What is the Power Curve?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  <p>If you ride with a power meter, the app can fetch your per-second power data and compute your <strong>power curve</strong> — your best average power at standard durations (5s sprint, 30s, 1 min, 5 min VO2max, 20 min FTP proxy, 60 min sustained).</p>
+                  <p>Your <strong>FTP</strong> (Functional Threshold Power) is estimated as 95% of your best 20-minute power. Awards like Curve Year Best and Curve Record track improvements at each duration. Power curve data is fetched and cached locally over multiple sync sessions.</p>
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  Can I switch between metric and imperial?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  Yes — tap the unit toggle button in the header (km/mi). This switches all distance, elevation, and speed values between metric and imperial. Your preference is saved locally and persists between sessions.
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  How does syncing work?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  <p>After connecting Strava, the app fetches your activity list and then detail-fetches each activity for segment efforts. This happens in the background and is <strong>resumable</strong> — if you close the browser or hit a rate limit, sync picks up where it left off next time.</p>
+                  <p>Strava enforces API rate limits (per 15-minute window and daily). The app tracks usage and pauses automatically when limits are approached. You can configure the <strong>sync window</strong> in settings (default 2 years, or 3y/4y/all/custom date).</p>
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  What is Demo Mode?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  Demo Mode lets you explore the app without connecting Strava. It loads sample data (~60 activities, 10 segments) so you can see how awards, charts, and the dashboard work. An amber badge indicates demo mode, and you can exit at any time from the menu to start fresh with your own Strava data.
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  What are routes?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  The app automatically detects recurring routes by comparing which segments appear on each ride. If two activities share 70%+ of their segments, they're considered the same route. This powers the Route Season First award — rather than listing a Season First for every segment on a familiar ride, it collapses them into a single route-level award.
+                </div>
+              </details>
             </div>
 
           </div>

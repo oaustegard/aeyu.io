@@ -102,8 +102,12 @@ Loads `demo-data.json` into IndexedDB with a fake auth session (athlete ID 99999
 1. Add computation logic in `awards.js` (in `computeAwards` for segment-level, `computeRideLevelAwards` for ride-level)
 2. Add label/color in `AWARD_LABELS` in `src/award-config.js` (single source of truth for both Dashboard and ActivityDetail)
 3. Add tier ranking in `AWARD_TIER` in `awards.js` (for segment award ranking)
-4. Add FAQ entry in Dashboard.js FAQ section
+4. Add FAQ entry in Dashboard.js FAQ section (both the "What do the awards mean?" list and a dedicated entry if the feature is complex)
 5. Add to test harness scenario in `test/harness.py`
+
+**Add any new user-facing feature:**
+1. Add an FAQ entry in the Dashboard.js FAQ modal explaining what it does and how to use it
+2. If relevant to pre-auth users (explains what the app offers), also add an entry in the Landing.js FAQ section
 
 **Modify sync behavior:**
 Edit `sync.js`. Rate limit tracking is automatic. New fields from Strava API need to be added to both the activity summary storage and the segment effort extraction.
