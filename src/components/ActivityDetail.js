@@ -1110,10 +1110,17 @@ export function ActivityDetail({ id }) {
                         (a) => {
                           const al = AWARD_LABELS[a.type];
                           const pillStyle = al ? `background: ${al.bg}; color: ${al.text}; border: 1px solid ${al.border};` : "background: #ECEAE6; color: #3E3A36;";
+                          const rankSuffix = (n) => { const s = ["th","st","nd","rd"]; const v = n % 100; return n + (s[(v-20)%10]||s[v]||s[0]); };
+                          const isYtd = a.type === "ytd_best_time" || a.type === "ytd_best_power";
+                          const deltaLabel = a.type === "ytd_best_power" ? "more powerful" : "faster";
+                          const setLabel = isYtd ? (a.totalInSet === 1 ? "year" : "years") : "";
+                          const rankInfo = a.rank != null && a.totalInSet != null
+                            ? ` · ${rankSuffix(a.rank)} of ${a.totalInSet}${isYtd ? ` ${setLabel}` : ""}${a.pctDelta ? `, ${a.pctDelta}% ${deltaLabel}` : ""}`
+                            : "";
                           return html`
                             <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style=${pillStyle}>
                               ${al ? renderIconSVG(a.type, { size: 12, color: al.dot }) : null}
-                              ${al?.label || a.type}
+                              ${al?.label || a.type}${rankInfo}
                             </span>
                           `;
                         }
