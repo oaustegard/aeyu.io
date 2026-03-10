@@ -790,7 +790,7 @@ export function ActivityDetail({ id }) {
       <div class="min-h-screen flex items-center justify-center" style="background: var(--bg);">
         <div class="text-center">
           <p style="color: var(--text-secondary);">Activity not found</p>
-          <button onClick=${() => navigate("dashboard")} class="mt-4" style="color: var(--accent);">
+          <button onClick=${() => navigate("/dashboard")} class="mt-4" style="color: var(--accent);">
             Back to dashboard
           </button>
         </div>
@@ -904,7 +904,7 @@ export function ActivityDetail({ id }) {
   return html`
     <div class="min-h-screen" style="background: var(--bg);">
       <${StickyHeader}
-        onBack=${() => navigate("dashboard")}
+        onBack=${() => navigate("/dashboard")}
         backLabel="Dashboard"
         contextLabel=${act.name}
         rightSlot=${!isDemo.value && html`

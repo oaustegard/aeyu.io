@@ -143,7 +143,7 @@ export function SyncProgress() {
         ${progress.phase === "done" && html`
           <div class="text-center">
             <button
-              onClick=${() => navigate("dashboard")}
+              onClick=${() => navigate("/dashboard")}
               class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
             >
               View Dashboard

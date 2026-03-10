@@ -177,7 +177,7 @@ export function Dashboard() {
 
   async function handleDisconnect() {
     await disconnect();
-    navigate("");
+    navigate("/");
   }
 
   async function handleUnitToggle() {
@@ -218,7 +218,7 @@ export function Dashboard() {
         menuItems=${[
           ...(isDemo.value ? [{
             label: "Exit Demo",
-            onClick: async () => { const restored = await exitDemo(); authState.value = restored; navigate(""); },
+            onClick: async () => { const restored = await exitDemo(); authState.value = restored; navigate("/"); },
           }] : [{
             label: syncing ? "Syncing…" : "Sync now",
             onClick: async () => { try { await manualSync(); } catch(e) { console.error("Manual sync error:", e); } await loadDashboard(); },
@@ -637,7 +637,7 @@ export function Dashboard() {
               return html`
                 <button
                   key=${activity.id}
-                  onClick=${() => navigate(`activity/${activity.id}`)}
+                  onClick=${() => navigate(`/activity?id=${activity.id}`)}
                   class="w-full text-left rounded-xl p-4 transition-colors"
                   style="background: var(--surface); border: 1px solid var(--border);"
                   onMouseOver=${(e) => e.currentTarget.style.background = 'var(--surface-hover)'}
@@ -1192,7 +1192,7 @@ export function Dashboard() {
                   <button
                     onClick=${async () => {
                       await clearAllData();
-                      navigate("");
+                      navigate("/");
                       window.location.reload();
                     }}
                     disabled=${deleteConfirmText.value !== "delete my data"}
