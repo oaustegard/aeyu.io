@@ -432,7 +432,162 @@ async function renderShareCard(canvas, act, awardsList) {
 
 // ── Segment Share Card ────────────────────────────────────────────
 
-async function renderSegmentShareCard(canvas, act, effort, segAwards) {
+function drawPerformanceChart(ctx, segment, currentEffortId, chartX, chartY, chartW, chartH) {
+  if (!segment || !segment.efforts || segment.efforts.length < 2) return;
+
+  const MAX_EFFORTS = 20;
+  const sorted = [...segment.efforts]
+    .sort((a, b) => new Date(a.start_date_local) - new Date(b.start_date_local));
+  const recent = sorted.slice(-MAX_EFFORTS);
+  const times = recent.map(e => e.elapsed_time);
+
+  // Linear regression
+  const n = times.length;
+  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+  for (let i = 0; i < n; i++) {
+    sumX += i; sumY += times[i]; sumXY += i * times[i]; sumX2 += i * i;
+  }
+  const denom = n * sumX2 - sumX * sumX;
+  const slope = denom === 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
+  const intercept = denom === 0 ? sumY / n : (sumY - slope * sumX) / n;
+
+  // Improvement rate
+  const first = new Date(recent[0].start_date_local).getTime();
+  const last = new Date(recent[n - 1].start_date_local).getTime();
+  const monthSpan = (last - first) / (1000 * 60 * 60 * 24 * 30.44);
+  let rate = null;
+  if (monthSpan >= 0.5) {
+    const yMean = sumY / n;
+    let ssTot = 0, ssRes = 0;
+    for (let i = 0; i < n; i++) {
+      ssTot += (times[i] - yMean) ** 2;
+      ssRes += (times[i] - (intercept + slope * i)) ** 2;
+    }
+    const r2 = ssTot === 0 ? 0 : 1 - ssRes / ssTot;
+    if (r2 >= 0.05) rate = slope * (n - 1) / monthSpan;
+  }
+
+  const improving = rate != null && rate < -0.1;
+  const regressing = rate != null && rate > 0.1;
+  const trendColor = improving ? "#22c55e" : regressing ? "#ef4444" : "#9ca3af";
+
+  const minT = Math.min(...times);
+  const maxT = Math.max(...times);
+  const range = maxT - minT || 1;
+
+  const padX = 16, padY = 24;
+  const plotW = chartW - padX * 2;
+  const plotH = chartH - padY * 2;
+
+  const points = times.map((t, i) => ({
+    x: chartX + padX + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW),
+    y: chartY + padY + ((t - minT) / range) * plotH,
+    time: t,
+    date: recent[i].start_date_local,
+    isCurrent: recent[i].effort_id === currentEffortId,
+  }));
+
+  // Chart background
+  ctx.save();
+  ctx.fillStyle = "#FAF9F7";
+  roundRect(ctx, chartX, chartY, chartW, chartH, 12);
+  ctx.fill();
+  ctx.strokeStyle = "#E5DFD4";
+  ctx.lineWidth = 1;
+  roundRect(ctx, chartX, chartY, chartW, chartH, 12);
+  ctx.stroke();
+
+  // Clip to chart bounds
+  roundRect(ctx, chartX, chartY, chartW, chartH, 12);
+  ctx.clip();
+
+  // Min/max reference lines
+  ctx.strokeStyle = "#E5DFD4";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.moveTo(chartX + padX, chartY + padY);
+  ctx.lineTo(chartX + chartW - padX, chartY + padY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(chartX + padX, chartY + chartH - padY);
+  ctx.lineTo(chartX + chartW - padX, chartY + chartH - padY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Time labels for min/max
+  ctx.font = '400 20px "IBM Plex Mono", monospace';
+  ctx.fillStyle = "#8C8374";
+  ctx.textAlign = "right";
+  ctx.fillText(formatTime(minT), chartX + chartW - padX, chartY + padY - 6);
+  ctx.fillText(formatTime(maxT), chartX + chartW - padX, chartY + chartH - padY + 18);
+  ctx.textAlign = "left";
+
+  // Trend line
+  const trendY0 = chartY + padY + ((intercept - minT) / range) * plotH;
+  const trendY1 = chartY + padY + (((intercept + slope * (n - 1)) - minT) / range) * plotH;
+  ctx.strokeStyle = trendColor;
+  ctx.lineWidth = 2.5;
+  ctx.setLineDash([8, 4]);
+  ctx.globalAlpha = 0.7;
+  ctx.beginPath();
+  ctx.moveTo(chartX + padX, trendY0);
+  ctx.lineTo(chartX + chartW - padX, trendY1);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+
+  // Effort line
+  ctx.strokeStyle = "#A8A29E";
+  ctx.lineWidth = 2;
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  points.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+  ctx.stroke();
+
+  // Dots
+  for (const p of points) {
+    if (p.isCurrent) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+      ctx.fillStyle = "#fc4c02";
+      ctx.fill();
+      ctx.strokeStyle = "#FFFFFF";
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#A8A29E";
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
+
+  // Stats below chart
+  ctx.font = '400 22px "IBM Plex Mono", monospace';
+  ctx.fillStyle = "#8C8374";
+  const statsY = chartY + chartH + 28;
+  ctx.fillText(`${recent.length} efforts  ·  Best: ${formatTime(minT)}`, chartX, statsY);
+
+  if (rate != null) {
+    const abs = Math.abs(rate);
+    if (abs >= 0.1) {
+      const sign = rate < 0 ? "−" : "+";
+      const rateStr = abs < 60
+        ? `${sign}${abs.toFixed(1)}s/mo`
+        : `${sign}${Math.floor(abs / 60)}:${String(Math.round(abs % 60)).padStart(2, "0")}/mo`;
+      ctx.fillStyle = trendColor;
+      ctx.font = '500 22px "IBM Plex Mono", monospace';
+      ctx.textAlign = "right";
+      ctx.fillText(`Trend: ${rateStr}`, chartX + chartW, statsY);
+      ctx.textAlign = "left";
+    }
+  }
+}
+
+async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   const W = 1080;
   const pad = 60, left = pad + 48, maxTextW = W - left - pad - 48;
   const rightEdge = W - pad - 48;
@@ -479,6 +634,11 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards) {
   contentH += 48; // divider
   contentH += nameLines.length * 62 + 8; // segment name
   contentH += metaLines.length * 38 + 26; // meta
+
+  // Performance chart
+  const hasChart = segment && segment.efforts && segment.efforts.length >= 2;
+  const chartH = 200, chartStatsH = 36;
+  if (hasChart) contentH += chartH + chartStatsH + 28; // chart + stats + gap
 
   // Pre-wrap award messages for height calculation
   const awardMsgMaxW = maxTextW - 28; // account for icon + gap
@@ -583,6 +743,13 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards) {
     y += 38;
   }
   y += 26;
+
+  // Performance chart
+  if (hasChart) {
+    const chartW = rightEdge - left;
+    drawPerformanceChart(ctx, segment, effort.id, left, y, chartW, chartH);
+    y += chartH + chartStatsH + 28;
+  }
 
   // Awards
   if (segAwards.length > 0) {
@@ -947,7 +1114,8 @@ export function ActivityDetail({ id }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     cardGenerated.value = false;
-    await renderSegmentShareCard(canvas, act, effort, segAwards);
+    const seg = segmentHistory.value.get(effort.segment.id);
+    await renderSegmentShareCard(canvas, act, effort, segAwards, seg);
     canvas.style.display = "block";
     segmentCardGenerated.value = effort.segment.id;
     // Scroll canvas into view
