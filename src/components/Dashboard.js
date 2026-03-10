@@ -476,7 +476,9 @@ export function Dashboard() {
         <!-- Form Indicators (#106) -->
         ${!loading.value && fitnessData.value && (fitnessData.value.performanceCapacity.hasData || fitnessData.value.aerobicEfficiency.hasData) && html`
           <div class="mb-6 rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
-            <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin-bottom: 1rem;">Form Indicators</h2>
+            <h2 class="group relative inline-block cursor-help" style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin-bottom: 1rem;">Form Indicators
+              <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 top-full mt-2 text-white text-xs rounded px-3 py-2 whitespace-nowrap z-10" style="background: var(--text); font-family: var(--font-body); font-weight: 400;">Capacity + efficiency together tell a training story</span>
+            </h2>
 
             <div class="${fitnessData.value.performanceCapacity.hasData && fitnessData.value.aerobicEfficiency.hasData ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'grid grid-cols-1 gap-4'}">
 
@@ -484,7 +486,9 @@ export function Dashboard() {
               ${fitnessData.value.performanceCapacity.hasData && html`
                 <div class="rounded-lg p-4" style="background: var(--bg); border: 1px solid var(--border);">
                   <div class="flex items-center gap-2 mb-2">
-                    <span style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary);">Performance Capacity</span>
+                    <span class="group relative cursor-help" style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary);">Performance Capacity
+                      <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 text-white text-xs rounded px-3 py-2 whitespace-nowrap z-10" style="background: var(--text); font-family: var(--font-body); bottom: 100%; margin-bottom: 0.5rem;">What your body can produce — climb power vs. your history</span>
+                    </span>
                     ${fitnessData.value.performanceCapacity.trend != null && html`
                       <span style="font-size: 0.75rem; color: ${fitnessData.value.performanceCapacity.trend > 2 ? '#3D7A4A' : fitnessData.value.performanceCapacity.trend < -2 ? '#A05060' : 'var(--text-tertiary)'};">
                         ${fitnessData.value.performanceCapacity.trend > 2 ? '\u2191' : fitnessData.value.performanceCapacity.trend < -2 ? '\u2193' : '\u2192'}
@@ -509,7 +513,9 @@ export function Dashboard() {
               ${fitnessData.value.aerobicEfficiency.hasData && html`
                 <div class="rounded-lg p-4" style="background: var(--bg); border: 1px solid var(--border);">
                   <div class="flex items-center gap-2 mb-2">
-                    <span style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary);">Aerobic Efficiency</span>
+                    <span class="group relative cursor-help" style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary);">Aerobic Efficiency
+                      <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 text-white text-xs rounded px-3 py-2 whitespace-nowrap z-10" style="background: var(--text); font-family: var(--font-body); bottom: 100%; margin-bottom: 0.5rem;">Output per heartbeat — higher is better</span>
+                    </span>
                     ${fitnessData.value.aerobicEfficiency.ef.trend != null && html`
                       <span style="font-size: 0.75rem; color: ${fitnessData.value.aerobicEfficiency.ef.trend > 2 ? '#3D7A4A' : fitnessData.value.aerobicEfficiency.ef.trend < -2 ? '#A05060' : 'var(--text-tertiary)'};">
                         ${fitnessData.value.aerobicEfficiency.ef.trend > 2 ? '\u2191' : fitnessData.value.aerobicEfficiency.ef.trend < -2 ? '\u2193' : '\u2192'}
@@ -667,14 +673,14 @@ export function Dashboard() {
                             const routeName = routeAward?.route_name || "Route";
                             const freq = routeAward?.route_frequency;
                             return html`
-                              <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style=${pillStyle}>
+                              <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full cursor-help" style=${pillStyle} title=${al?.tip || ""}>
                                 ${al ? renderIconSVG(s.type, { size: 12, color: al.dot }) : null}
                                 Season First: ${routeName}${freq ? ` — ${freq} times` : ""}
                               </span>
                             `;
                           }
                           return html`
-                            <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style=${pillStyle}>
+                            <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full cursor-help" style=${pillStyle} title=${al?.tip || ""}>
                               ${al ? renderIconSVG(s.type, { size: 12, color: al.dot }) : null}
                               ${s.count > 1 ? `${s.count}× ` : ""}${al?.label || s.type}
                             </span>
