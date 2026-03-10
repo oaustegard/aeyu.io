@@ -203,23 +203,26 @@ export function Dashboard() {
   return html`
     <div class="min-h-screen" style="background: var(--bg);">
       <!-- Header -->
-      <header class="px-6 py-4" style="background: var(--surface); border-bottom: 1px solid var(--border);">
-        <div class="max-w-3xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 style="font-family: var(--font-display); font-size: 1.25rem; color: var(--text);">Participation Awards</h1>
-            ${auth && html`
-              <p style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
-                ${auth.athlete.firstname} ${auth.athlete.lastname}
-                ${isDemo.value && html`<span class="ml-2 text-xs px-2 py-0.5 rounded-full font-medium" style="background: #FBF0D8; color: #6E5010;">Demo</span>`}
-              </p>
-            `}
+      <header style="background: var(--accent);">
+        <div class="max-w-3xl mx-auto px-6 py-5 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <img src="icons/icon-192.png" alt="aeyu.io" style="height: 44px; width: 44px; border-radius: 8px;" />
+            <div>
+              <h1 style="font-family: var(--font-display); font-size: 1.75rem; color: var(--text-on-dark); line-height: 1.1;">Participation Awards</h1>
+              ${auth && html`
+                <p style="font-family: var(--font-body); font-size: 0.8rem; color: rgba(255,255,255,0.75);">
+                  ${auth.athlete.firstname} ${auth.athlete.lastname}
+                  ${isDemo.value && html`<span class="ml-2 text-xs px-2 py-0.5 rounded-full font-medium" style="background: rgba(255,255,255,0.2); color: white;">Demo</span>`}
+                </p>
+              `}
+            </div>
           </div>
           <div class="flex items-center gap-3">
             <!-- Unit toggle -->
             <button
               onClick=${handleUnitToggle}
               class="text-xs px-2.5 py-1.5 rounded-lg transition-colors"
-              style="border: 1px solid var(--border); color: var(--text-secondary); font-family: var(--font-mono);"
+              style="border: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.9); font-family: var(--font-mono); background: rgba(255,255,255,0.1);"
               title="Toggle metric/imperial"
             >
               ${units === "metric" ? "km" : "mi"}
@@ -228,18 +231,18 @@ export function Dashboard() {
               <button
                 onClick=${async () => { const restored = await exitDemo(); authState.value = restored; navigate(""); }}
                 class="text-xs font-medium transition-colors"
-                style="color: var(--accent);"
+                style="color: rgba(255,255,255,0.9);"
               >Exit Demo</button>
             ` : syncing ? html`
-              <div class="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg" style="font-family: var(--font-body); color: var(--text-secondary);">
-                <div class="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin flex-shrink-0" style="border-color: var(--strava); border-top-color: transparent;"></div>
+              <div class="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg" style="font-family: var(--font-body); color: rgba(255,255,255,0.9);">
+                <div class="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin flex-shrink-0" style="border-color: white; border-top-color: transparent;"></div>
                 <span>Syncing</span>
               </div>
             ` : ""}
             <button
               onClick=${() => { showFaq.value = !showFaq.value; }}
               class="transition-colors"
-              style="color: var(--text-tertiary);"
+              style="color: rgba(255,255,255,0.7);"
               title="FAQ & Help"
             >
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -610,11 +613,12 @@ export function Dashboard() {
           </div>
         `}
 
-        <!-- Powered by Strava -->
-        <div class="text-center mt-12 mb-6">
-          <img src="assets/strava/api_logo_pwrdBy_strava_horiz_orange.svg" alt="Powered by Strava" style="height: 24px; display: inline-block;" />
-        </div>
       </main>
+
+      <!-- Powered by Strava -->
+      <footer class="text-center py-4 mt-4" style="border-top: 1px solid var(--border);">
+        <img src="assets/strava/api_logo_pwrdBy_strava_horiz_orange.svg" alt="Powered by Strava" style="height: 18px; display: inline-block; opacity: 0.6;" />
+      </footer>
 
       <!-- FAQ Modal Overlay -->
       ${showFaq.value && html`
