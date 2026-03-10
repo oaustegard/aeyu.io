@@ -503,7 +503,7 @@ export function Dashboard() {
                 <div class="rounded-lg p-4" style="background: var(--bg); border: 1px solid var(--border);">
                   <div class="flex items-center gap-2 mb-2">
                     <span class="group relative cursor-help" style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary);">Performance Capacity
-                      <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 text-white text-xs rounded px-3 py-2 whitespace-nowrap z-10" style="background: var(--text); font-family: var(--font-body); bottom: 100%; margin-bottom: 0.5rem;">What your body can produce — climb power vs. your history</span>
+                      <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 text-white text-xs rounded px-3 py-2 z-10" style="background: var(--text); font-family: var(--font-body); bottom: 100%; margin-bottom: 0.5rem; white-space: normal; width: 220px; text-align: center;">0-100 score from your climb segments. Bars show each climb\u2019s percentile vs. your all-time history (last 90 days, recency-weighted).</span>
                     </span>
                     ${fitnessData.value.performanceCapacity.trend != null && html`
                       <span style="font-size: 0.75rem; color: ${fitnessData.value.performanceCapacity.trend > 2 ? '#3D7A4A' : fitnessData.value.performanceCapacity.trend < -2 ? '#A05060' : 'var(--text-tertiary)'};">
@@ -537,7 +537,7 @@ export function Dashboard() {
                 <div class="rounded-lg p-4" style="background: var(--bg); border: 1px solid var(--border);">
                   <div class="flex items-center gap-2 mb-2">
                     <span class="group relative cursor-help" style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary);">Aerobic Efficiency
-                      <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 text-white text-xs rounded px-3 py-2 whitespace-nowrap z-10" style="background: var(--text); font-family: var(--font-body); bottom: 100%; margin-bottom: 0.5rem;">Output per heartbeat — higher is better</span>
+                      <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 text-white text-xs rounded px-3 py-2 z-10" style="background: var(--text); font-family: var(--font-body); bottom: 100%; margin-bottom: 0.5rem; white-space: normal; width: 220px; text-align: center;">Efficiency Factor (power or speed \u00F7 heart rate). Each dot is a ride; the dashed line shows your trend over time.</span>
                     </span>
                     ${fitnessData.value.aerobicEfficiency.ef.trend != null && html`
                       <span style="font-size: 0.75rem; color: ${fitnessData.value.aerobicEfficiency.ef.trend > 2 ? '#3D7A4A' : fitnessData.value.aerobicEfficiency.ef.trend < -2 ? '#A05060' : 'var(--text-tertiary)'};">
@@ -856,9 +856,9 @@ export function Dashboard() {
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
                 <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
-                  <p><strong>Performance Capacity</strong> (0-100) measures what your body can produce. It tracks your climb segment times, converts them to estimated power-to-weight (VAM/Ferrari formula), and ranks recent efforts against your own history. Requires at least 3 climb segments with 3+ efforts each.</p>
-                  <p><strong>Aerobic Efficiency</strong> measures output per heartbeat (Efficiency Factor = power/HR or speed/HR). Higher is better. Only appears when your activities include heart rate data.</p>
-                  <p>Together they tell a training story: rising capacity + rising efficiency = ideal. Rising capacity + falling efficiency = possible overreaching.</p>
+                  <p><strong>Performance Capacity</strong> (0-100) measures what your body can produce. It tracks your climb segment times, converts them to estimated power-to-weight (VAM/Ferrari formula), and ranks recent efforts (last 90 days) against your all-time history. The horizontal bar chart shows your top climb segments colored by percentile: green (\u226570), blue (\u226540), or red (below 40). Long-press or hover a bar for effort counts. Requires at least 3 climb segments with 3+ efforts each.</p>
+                  <p><strong>Aerobic Efficiency</strong> measures output per heartbeat (Efficiency Factor = power/HR or speed/HR). Higher means more work per heartbeat = fitter. The scatter plot shows individual ride EF values over time. A dashed trend line shows the overall direction: green = improving, red = declining. Long-press or hover a dot for the date and exact EF. Only appears when your activities include heart rate data.</p>
+                  <p>Together they tell a training story: rising capacity + rising efficiency = ideal. Rising capacity + falling efficiency = possible overreaching. The colored banner below interprets the combination.</p>
                 </div>
               </details>
 
@@ -933,7 +933,7 @@ export function Dashboard() {
                 <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
                   <p>Each segment effort in the activity detail view has a <strong>sparkline</strong> — a small inline chart showing your recent effort history (up to 20 efforts). The current effort is highlighted in orange.</p>
                   <p>A <strong>trend line</strong> overlays the chart using linear regression. Green means you're getting faster, red means you're slowing down, gray means stable. Tap the sparkline to expand it and see your best time, effort count, and improvement rate (seconds gained or lost per month).</p>
-                  <p>The Aerobic Efficiency section on the dashboard also shows a <strong>monthly bar chart</strong> of your last 6 months of Efficiency Factor values. Hover a bar to see the exact EF for that month.</p>
+                  <p>The dashboard Form Indicators also include charts. <strong>Performance Capacity</strong> shows horizontal bars for your top climb segments, colored by percentile (green \u226570, blue \u226540, red below). <strong>Aerobic Efficiency</strong> shows a scatter plot of individual ride EF values over time with a dashed trend line (green = improving, red = declining). Long-press or hover any bar or dot for details.</p>
                 </div>
               </details>
 
