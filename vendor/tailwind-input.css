@@ -1,0 +1,7 @@
+@import "tailwindcss";
+@source "../index.html";
+@source "../callback.html";
+@source "../activity.html";
+@source "../dashboard.html";
+@source "../demo.html";
+@source "../src/**/*.js";

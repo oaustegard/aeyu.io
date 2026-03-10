@@ -512,38 +512,12 @@ def start_server(directory, port=8765):
 # ── CDN Interception ──────────────────────────────────────────────────
 
 def setup_cdn_routes(page, vendor_dir):
-    """Intercept CDN to serve local vendor bundles."""
-    vendor = Path(vendor_dir)
-    tw_css = (vendor / "tailwind.css").read_bytes()
-    tw_inject = (b"(function(){var s=document.createElement('style');"
-                 b"s.textContent=" + json.dumps(tw_css.decode()).encode() + b";"
-                 b"document.head.appendChild(s);})()")
-    preact_js = (vendor / "preact.mjs").read_bytes()
-    hooks_js = (vendor / "preact-hooks.mjs").read_bytes()
-    signals_js = (vendor / "preact-signals.mjs").read_bytes()
-    htm_js = (vendor / "htm-preact.mjs").read_bytes()
-
-    def handle(route):
-        url = route.request.url
-        if "cdn.tailwindcss.com" in url:
-            route.fulfill(status=200, content_type="application/javascript", body=tw_inject)
-        elif "esm.sh/preact@" in url and "/hooks" in url:
-            route.fulfill(status=200, content_type="application/javascript", body=hooks_js)
-        elif "esm.sh/preact@" in url:
-            route.fulfill(status=200, content_type="application/javascript", body=preact_js)
-        elif "esm.sh/@preact/signals" in url:
-            route.fulfill(status=200, content_type="application/javascript", body=signals_js)
-        elif "esm.sh/htm@" in url:
-            route.fulfill(status=200, content_type="application/javascript", body=htm_js)
-        else:
-            route.fulfill(status=200, content_type="application/javascript", body=b"")
-
-    page.route(lambda url: "esm.sh" in url or "cdn.tailwindcss.com" in url, handle)
+    """No-op: vendor deps are now served locally via import maps. Kept for call-site compat."""
+    pass
 
 def stub_cdn(page):
-    """Stub all CDN to empty."""
-    page.route(lambda url: "esm.sh" in url or "cdn.tailwindcss.com" in url,
-               lambda route: route.fulfill(status=200, content_type="application/javascript", body=b""))
+    """No-op: no CDN requests to stub. Kept for call-site compat."""
+    pass
 
 
 # ── Injection ─────────────────────────────────────────────────────────

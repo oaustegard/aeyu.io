@@ -20,9 +20,9 @@ test/_MAP.md         → harness functions
 
 ## Tech Stack
 
-- **Preact + HTM + Signals** — no build step, ESM imports from esm.sh CDN
+- **Preact + HTM + Signals** — no build step, vendored ESM bundles in `vendor/`
 - **IndexedDB** — client-side storage (activities, segments, sync_state, auth)
-- **Tailwind CSS** — via CDN (play.tailwindcss.com)
+- **Tailwind CSS** — pre-built via `@tailwindcss/cli`, output in `vendor/tailwind.css`
 - **Cloudflare Worker** — OAuth proxy only (`worker/worker.js`)
 - **GitHub Pages** — static hosting at aeyu.io
 - **Playwright** — test harness (`test/harness.py`)
@@ -49,6 +49,15 @@ src/
 callback.html       OAuth redirect target
 demo-data.json      Canned demo data (~60 activities, 10 segments)
 sw.js               Service worker for PWA offline support
+vendor/
+  preact.mjs        Preact 10.28.4 ESM bundle
+  hooks.mjs         Preact hooks ESM bundle
+  signals.mjs       @preact/signals 2.8.2 ESM bundle
+  signals-core.mjs  @preact/signals-core 1.14.0 ESM bundle
+  htm.mjs           HTM 3.1.1 base module
+  htm-preact.mjs    HTM/Preact bindings (exports html tagged template)
+  tailwind.css      Pre-built Tailwind CSS (generated from tailwind-input.css)
+  tailwind-input.css  Tailwind CLI input with @source directives
 worker/
   worker.js         Cloudflare Worker: /auth/token, /auth/refresh
   wrangler.toml     Worker config (STRAVA_CLIENT_SECRET in env)
@@ -80,7 +89,8 @@ Loads `demo-data.json` into IndexedDB with a fake auth session (athlete ID 99999
 ## Development Patterns
 
 - **Minimal comments.** Only add comments that explain non-obvious logic (e.g. why a zero-height div exists, what a cryptic calculation does). Do not add section labels, JSDoc, file docblocks, or comments that restate what the code already says.
-- **No build step.** Edit JS files directly, refresh browser. ESM imports resolve via CDN.
+- **No build step.** Edit JS files directly, refresh browser. ESM deps are vendored locally.
+- **Tailwind rebuild.** After adding new Tailwind utility classes, regenerate: `npx @tailwindcss/cli -i vendor/tailwind-input.css -o vendor/tailwind.css --minify`
 - **Signals for state.** Preact signals (`@preact/signals`) drive reactivity. Key signals: `authState`, `route`, `syncProgress`, `isSyncing`, `unitSystem`, `isDemo`.
 - **HTM templating.** `html\`...\`` tagged template literals instead of JSX. Closing tags use `<//>`.
 - **IndexedDB everywhere.** All persistent state in IndexedDB. No localStorage, no cookies.
