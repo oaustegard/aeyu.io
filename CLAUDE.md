@@ -79,6 +79,7 @@ Loads `demo-data.json` into IndexedDB with a fake auth session (athlete ID 99999
 
 ## Development Patterns
 
+- **Minimal comments.** Only add comments that explain non-obvious logic (e.g. why a zero-height div exists, what a cryptic calculation does). Do not add section labels, JSDoc, file docblocks, or comments that restate what the code already says.
 - **No build step.** Edit JS files directly, refresh browser. ESM imports resolve via CDN.
 - **Signals for state.** Preact signals (`@preact/signals`) drive reactivity. Key signals: `authState`, `route`, `syncProgress`, `isSyncing`, `unitSystem`, `isDemo`.
 - **HTM templating.** `html\`...\`` tagged template literals instead of JSX. Closing tags use `<//>`.
