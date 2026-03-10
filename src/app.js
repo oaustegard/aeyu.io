@@ -99,7 +99,7 @@ function App() {
 
   // /demo is always accessible — start demo if needed
   if (currentRoute === "demo") {
-    if (isDemo.value) return html`<${Dashboard} />`;
+    if (isDemo.value) return html`<${Dashboard} key="demo" />`;
     startDemo().then(() => safeRender());
     return html`<div class="min-h-screen flex items-center justify-center"
       style="color: var(--text-secondary); font-family: var(--font-body);">Loading demo…</div>`;
@@ -118,7 +118,7 @@ function App() {
     case "sync": // legacy — now handled by dashboard
     case "dashboard":
     default:
-      return html`<${Dashboard} />`;
+      return html`<${Dashboard} key="real" />`;
   }
 }
 

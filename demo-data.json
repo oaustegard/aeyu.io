@@ -111,7 +111,10 @@
         "60": 334,
         "300": 232,
         "1200": 215
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 134,
+      "max_heartrate": 149
     },
     {
       "id": 20000060,
@@ -246,7 +249,10 @@
         "300": 258,
         "1200": 220,
         "3600": 185
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 142,
+      "max_heartrate": 164
     },
     {
       "id": 20000057,
@@ -359,7 +365,10 @@
         "60": 399,
         "300": 273,
         "1200": 245
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 138,
+      "max_heartrate": 156
     },
     {
       "id": 20000058,
@@ -472,7 +481,10 @@
         "60": 382,
         "300": 237,
         "1200": 199
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 136,
+      "max_heartrate": 168
     },
     {
       "id": 20000059,
@@ -542,7 +554,10 @@
         "30": 523,
         "60": 389,
         "300": 266
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 132,
+      "max_heartrate": 160
     },
     {
       "id": 20000056,
@@ -655,7 +670,10 @@
         "60": 378,
         "300": 297,
         "1200": 242
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 135,
+      "max_heartrate": 152
     },
     {
       "id": 20000055,
@@ -747,7 +765,10 @@
         "60": 366,
         "300": 250,
         "1200": 211
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 128,
+      "max_heartrate": 159
     },
     {
       "id": 20000054,
@@ -839,7 +860,10 @@
         "60": 348,
         "300": 258,
         "1200": 204
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 135,
+      "max_heartrate": 167
     },
     {
       "id": 20000053,
@@ -974,7 +998,10 @@
         "300": 295,
         "1200": 235,
         "3600": 185
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 134,
+      "max_heartrate": 169
     },
     {
       "id": 20000050,
@@ -1087,7 +1114,10 @@
         "60": 296,
         "300": 235,
         "1200": 197
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 133,
+      "max_heartrate": 161
     },
     {
       "id": 20000052,
@@ -1179,7 +1209,10 @@
         "60": 373,
         "300": 242,
         "1200": 212
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 131,
+      "max_heartrate": 164
     },
     {
       "id": 20000051,
@@ -1240,7 +1273,10 @@
       "max_watts": null,
       "kilojoules": null,
       "trainer": false,
-      "power_curve": null
+      "power_curve": null,
+      "has_heartrate": true,
+      "average_heartrate": 134,
+      "max_heartrate": 149
     },
     {
       "id": 20000049,
@@ -1332,7 +1368,10 @@
         "60": 410,
         "300": 277,
         "1200": 240
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 142,
+      "max_heartrate": 162
     },
     {
       "id": 20000046,
@@ -1445,7 +1484,10 @@
         "60": 414,
         "300": 285,
         "1200": 265
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 147,
+      "max_heartrate": 172
     },
     {
       "id": 20000048,
@@ -1580,7 +1622,10 @@
         "300": 232,
         "1200": 195,
         "3600": 166
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 128,
+      "max_heartrate": 149
     },
     {
       "id": 20000047,
@@ -1693,7 +1738,10 @@
         "60": 394,
         "300": 272,
         "1200": 225
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 149,
+      "max_heartrate": 174
     },
     {
       "id": 20000044,
@@ -1806,7 +1854,10 @@
         "60": 344,
         "300": 281,
         "1200": 217
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 133,
+      "max_heartrate": 160
     },
     {
       "id": 20000042,
@@ -1919,7 +1970,10 @@
         "60": 300,
         "300": 227,
         "1200": 195
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 121,
+      "max_heartrate": 147
     },
     {
       "id": 20000043,
@@ -2011,7 +2065,10 @@
         "60": 475,
         "300": 329,
         "1200": 254
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 148,
+      "max_heartrate": 164
     },
     {
       "id": 20000045,
@@ -2124,7 +2181,10 @@
         "60": 333,
         "300": 239,
         "1200": 222
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 138,
+      "max_heartrate": 170
     },
     {
       "id": 20000039,
@@ -2204,7 +2264,10 @@
       "max_watts": null,
       "kilojoules": null,
       "trainer": false,
-      "power_curve": null
+      "power_curve": null,
+      "has_heartrate": true,
+      "average_heartrate": 126,
+      "max_heartrate": 153
     },
     {
       "id": 20000041,
@@ -2317,7 +2380,10 @@
         "60": 388,
         "300": 311,
         "1200": 266
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 138,
+      "max_heartrate": 162
     },
     {
       "id": 20000040,
@@ -2388,7 +2454,10 @@
         "60": 403,
         "300": 264,
         "1200": 222
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 141,
+      "max_heartrate": 175
     },
     {
       "id": 20000038,
@@ -2459,7 +2528,10 @@
         "60": 362,
         "300": 292,
         "1200": 230
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 147,
+      "max_heartrate": 173
     },
     {
       "id": 20000037,
@@ -2577,7 +2649,10 @@
       "max_watts": null,
       "kilojoules": null,
       "trainer": false,
-      "power_curve": null
+      "power_curve": null,
+      "has_heartrate": true,
+      "average_heartrate": 127,
+      "max_heartrate": 144
     },
     {
       "id": 20000035,
@@ -2712,7 +2787,10 @@
         "300": 302,
         "1200": 268,
         "3600": 204
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 140,
+      "max_heartrate": 162
     },
     {
       "id": 20000036,
@@ -2825,7 +2903,10 @@
         "60": 332,
         "300": 225,
         "1200": 197
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 135,
+      "max_heartrate": 152
     },
     {
       "id": 20000034,
@@ -2960,7 +3041,10 @@
         "300": 245,
         "1200": 210,
         "3600": 170
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 139,
+      "max_heartrate": 157
     },
     {
       "id": 20000033,
@@ -3073,7 +3157,10 @@
         "60": 408,
         "300": 251,
         "1200": 213
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 135,
+      "max_heartrate": 164
     },
     {
       "id": 20000031,
@@ -3186,7 +3273,10 @@
         "60": 385,
         "300": 301,
         "1200": 232
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 146,
+      "max_heartrate": 172
     },
     {
       "id": 20000032,
@@ -3278,7 +3368,10 @@
         "60": 354,
         "300": 245,
         "1200": 194
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 124,
+      "max_heartrate": 150
     },
     {
       "id": 20000030,
@@ -3339,7 +3432,10 @@
       "max_watts": null,
       "kilojoules": null,
       "trainer": false,
-      "power_curve": null
+      "power_curve": null,
+      "has_heartrate": true,
+      "average_heartrate": 134,
+      "max_heartrate": 157
     },
     {
       "id": 20000028,
@@ -3438,7 +3534,10 @@
       "max_watts": null,
       "kilojoules": null,
       "trainer": false,
-      "power_curve": null
+      "power_curve": null,
+      "has_heartrate": true,
+      "average_heartrate": 142,
+      "max_heartrate": 177
     },
     {
       "id": 20000029,
@@ -3537,7 +3636,10 @@
       "max_watts": null,
       "kilojoules": null,
       "trainer": false,
-      "power_curve": null
+      "power_curve": null,
+      "has_heartrate": true,
+      "average_heartrate": 131,
+      "max_heartrate": 166
     },
     {
       "id": 20000025,
@@ -3629,7 +3731,10 @@
         "60": 368,
         "300": 241,
         "1200": 217
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 128,
+      "max_heartrate": 150
     },
     {
       "id": 20000027,
@@ -3700,7 +3805,10 @@
         "60": 292,
         "300": 224,
         "1200": 176
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 122,
+      "max_heartrate": 149
     },
     {
       "id": 20000026,
@@ -3818,7 +3926,10 @@
       "max_watts": null,
       "kilojoules": null,
       "trainer": false,
-      "power_curve": null
+      "power_curve": null,
+      "has_heartrate": true,
+      "average_heartrate": 121,
+      "max_heartrate": 156
     },
     {
       "id": 20000024,
@@ -3953,7 +4064,10 @@
         "300": 307,
         "1200": 261,
         "3600": 204
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 149,
+      "max_heartrate": 171
     },
     {
       "id": 20000022,
@@ -4045,7 +4159,10 @@
         "60": 307,
         "300": 234,
         "1200": 187
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 131,
+      "max_heartrate": 147
     },
     {
       "id": 20000023,
@@ -4115,7 +4232,10 @@
         "30": 449,
         "60": 393,
         "300": 282
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 133,
+      "max_heartrate": 149
     },
     {
       "id": 20000019,
@@ -4207,7 +4327,10 @@
         "60": 356,
         "300": 270,
         "1200": 203
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 139,
+      "max_heartrate": 166
     },
     {
       "id": 20000021,
@@ -4306,7 +4429,10 @@
       "max_watts": null,
       "kilojoules": null,
       "trainer": false,
-      "power_curve": null
+      "power_curve": null,
+      "has_heartrate": true,
+      "average_heartrate": 132,
+      "max_heartrate": 153
     },
     {
       "id": 20000020,
@@ -4367,7 +4493,10 @@
       "max_watts": null,
       "kilojoules": null,
       "trainer": false,
-      "power_curve": null
+      "power_curve": null,
+      "has_heartrate": true,
+      "average_heartrate": 142,
+      "max_heartrate": 175
     },
     {
       "id": 20000018,
@@ -4480,7 +4609,10 @@
         "60": 377,
         "300": 286,
         "1200": 257
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 150,
+      "max_heartrate": 175
     },
     {
       "id": 20000017,
@@ -4572,7 +4704,10 @@
         "60": 331,
         "300": 230,
         "1200": 205
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 127,
+      "max_heartrate": 157
     },
     {
       "id": 20000016,
@@ -4690,7 +4825,10 @@
       "max_watts": null,
       "kilojoules": null,
       "trainer": false,
-      "power_curve": null
+      "power_curve": null,
+      "has_heartrate": true,
+      "average_heartrate": 124,
+      "max_heartrate": 159
     },
     {
       "id": 20000015,
@@ -4803,7 +4941,10 @@
         "60": 298,
         "300": 225,
         "1200": 190
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 127,
+      "max_heartrate": 150
     },
     {
       "id": 20000014,
@@ -4874,7 +5015,10 @@
         "60": 414,
         "300": 264,
         "1200": 241
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 133,
+      "max_heartrate": 165
     },
     {
       "id": 20000013,
@@ -4966,7 +5110,10 @@
         "60": 363,
         "300": 248,
         "1200": 193
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 133,
+      "max_heartrate": 166
     },
     {
       "id": 20000012,
@@ -5101,7 +5248,10 @@
         "300": 263,
         "1200": 239,
         "3600": 190
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 137,
+      "max_heartrate": 170
     },
     {
       "id": 20000010,
@@ -5214,7 +5364,10 @@
         "60": 431,
         "300": 284,
         "1200": 245
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 141,
+      "max_heartrate": 163
     },
     {
       "id": 20000011,
@@ -5306,7 +5459,10 @@
         "60": 395,
         "300": 255,
         "1200": 219
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 146,
+      "max_heartrate": 165
     },
     {
       "id": 20000009,
@@ -5377,7 +5533,10 @@
         "60": 350,
         "300": 246,
         "1200": 194
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 132,
+      "max_heartrate": 149
     },
     {
       "id": 20000008,
@@ -5447,7 +5606,10 @@
         "30": 528,
         "60": 437,
         "300": 303
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 146,
+      "max_heartrate": 164
     },
     {
       "id": 20000007,
@@ -5546,7 +5708,10 @@
       "max_watts": null,
       "kilojoules": null,
       "trainer": false,
-      "power_curve": null
+      "power_curve": null,
+      "has_heartrate": true,
+      "average_heartrate": 137,
+      "max_heartrate": 157
     },
     {
       "id": 20000006,
@@ -5659,7 +5824,10 @@
         "60": 366,
         "300": 288,
         "1200": 242
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 147,
+      "max_heartrate": 175
     },
     {
       "id": 20000005,
@@ -5758,7 +5926,10 @@
       "max_watts": null,
       "kilojoules": null,
       "trainer": false,
-      "power_curve": null
+      "power_curve": null,
+      "has_heartrate": true,
+      "average_heartrate": 143,
+      "max_heartrate": 170
     },
     {
       "id": 20000004,
@@ -5857,7 +6028,10 @@
       "max_watts": null,
       "kilojoules": null,
       "trainer": false,
-      "power_curve": null
+      "power_curve": null,
+      "has_heartrate": true,
+      "average_heartrate": 142,
+      "max_heartrate": 171
     },
     {
       "id": 20000003,
@@ -5928,7 +6102,10 @@
         "60": 323,
         "300": 276,
         "1200": 211
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 135,
+      "max_heartrate": 167
     },
     {
       "id": 20000002,
@@ -6020,7 +6197,10 @@
         "60": 358,
         "300": 241,
         "1200": 198
-      }
+      },
+      "has_heartrate": true,
+      "average_heartrate": 137,
+      "max_heartrate": 152
     },
     {
       "id": 20000001,
@@ -6119,7 +6299,10 @@
       "max_watts": null,
       "kilojoules": null,
       "trainer": false,
-      "power_curve": null
+      "power_curve": null,
+      "has_heartrate": true,
+      "average_heartrate": 141,
+      "max_heartrate": 159
     }
   ],
   "segments": [

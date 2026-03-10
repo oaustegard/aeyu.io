@@ -83,6 +83,15 @@ const currentSyncAfterEpoch = signal(null);
 
 async function loadDashboard() {
   loading.value = true;
+  // Reset all data signals to prevent stale data flash when switching modes
+  recentActivities.value = [];
+  allActivities.value = [];
+  activityAwards.value = new Map();
+  stats.value = { segments: 0, awards: 0 };
+  streakData.value = null;
+  fitnessData.value = null;
+  backfillComplete.value = false;
+  pendingCount.value = 0;
   try {
     await loadUnitPreference();
     activeResetEvent.value = await getResetEvent();

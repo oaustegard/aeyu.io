@@ -19,13 +19,7 @@ async function handleDemo() {
   demoLoading.value = true;
   try {
     await startDemo();
-    authState.value = {
-      access_token: "demo_token",
-      refresh_token: "demo_refresh",
-      expires_at: Math.floor(Date.now() / 1000) + 86400,
-      athlete: { id: 99999999, firstname: "Demo", lastname: "Rider", profile: "" },
-    };
-    navigate("/dashboard");
+    navigate("/demo");
   } catch (err) {
     console.error("Demo load failed:", err);
     demoLoading.value = false;
