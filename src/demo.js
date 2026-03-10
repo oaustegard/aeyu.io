@@ -20,6 +20,14 @@ const DEMO_ATHLETE = {
 /** Check if current session is demo mode (checks for demo flag in sessionStorage) */
 export async function checkDemo() {
   if (sessionStorage.getItem("aeyu_demo_active") !== "true") return;
+  // Only restore demo mode if we're actually on the /demo route.
+  // Without this, a logged-in user who previously visited /demo would get
+  // demo data on every page load because the sessionStorage flag persists.
+  const path = window.location.pathname.replace(/\.html$/, "").replace(/^\//, "") || "";
+  if (path !== "demo") {
+    sessionStorage.removeItem("aeyu_demo_active");
+    return;
+  }
   switchToDemoDB();
   const db = await openDB();
   const session = await new Promise((resolve, reject) => {
