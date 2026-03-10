@@ -44,7 +44,7 @@ import {
   formatElevation,
   formatPower,
 } from "../units.js";
-import { isDemo, exitDemo } from "../demo.js";
+import { isDemo, exitDemo, startDemo } from "../demo.js";
 import { renderIconSVG } from "../icons.js";
 import { AWARD_LABELS } from "../award-config.js";
 import { computeFitnessSummary } from "../fitness.js";
@@ -219,7 +219,10 @@ export function Dashboard() {
         menuItems=${[
           ...(isDemo.value ? [{
             label: "Exit Demo",
-            onClick: async () => { navigate("/"); await exitDemo(); },
+            onClick: async () => {
+              await exitDemo();
+              navigate(authState.value ? "/dashboard" : "/");
+            },
           }] : [{
             label: syncing ? "Syncing…" : "Sync now",
             onClick: async () => { try { await manualSync(loadDashboard); } catch(e) { console.error("Manual sync error:", e); } await loadDashboard(); },
@@ -229,6 +232,10 @@ export function Dashboard() {
             label: "Settings",
             onClick: () => { showSettings.value = true; },
           },
+          ...(!isDemo.value ? [{
+            label: "Try Demo",
+            onClick: async () => { await startDemo(); navigate("/demo"); },
+          }] : []),
           ...(!isDemo.value ? [{
             label: "Disconnect Strava",
             onClick: handleDisconnect,
@@ -934,8 +941,16 @@ export function Dashboard() {
                   What is Demo Mode?
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
-                <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
-                  Demo Mode lets you explore the app without connecting Strava. It loads sample data (~60 activities, 10 segments) so you can see how awards, charts, and the dashboard work. An amber badge indicates demo mode, and you can exit at any time from the menu to start fresh with your own Strava data.
+                <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  <p>Demo Mode lets you explore the app without connecting Strava. It loads sample data (~60 activities, 10 segments) into a separate database so you can see how awards, charts, and the dashboard work. Your real data is never touched.</p>
+                  <p>You can enter Demo Mode at any time, even while logged in. When you exit, you'll be returned to your own dashboard with all your data intact.</p>
+                  ${!isDemo.value && html`
+                    <button
+                      onClick=${async () => { showFaq.value = false; await startDemo(); navigate("/demo"); }}
+                      class="text-xs transition-colors"
+                      style="color: var(--accent); font-family: var(--font-body);"
+                    >Try the demo →</button>
+                  `}
                 </div>
               </details>
 
