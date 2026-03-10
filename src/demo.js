@@ -71,31 +71,18 @@ export async function startDemo() {
     tx.onerror = () => reject(tx.error);
   });
 
-  // Store activities
+  // Clear existing data then store demo activities, segments, and sync state
   await new Promise((resolve, reject) => {
-    const tx = db.transaction("activities", "readwrite");
-    const store = tx.objectStore("activities");
+    const tx = db.transaction(["activities", "segments", "sync_state"], "readwrite");
+    tx.objectStore("activities").clear();
+    tx.objectStore("segments").clear();
+    tx.objectStore("sync_state").clear();
     for (const act of data.activities) {
-      store.put(act);
+      tx.objectStore("activities").put(act);
     }
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-
-  // Store segments
-  await new Promise((resolve, reject) => {
-    const tx = db.transaction("segments", "readwrite");
-    const store = tx.objectStore("segments");
     for (const seg of data.segments) {
-      store.put(seg);
+      tx.objectStore("segments").put(seg);
     }
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-
-  // Set sync state as complete
-  await new Promise((resolve, reject) => {
-    const tx = db.transaction("sync_state", "readwrite");
     tx.objectStore("sync_state").put(
       {
         last_activity_fetch: new Date().toISOString(),
