@@ -34,6 +34,8 @@ const cardGenerated = signal(false);
 const segmentCardGenerated = signal(null); // segment_id or null
 const resyncing = signal(false);
 const resyncError = signal(null);
+const sortColumn = signal(null); // null = activity order
+const sortDirection = signal("asc"); // "asc" or "desc"
 
 function formatDateShort(isoString) {
   return new Date(isoString).toLocaleDateString("en-US", {
@@ -50,6 +52,8 @@ async function loadActivity(id) {
   }
   cardGenerated.value = false;
   segmentCardGenerated.value = null;
+  sortColumn.value = null;
+  sortDirection.value = "asc";
   try {
     const act = await getActivity(Number(id));
     if (!act) return;
@@ -765,6 +769,121 @@ function wrapText(ctx, text, maxW) {
 }
 
 
+// ── Segment Sort ──────────────────────────────────────────────────
+
+const SORT_COLUMNS = [
+  { key: "name", label: "Name" },
+  { key: "time", label: "Time" },
+  { key: "distance", label: "Dist" },
+  { key: "grade", label: "Grade" },
+  { key: "power", label: "Power" },
+  { key: "hr", label: "HR" },
+  { key: "awards", label: "Awards" },
+];
+
+function toggleSort(key) {
+  if (sortColumn.value === key) {
+    if (sortDirection.value === "asc") {
+      sortDirection.value = "desc";
+    } else {
+      // Third click resets to default (activity order)
+      sortColumn.value = null;
+      sortDirection.value = "asc";
+    }
+  } else {
+    sortColumn.value = key;
+    sortDirection.value = key === "name" ? "asc" : "desc";
+  }
+}
+
+function sortEfforts(efforts, effortAwards) {
+  const col = sortColumn.value;
+  if (!col) return efforts;
+  const dir = sortDirection.value === "asc" ? 1 : -1;
+
+  return [...efforts].sort((a, b) => {
+    let va, vb;
+    switch (col) {
+      case "name":
+        va = a.segment.name.toLowerCase();
+        vb = b.segment.name.toLowerCase();
+        return va < vb ? -dir : va > vb ? dir : 0;
+      case "time":
+        va = a.elapsed_time || 0;
+        vb = b.elapsed_time || 0;
+        break;
+      case "distance":
+        va = a.segment.distance || 0;
+        vb = b.segment.distance || 0;
+        break;
+      case "grade":
+        va = a.segment.average_grade || 0;
+        vb = b.segment.average_grade || 0;
+        break;
+      case "power":
+        va = (a.device_watts && a.average_watts) || 0;
+        vb = (b.device_watts && b.average_watts) || 0;
+        break;
+      case "hr":
+        va = a.average_heartrate || 0;
+        vb = b.average_heartrate || 0;
+        break;
+      case "awards":
+        va = (effortAwards.get(a.segment.id) || []).length;
+        vb = (effortAwards.get(b.segment.id) || []).length;
+        break;
+      default:
+        return 0;
+    }
+    return (va - vb) * dir;
+  });
+}
+
+function SortArrow({ col }) {
+  if (sortColumn.value !== col) return null;
+  const up = sortDirection.value === "asc";
+  return html`<span class="ml-0.5" style="font-size: 0.6rem; line-height: 1;">${up ? "▲" : "▼"}</span>`;
+}
+
+function SegmentSortBar({ efforts, effortAwards }) {
+  const hasPower = efforts.some(e => e.device_watts && e.average_watts);
+  const hasHR = efforts.some(e => e.average_heartrate);
+
+  return html`
+    <div class="flex flex-wrap gap-1.5 mb-3" style="font-family: var(--font-body);">
+      ${SORT_COLUMNS.filter(c => {
+        if (c.key === "power" && !hasPower) return false;
+        if (c.key === "hr" && !hasHR) return false;
+        return true;
+      }).map(c => {
+        const active = sortColumn.value === c.key;
+        return html`
+          <button
+            key=${c.key}
+            onClick=${() => toggleSort(c.key)}
+            class="inline-flex items-center text-xs px-2 py-1 rounded-lg transition-colors"
+            style=${active
+              ? "background: var(--accent); color: var(--text-on-dark); font-weight: 600;"
+              : "background: var(--surface); color: var(--text-tertiary); border: 1px solid var(--border); cursor: pointer;"}
+          >
+            ${c.label}<${SortArrow} col=${c.key} />
+          </button>
+        `;
+      })}
+      ${sortColumn.value && html`
+        <button
+          onClick=${() => { sortColumn.value = null; sortDirection.value = "asc"; }}
+          class="inline-flex items-center text-xs px-2 py-1 rounded-lg transition-colors"
+          style="color: var(--text-tertiary); cursor: pointer;"
+          title="Reset to activity order"
+        >
+          ✕
+        </button>
+      `}
+    </div>
+  `;
+}
+
 // ── Component ─────────────────────────────────────────────────────
 
 export function ActivityDetail({ id }) {
@@ -1073,8 +1192,12 @@ export function ActivityDetail({ id }) {
         <!-- Segment efforts — summary cards with expandable detail (#88) -->
         ${act.has_efforts && act.segment_efforts && act.segment_efforts.length > 0 && html`
           <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin-bottom: 0.75rem;">Segment Efforts</h2>
+
+          <!-- Sort header -->
+          <${SegmentSortBar} efforts=${act.segment_efforts} effortAwards=${effortAwards} />
+
           <div class="space-y-3">
-            ${act.segment_efforts.map((effort) => {
+            ${sortEfforts(act.segment_efforts, effortAwards).map((effort) => {
               const seg = segmentHistory.value.get(effort.segment.id);
               const segAwards = effortAwards.get(effort.segment.id) || [];
               const effortCount = seg ? seg.efforts.length : 0;
