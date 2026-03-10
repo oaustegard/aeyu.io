@@ -7,7 +7,7 @@ import { html } from "htm/preact";
 import { render, Component } from "preact";
 import { signal, effect } from "@preact/signals";
 import { authState, initAuth } from "./auth.js";
-import { checkDemo, isDemo, startDemo } from "./demo.js";
+import { checkDemo, isDemo, startDemo, exitDemo } from "./demo.js";
 import { initInstallDetection } from "./install.js";
 import { initTouchTooltips } from "./touch-tooltip.js";
 import { Landing } from "./components/Landing.js";
@@ -97,6 +97,13 @@ class ErrorBoundary extends Component {
 function App() {
   const auth = authState.value;
   const currentRoute = route.value;
+
+  // If demo is active but user navigated away from /demo, exit demo mode
+  // and let the app re-render with the real auth state.
+  if (currentRoute !== "demo" && isDemo.value) {
+    exitDemo();
+    return null;
+  }
 
   // /demo is always accessible — start demo if needed
   if (currentRoute === "demo") {
