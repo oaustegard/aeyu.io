@@ -48,6 +48,7 @@ import { isDemo, exitDemo } from "../demo.js";
 import { renderIconSVG } from "../icons.js";
 import { AWARD_LABELS } from "../award-config.js";
 import { computeFitnessSummary } from "../fitness.js";
+import { StickyHeader, headerCompact } from "./StickyHeader.js";
 
 const recentActivities = signal([]);
 const activityAwards = signal(new Map());
@@ -203,55 +204,31 @@ export function Dashboard() {
   return html`
     <div class="min-h-screen" style="background: var(--bg);">
       <!-- Header -->
-      <header style="background: var(--accent);">
-        <div class="max-w-3xl mx-auto px-6 py-5 flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <img src="icons/icon-192.png" alt="aeyu.io" style="height: 44px; width: 44px; border-radius: 8px;" />
-            <div>
-              <h1 style="font-family: var(--font-display); font-size: 1.75rem; color: var(--text-on-dark); line-height: 1.1;">Participation Awards</h1>
-              ${auth && html`
-                <p style="font-family: var(--font-body); font-size: 0.8rem; color: rgba(255,255,255,0.75);">
-                  ${auth.athlete.firstname} ${auth.athlete.lastname}
-                  ${isDemo.value && html`<span class="ml-2 text-xs px-2 py-0.5 rounded-full font-medium" style="background: rgba(255,255,255,0.2); color: white;">Demo</span>`}
-                </p>
-              `}
-            </div>
-          </div>
-          <div class="flex items-center gap-3">
-            <!-- Unit toggle -->
-            <button
-              onClick=${handleUnitToggle}
-              class="text-xs px-2.5 py-1.5 rounded-lg transition-colors"
-              style="border: 1px solid rgba(255,255,255,0.3); color: rgba(255,255,255,0.9); font-family: var(--font-mono); background: rgba(255,255,255,0.1);"
-              title="Toggle metric/imperial"
-            >
-              ${units === "metric" ? "km" : "mi"}
-            </button>
-            ${isDemo.value ? html`
-              <button
-                onClick=${async () => { const restored = await exitDemo(); authState.value = restored; navigate(""); }}
-                class="text-xs font-medium transition-colors"
-                style="color: rgba(255,255,255,0.9);"
-              >Exit Demo</button>
-            ` : syncing ? html`
-              <div class="inline-flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg" style="font-family: var(--font-body); color: rgba(255,255,255,0.9);">
-                <div class="w-3.5 h-3.5 border-2 border-t-transparent rounded-full animate-spin flex-shrink-0" style="border-color: white; border-top-color: transparent;"></div>
-                <span>Syncing</span>
-              </div>
-            ` : ""}
-            <button
-              onClick=${() => { showFaq.value = !showFaq.value; }}
-              class="transition-colors"
-              style="color: rgba(255,255,255,0.7);"
-              title="FAQ & Help"
-            >
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-      </header>
+      <${StickyHeader}
+        onHelp=${() => { showFaq.value = !showFaq.value; }}
+        syncing=${syncing}
+        unitSystem=${units}
+        onUnitToggle=${handleUnitToggle}
+        menuItems=${[
+          ...(isDemo.value ? [{
+            label: "Exit Demo",
+            onClick: async () => { const restored = await exitDemo(); authState.value = restored; navigate(""); },
+          }] : [{
+            label: syncing ? "Syncing…" : "Sync now",
+            onClick: async () => { try { await manualSync(); } catch(e) { console.error("Manual sync error:", e); } await loadDashboard(); },
+            hidden: syncing,
+          }]),
+          ...(!isDemo.value ? [{
+            label: "Disconnect Strava",
+            onClick: handleDisconnect,
+          }] : []),
+          {
+            label: "Delete all data",
+            onClick: () => { showDeleteConfirm.value = true; deleteConfirmText.value = ""; },
+            danger: true,
+          },
+        ]}
+      />
 
       <main class="max-w-3xl mx-auto px-6 py-6">
         <!-- Inline sync progress -->
@@ -1118,103 +1095,50 @@ export function Dashboard() {
             `}
 
             <div class="mt-4 pt-4 space-y-3" style="border-top: 1px solid var(--border-light);">
-              ${!isDemo.value && html`
-                <div>
+              <p class="text-xs" style="color: var(--text-tertiary);">
+                Sync, disconnect, and account options are in the avatar menu (top right).
+              </p>
+            </div>
+
+            <!-- Delete confirmation dialog (triggered from avatar menu) -->
+            ${showDeleteConfirm.value && html`
+              <div class="mt-4 p-3 rounded-lg" style="background: #F6DED4; border: 1px solid #E4B8A4;">
+                <p class="text-xs mb-2" style="color: #7A2E18;">
+                  This will delete all your data from this browser. To confirm, type <span style="font-family: var(--font-mono); font-weight: 700;">delete my data</span> below.
+                </p>
+                <input
+                  type="text"
+                  value=${deleteConfirmText.value}
+                  onInput=${(e) => { deleteConfirmText.value = e.target.value; }}
+                  placeholder="delete my data"
+                  class="w-full text-xs rounded px-2 py-1.5 mb-2 focus:outline-none focus:ring-1"
+                  style="border: 1px solid #E4B8A4; font-family: var(--font-mono);"
+                />
+                <div class="flex gap-2">
                   <button
                     onClick=${async () => {
-                      try {
-                        await manualSync();
-                      } catch (e) {
-                        console.error("Manual sync error:", e);
-                      }
-                      await loadDashboard();
+                      await clearAllData();
+                      navigate("");
+                      window.location.reload();
                     }}
-                    disabled=${syncing}
-                    class="text-xs font-medium transition-colors inline-flex items-center gap-1.5"
-                    style=${syncing
-                      ? "color: var(--text-tertiary); cursor: not-allowed;"
-                      : "color: var(--strava);"}
+                    disabled=${deleteConfirmText.value !== "delete my data"}
+                    class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
+                    style=${deleteConfirmText.value === "delete my data"
+                      ? "background: #A03020; color: white;"
+                      : "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"}
                   >
-                    ${syncing ? html`
-                      <div class="w-3 h-3 border-2 border-t-transparent rounded-full animate-spin flex-shrink-0" style="border-color: var(--strava); border-top-color: transparent;"></div>
-                      Syncing…
-                    ` : "Sync now"}
+                    Delete everything
                   </button>
-                  <p class="text-xs mt-1" style="color: var(--border);">Check Strava for new activities. The app syncs automatically every 5 minutes.</p>
-                </div>
-              `}
-              ${isDemo.value ? html`
-                <div>
                   <button
-                    onClick=${async () => { const restored = await exitDemo(); authState.value = restored; navigate(""); }}
-                    class="text-xs font-medium transition-colors"
-                    style="color: var(--accent);"
+                    onClick=${() => { showDeleteConfirm.value = false; deleteConfirmText.value = ""; }}
+                    class="text-xs px-3 py-1.5 rounded transition-colors"
+                    style="color: var(--text-secondary);"
                   >
-                    Exit Demo Mode
+                    Cancel
                   </button>
-                  <p class="text-xs mt-1" style="color: var(--border);">Returns to the landing page. Demo data is discarded.</p>
                 </div>
-              ` : html`
-                <div>
-                  <button
-                    onClick=${handleDisconnect}
-                    class="text-xs transition-colors"
-                    style="color: var(--text-tertiary);"
-                  >
-                    Disconnect Strava
-                  </button>
-                  <p class="text-xs mt-1" style="color: var(--border);">Removes your login session. Synced data stays in your browser.</p>
-                </div>
-              `}
-              <div>
-                <button
-                  onClick=${() => { showDeleteConfirm.value = !showDeleteConfirm.value; deleteConfirmText.value = ""; }}
-                  class="text-xs transition-colors"
-                  style="color: var(--text-tertiary);"
-                >
-                  Delete all data
-                </button>
-                <p class="text-xs mt-1" style="color: var(--border);">Permanently removes all synced activities, segments, and login from this browser.</p>
-                ${showDeleteConfirm.value && html`
-                  <div class="mt-2 p-3 rounded-lg" style="background: #F6DED4; border: 1px solid #E4B8A4;">
-                    <p class="text-xs mb-2" style="color: #7A2E18;">
-                      This will delete all your data from this browser. To confirm, type <span style="font-family: var(--font-mono); font-weight: 700;">delete my data</span> below.
-                    </p>
-                    <input
-                      type="text"
-                      value=${deleteConfirmText.value}
-                      onInput=${(e) => { deleteConfirmText.value = e.target.value; }}
-                      placeholder="delete my data"
-                      class="w-full text-xs rounded px-2 py-1.5 mb-2 focus:outline-none focus:ring-1"
-                      style="border: 1px solid #E4B8A4; font-family: var(--font-mono);"
-                    />
-                    <div class="flex gap-2">
-                      <button
-                        onClick=${async () => {
-                          await clearAllData();
-                          navigate("");
-                          window.location.reload();
-                        }}
-                        disabled=${deleteConfirmText.value !== "delete my data"}
-                        class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
-                        style=${deleteConfirmText.value === "delete my data"
-                          ? "background: #A03020; color: white;"
-                          : "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"}
-                      >
-                        Delete everything
-                      </button>
-                      <button
-                        onClick=${() => { showDeleteConfirm.value = false; deleteConfirmText.value = ""; }}
-                        class="text-xs px-3 py-1.5 rounded transition-colors"
-                        style="color: var(--text-secondary);"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                `}
               </div>
-            </div>
+            `}
           </div>
         </div>
       `}
