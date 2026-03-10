@@ -1,12 +1,3 @@
-/**
- * StickyHeader — Shared header component for Dashboard and ActivityDetail
- *
- * Full mode (at page top): aeyu.io logo + "Participation Awards" subtitle + athlete name
- * Compact mode (scrolled): Thin sticky bar with avatar menu, nav context, help, search placeholder
- *
- * Avatar dropdown contains: settings, sync controls, unit toggle, disconnect, delete data
- */
-
 import { html } from "htm/preact";
 import { signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
@@ -15,25 +6,7 @@ import { isDemo } from "../demo.js";
 
 // Whether the header has been scrolled past — drives compact mode
 export const headerCompact = signal(false);
-// Whether the avatar dropdown menu is open
 const avatarMenuOpen = signal(false);
-
-/**
- * StickyHeader component
- *
- * Props:
- *   onHelp       — callback to toggle FAQ/help
- *   onBack       — if provided, shows back arrow (ActivityDetail context)
- *   backLabel    — label for back button (default: "Dashboard")
- *   contextLabel — shown in compact mode (e.g. activity name)
- *   rightSlot    — additional elements for the right side (e.g. resync button on ActivityDetail)
- *   menuItems    — array of { label, onClick, danger?, hidden? } for avatar dropdown
- *   syncing      — whether sync is in progress
- *   unitSystem   — current unit system value
- *   onUnitToggle — callback to toggle units
- *   onSearch     — callback to toggle search (if provided, search icon is active)
- *   searchActive — whether search is currently open
- */
 export function StickyHeader({
   onHelp,
   onBack,
@@ -53,7 +26,6 @@ export function StickyHeader({
   const sentinelRef = useRef(null);
   const menuRef = useRef(null);
 
-  // IntersectionObserver to detect when full header scrolls out of view
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (!sentinel) return;
@@ -67,7 +39,6 @@ export function StickyHeader({
     return () => observer.disconnect();
   }, []);
 
-  // Close avatar menu on outside click
   useEffect(() => {
     if (!avatarMenuOpen.value) return;
     function handleClick(e) {
@@ -84,10 +55,8 @@ export function StickyHeader({
   const visibleMenuItems = menuItems.filter((item) => !item.hidden);
 
   return html`
-    <!-- Scroll sentinel — when this leaves viewport, compact mode activates -->
+    <!-- Scroll sentinel: leaving viewport triggers compact mode -->
     <div ref=${sentinelRef} style="height: 0; overflow: hidden;" />
-
-    <!-- Full header (visible at top) -->
     <header
       class="sticky-header-full ${isCompact ? 'sticky-header-full--hidden' : ''}"
       style="background: var(--accent);"
@@ -131,7 +100,6 @@ export function StickyHeader({
             </div>
           `}
 
-          <!-- Search button (full header) -->
           ${onSearch && html`
             <button
               onClick=${onSearch}
@@ -145,7 +113,6 @@ export function StickyHeader({
             </button>
           `}
 
-          <!-- Help button -->
           ${onHelp && html`
             <button
               onClick=${onHelp}
@@ -159,7 +126,6 @@ export function StickyHeader({
             </button>
           `}
 
-          <!-- Avatar button -->
           ${avatarUrl ? html`
             <button
               onClick=${(e) => { e.stopPropagation(); avatarMenuOpen.value = !avatarMenuOpen.value; }}
@@ -183,7 +149,6 @@ export function StickyHeader({
       </div>
     </header>
 
-    <!-- Compact sticky header (shown when scrolled) -->
     <header
       class="sticky-header-compact ${isCompact ? 'sticky-header-compact--visible' : ''}"
       style="background: var(--accent); position: fixed; top: 0; left: 0; right: 0; z-index: 50;"
@@ -216,7 +181,6 @@ export function StickyHeader({
         <div class="flex items-center gap-3">
           ${rightSlot}
 
-          <!-- Search button (compact header) -->
           ${onSearch && html`
             <button
               onClick=${onSearch}
@@ -230,7 +194,6 @@ export function StickyHeader({
             </button>
           `}
 
-          <!-- Help button (compact) -->
           ${onHelp && html`
             <button
               onClick=${onHelp}
@@ -244,7 +207,6 @@ export function StickyHeader({
             </button>
           `}
 
-          <!-- Avatar (compact) -->
           ${avatarUrl ? html`
             <button
               onClick=${(e) => { e.stopPropagation(); avatarMenuOpen.value = !avatarMenuOpen.value; }}
@@ -266,7 +228,6 @@ export function StickyHeader({
       </div>
     </header>
 
-    <!-- Avatar dropdown menu (shared between full and compact) -->
     ${avatarMenuOpen.value && html`
       <div
         ref=${menuRef}
@@ -284,7 +245,6 @@ export function StickyHeader({
           overflow: hidden;
         "
       >
-        <!-- Athlete info at top -->
         ${athlete && html`
           <div class="px-4 py-3" style="border-bottom: 1px solid var(--border-light);">
             <div class="flex items-center gap-2.5">
@@ -299,7 +259,6 @@ export function StickyHeader({
           </div>
         `}
 
-        <!-- Unit toggle -->
         ${onUnitToggle && html`
           <button
             onClick=${() => { onUnitToggle(); }}
@@ -315,7 +274,6 @@ export function StickyHeader({
           </button>
         `}
 
-        <!-- Menu items -->
         ${visibleMenuItems.map((item, i) => html`
           <button
             key=${i}
