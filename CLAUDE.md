@@ -128,3 +128,4 @@ Push to `main` → GitHub Pages auto-deploys. Worker changes need `wrangler depl
 - Calendar gate: Year Best suppressed before March 1 to avoid thin early-season data
 - CV filter: segments with coefficient of variation > 0.5 suppress most awards
 - `fixture-real.json` contains real user data — never commit changes that expose PII
+- **Demo data must stay in sync with the app.** Demo mode loads `demo-data.json` into an isolated IndexedDB — it uses the same code paths as real data, just with canned activities/segments. When adding new features that depend on data structure (new fields on activities, segments, or efforts), update `demo-data.json` to include those fields so demo mode exercises the same functionality as real usage. The demo is NOT a separate code path — it's the same app with fake auth and pre-loaded data.
