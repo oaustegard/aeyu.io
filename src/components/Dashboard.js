@@ -511,17 +511,24 @@ export function Dashboard() {
                       </span>
                     `}
                   </div>
-                  <div style="font-family: var(--font-display); font-size: 2rem; color: var(--text);">${fitnessData.value.performanceCapacity.score}</div>
-                  <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem;">
-                    from ${fitnessData.value.performanceCapacity.segments.length} climb${fitnessData.value.performanceCapacity.segments.length !== 1 ? 's' : ''}
-                  </div>
-                  <!-- Mini segment breakdown -->
-                  ${fitnessData.value.performanceCapacity.segments.slice(0, 3).map((seg) => html`
-                    <div class="mt-2 flex justify-between items-center" style="font-size: 0.75rem; color: var(--text-secondary);">
-                      <span class="truncate" style="max-width: 70%;">${seg.segmentName}</span>
-                      <span style="font-family: var(--font-mono); color: var(--text);">${Math.round(seg.score)}</span>
+                  <div class="flex items-baseline gap-2">
+                    <div style="font-family: var(--font-display); font-size: 2rem; color: var(--text);">${fitnessData.value.performanceCapacity.score}</div>
+                    <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">
+                      from ${fitnessData.value.performanceCapacity.segments.length} climb${fitnessData.value.performanceCapacity.segments.length !== 1 ? 's' : ''}
                     </div>
-                  `)}
+                  </div>
+                  <!-- Segment bar chart -->
+                  <div class="mt-3" style="display: flex; flex-direction: column; gap: 6px;">
+                    ${fitnessData.value.performanceCapacity.segments.slice(0, 5).map((seg) => html`
+                      <div style="display: flex; align-items: center; gap: 6px;" title="${seg.segmentName}: ${Math.round(seg.score)}/100 from ${seg.effortCount} efforts (${seg.recentCount} recent)">
+                        <span class="truncate" style="font-size: 0.6875rem; color: var(--text-secondary); width: 40%; min-width: 0; flex-shrink: 0;">${seg.segmentName}</span>
+                        <div style="flex: 1; height: 14px; background: var(--border); border-radius: 3px; overflow: hidden; position: relative;">
+                          <div style="height: 100%; width: ${Math.round(seg.score)}%; background: ${seg.score >= 70 ? '#3D7A4A' : seg.score >= 40 ? '#4882A8' : '#A05060'}; border-radius: 3px; transition: width 0.3s;"></div>
+                        </div>
+                        <span style="font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text); min-width: 1.5rem; text-align: right;">${Math.round(seg.score)}</span>
+                      </div>
+                    `)}
+                  </div>
                 </div>
               `}
 
@@ -539,29 +546,78 @@ export function Dashboard() {
                       </span>
                     `}
                   </div>
-                  <div style="font-family: var(--font-display); font-size: 2rem; color: var(--text);">${fitnessData.value.aerobicEfficiency.ef.current}</div>
-                  <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.25rem;">
-                    EF ${fitnessData.value.aerobicEfficiency.ef.hasPowerData ? '(W/bpm)' : '(speed/bpm)'}
-                    \u2022 ${fitnessData.value.aerobicEfficiency.ef.recentCount} recent rides
-                  </div>
-                  <!-- Monthly EF trend (last 6 months) -->
-                  ${fitnessData.value.aerobicEfficiency.ef.monthlyHistory.length > 1 && html`
-                    <div class="mt-3" style="display: flex; align-items: flex-end; gap: 2px; height: 40px;">
-                      ${fitnessData.value.aerobicEfficiency.ef.monthlyHistory.slice(-6).map((m) => {
-                        const allEf = fitnessData.value.aerobicEfficiency.ef.monthlyHistory;
-                        const maxEf = Math.max(...allEf.map((x) => x.ef));
-                        const minEf = Math.min(...allEf.map((x) => x.ef));
-                        const range = maxEf - minEf || 1;
-                        const pct = ((m.ef - minEf) / range) * 100;
-                        return html`
-                          <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;">
-                            <div style="width: 100%; background: #4882A8; border-radius: 2px; min-height: 4px; height: ${Math.max(15, pct)}%;" title="${m.month}: EF ${m.ef}"></div>
-                            <span style="font-size: 0.5625rem; color: var(--text-tertiary); font-family: var(--font-mono);">${m.month.slice(5)}</span>
-                          </div>
-                        `;
-                      })}
+                  <div class="flex items-baseline gap-2">
+                    <div style="font-family: var(--font-display); font-size: 2rem; color: var(--text);">${fitnessData.value.aerobicEfficiency.ef.current}</div>
+                    <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">
+                      EF ${fitnessData.value.aerobicEfficiency.ef.hasPowerData ? '(W/bpm)' : '(speed/bpm)'}
+                      \u2022 ${fitnessData.value.aerobicEfficiency.ef.recentCount} recent rides
                     </div>
-                  `}
+                  </div>
+                  <!-- EF scatter plot with trend line -->
+                  ${fitnessData.value.aerobicEfficiency.ef.history.length > 2 && (() => {
+                    const pts = fitnessData.value.aerobicEfficiency.ef.history;
+                    const efs = pts.map((p) => p.ef);
+                    const dates = pts.map((p) => p.date);
+                    const minEf = Math.min(...efs);
+                    const maxEf = Math.max(...efs);
+                    const efRange = maxEf - minEf || 0.1;
+                    const padded = { min: minEf - efRange * 0.1, max: maxEf + efRange * 0.1 };
+                    const pRange = padded.max - padded.min;
+                    const minDate = Math.min(...dates);
+                    const maxDate = Math.max(...dates);
+                    const dateRange = maxDate - minDate || 1;
+                    // SVG dimensions: left margin for y-axis, bottom margin for x-axis
+                    const W = 280, H = 90, ML = 32, MR = 4, MT = 4, MB = 18;
+                    const cW = W - ML - MR, cH = H - MT - MB;
+                    const x = (d) => ML + ((d - minDate) / dateRange) * cW;
+                    const y = (ef) => MT + cH - ((ef - padded.min) / pRange) * cH;
+                    // Linear regression for trend line
+                    const n = pts.length;
+                    const sumX = dates.reduce((s, d) => s + d, 0);
+                    const sumY = efs.reduce((s, e) => s + e, 0);
+                    const sumXY = pts.reduce((s, p) => s + p.date * p.ef, 0);
+                    const sumX2 = dates.reduce((s, d) => s + d * d, 0);
+                    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+                    const intercept = (sumY - slope * sumX) / n;
+                    const trendY1 = slope * minDate + intercept;
+                    const trendY2 = slope * maxDate + intercept;
+                    // Y-axis tick values (3 ticks: min, mid, max of padded range)
+                    const yTicks = [padded.min, padded.min + pRange / 2, padded.max].map((v) => +v.toFixed(2));
+                    // X-axis month labels
+                    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                    const xLabels = [];
+                    const startDate = new Date(minDate);
+                    const endDate = new Date(maxDate);
+                    let cur = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 1);
+                    while (cur <= endDate) {
+                      xLabels.push({ date: cur.getTime(), label: monthNames[cur.getMonth()] });
+                      cur = new Date(cur.getFullYear(), cur.getMonth() + 2, 1);
+                    }
+                    // Only show ~4-6 labels max
+                    const labelStep = Math.max(1, Math.ceil(xLabels.length / 5));
+                    const shownLabels = xLabels.filter((_, i) => i % labelStep === 0);
+                    return html`
+                      <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; margin-top: 0.75rem; overflow: visible;">
+                        <!-- Y-axis ticks -->
+                        ${yTicks.map((v) => html`
+                          <text x="${ML - 3}" y="${y(v) + 1}" text-anchor="end" style="font-size: 7px; fill: var(--text-tertiary); font-family: var(--font-mono);">${v}</text>
+                          <line x1="${ML}" y1="${y(v)}" x2="${W - MR}" y2="${y(v)}" stroke="var(--border)" stroke-width="0.5" stroke-dasharray="2,2" />
+                        `)}
+                        <!-- X-axis labels -->
+                        ${shownLabels.map((l) => html`
+                          <text x="${x(l.date)}" y="${H - 2}" text-anchor="middle" style="font-size: 7px; fill: var(--text-tertiary); font-family: var(--font-mono);">${l.label}</text>
+                        `)}
+                        <!-- Trend line -->
+                        <line x1="${x(minDate)}" y1="${y(trendY1)}" x2="${x(maxDate)}" y2="${y(trendY2)}" stroke="${slope > 0 ? '#3D7A4A' : '#A05060'}" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.7" />
+                        <!-- Data points -->
+                        ${pts.map((p) => {
+                          const d = new Date(p.date);
+                          const label = `${d.toLocaleDateString()}: EF ${p.ef.toFixed(2)}`;
+                          return html`<circle cx="${x(p.date)}" cy="${y(p.ef)}" r="2.5" fill="#4882A8" opacity="0.7"><title>${label}</title></circle>`;
+                        })}
+                      </svg>
+                    `;
+                  })()}
                 </div>
               `}
             </div>
