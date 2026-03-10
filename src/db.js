@@ -5,14 +5,37 @@
  */
 
 const DB_NAME = "participation-awards";
+const DEMO_DB_NAME = "participation-awards-demo";
 const DB_VERSION = 3;
 
 let dbPromise = null;
+let activeDBName = DB_NAME;
+
+export function switchToDemoDB() {
+  if (activeDBName === DEMO_DB_NAME) return;
+  activeDBName = DEMO_DB_NAME;
+  dbPromise = null;
+}
+
+export function switchToRealDB() {
+  if (activeDBName === DB_NAME) return;
+  activeDBName = DB_NAME;
+  dbPromise = null;
+}
+
+export function deleteDemoDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(DEMO_DB_NAME);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+    req.onblocked = () => resolve();
+  });
+}
 
 export function openDB() {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(activeDBName, DB_VERSION);
 
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
