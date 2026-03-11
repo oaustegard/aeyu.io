@@ -1,9 +1,10 @@
 # aeyu.io/
-*Files: 13 | Subdirectories: 2*
+*Files: 13 | Subdirectories: 3*
 
 ## Subdirectories
 
 - [src/](./src/_MAP.md)
+- [test/](./test/_MAP.md)
 - [worker/](./worker/_MAP.md)
 
 ## Files

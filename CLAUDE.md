@@ -97,7 +97,7 @@ Loads `demo-data.json` into IndexedDB with a fake auth session (athlete ID 99999
 - **Test harness.** `test/harness.py` generates deterministic mock data, injects via Playwright, takes screenshots, audits award coverage. Requires Playwright + vendor bundles.
 - **Update `_MAP.md` before pushing.** Run the codemap script to regenerate all `_MAP.md` files before every push. Stale maps cause wasted time navigating the codebase:
   ```bash
-  /home/user/.venv/bin/python .claude/skills/mapping-codebases/scripts/codemap.py . --skip vendor,test,design,assets,icons
+  /home/user/.venv/bin/python .claude/skills/mapping-codebases/scripts/codemap.py . --skip vendor,design,assets,icons
   ```
 
 ## Common Tasks
