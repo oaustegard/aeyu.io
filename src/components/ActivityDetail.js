@@ -19,6 +19,7 @@ import {
   formatDate,
   formatDateFull,
   formatElevation,
+  formatSpeed,
   formatPower,
 } from "../units.js";
 import { renderIconSVG, drawIcon } from "../icons.js";
@@ -609,6 +610,7 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   const nameLines = wrapText(tmpCtx, effort.segment.name, maxTextW);
 
   const metaParts = [formatDistance(effort.segment.distance), `${effort.segment.average_grade}% grade`, formatTime(effort.elapsed_time)];
+  if (effort.elapsed_time > 0) metaParts.push(formatSpeed(effort.segment.distance / effort.elapsed_time));
   if (effort.device_watts && effort.average_watts) metaParts.push(formatPower(effort.average_watts));
   if (effort.average_heartrate) metaParts.push(`${Math.round(effort.average_heartrate)} bpm`);
   if (effort.average_cadence) metaParts.push(`${Math.round(effort.average_cadence)} rpm`);
@@ -1367,6 +1369,9 @@ export function ActivityDetail({ id }) {
               const seg = segmentHistory.value.get(effort.segment.id);
               const segAwards = effortAwards.get(effort.segment.id) || [];
               const effortCount = seg ? seg.efforts.length : 0;
+              const effortSpeed = effort.elapsed_time > 0
+                ? formatSpeed(effort.segment.distance / effort.elapsed_time)
+                : null;
               const effortPower = effort.device_watts && effort.average_watts
                 ? formatPower(effort.average_watts)
                 : null;
@@ -1393,6 +1398,7 @@ export function ActivityDetail({ id }) {
                     ${formatDistance(effort.segment.distance)}
                     · ${effort.segment.average_grade}% grade
                     · ${formatTime(effort.elapsed_time)}
+                    ${effortSpeed ? ` · ${effortSpeed}` : ""}
                     ${effortPower ? ` · ${effortPower}` : ""}
                     ${effortHR ? ` · ${effortHR}` : ""}
                     ${effortCadence ? ` · ${effortCadence}` : ""}
