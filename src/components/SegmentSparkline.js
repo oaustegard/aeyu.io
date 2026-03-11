@@ -1,5 +1,5 @@
 import { html } from "htm/preact";
-import { useState } from "preact/hooks";
+import { useState, useRef, useCallback } from "preact/hooks";
 import { formatTime } from "../units.js";
 
 const MAX_EFFORTS = 20;
@@ -56,7 +56,8 @@ function formatDateShort(iso) {
 }
 
 export function SegmentSparkline({ segment, currentEffortId }) {
-  const [expanded, setExpanded] = useState(false);
+  const svgRef = useRef(null);
+  const [activeIdx, setActiveIdx] = useState(null);
 
   if (!segment || !segment.efforts || segment.efforts.length < 2) return null;
 
@@ -74,10 +75,10 @@ export function SegmentSparkline({ segment, currentEffortId }) {
   const maxT = Math.max(...times);
   const range = maxT - minT || 1;
 
-  const w = expanded ? 320 : 140;
-  const h = expanded ? 120 : 36;
-  const padX = expanded ? 8 : 4;
-  const padY = expanded ? 12 : 4;
+  const w = 320;
+  const h = 100;
+  const padX = 8;
+  const padY = 12;
   const plotW = w - padX * 2;
   const plotH = h - padY * 2;
 
@@ -87,110 +88,145 @@ export function SegmentSparkline({ segment, currentEffortId }) {
     time: t,
     date: recent[i].start_date_local,
     isCurrent: recent[i].effort_id === currentEffortId,
+    idx: i,
   }));
 
   const trendY0 = padY + ((intercept - minT) / range) * plotH;
   const trendY1 = padY + (((intercept + slope * (times.length - 1)) - minT) / range) * plotH;
-
   const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
-
   const trendColor = improving ? "#22c55e" : regressing ? "#ef4444" : "#9ca3af";
 
-  const [tooltip, setTooltip] = useState(null);
+  // Find nearest point by x-position relative to SVG
+  const findNearest = useCallback((clientX) => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const svgX = ((clientX - rect.left) / rect.width) * w;
+    let closest = 0;
+    let closestDist = Infinity;
+    for (let i = 0; i < points.length; i++) {
+      const d = Math.abs(points[i].x - svgX);
+      if (d < closestDist) { closestDist = d; closest = i; }
+    }
+    setActiveIdx(closest);
+  }, [points, w]);
+
+  const onTouchStart = useCallback((e) => {
+    e.preventDefault();
+    findNearest(e.touches[0].clientX);
+  }, [findNearest]);
+
+  const onTouchMove = useCallback((e) => {
+    e.preventDefault();
+    findNearest(e.touches[0].clientX);
+  }, [findNearest]);
+
+  const onTouchEnd = useCallback(() => {
+    setActiveIdx(null);
+  }, []);
+
+  const onMouseMove = useCallback((e) => {
+    findNearest(e.clientX);
+  }, [findNearest]);
+
+  const onMouseLeave = useCallback(() => {
+    setActiveIdx(null);
+  }, []);
+
+  const active = activeIdx != null ? points[activeIdx] : null;
+
+  // Tooltip positioning: show above the point, centered horizontally
+  const tooltipW = 110;
+  const tooltipH = 28;
+  const tooltipX = active ? Math.max(2, Math.min(active.x - tooltipW / 2, w - tooltipW - 2)) : 0;
+  const tooltipY = active ? Math.max(2, active.y - tooltipH - 8) : 0;
+  // If tooltip would overlap point from above, flip below
+  const flipBelow = active && tooltipY < 2;
+  const finalTooltipY = flipBelow && active ? active.y + 10 : tooltipY;
 
   return html`
     <div style="margin-top: 6px;">
-      <div
-        class="flex items-center gap-2 cursor-pointer select-none"
-        onClick=${() => setExpanded(!expanded)}
-        style="min-height: 36px;"
+      <svg
+        ref=${svgRef}
+        width="100%"
+        height=${h}
+        viewBox="0 0 ${w} ${h}"
+        preserveAspectRatio="none"
+        style="display: block; background: var(--bg, #faf9f7); border: 1px solid var(--border); border-radius: 6px; touch-action: none; cursor: crosshair;"
+        onTouchStart=${onTouchStart}
+        onTouchMove=${onTouchMove}
+        onTouchEnd=${onTouchEnd}
+        onMouseMove=${onMouseMove}
+        onMouseLeave=${onMouseLeave}
       >
-        <svg
-          width=${w}
-          height=${h}
-          viewBox="0 0 ${w} ${h}"
-          style="background: var(--bg, #faf9f7); border: 1px solid var(--border); border-radius: 6px; flex-shrink: 0;"
-          onMouseLeave=${() => setTooltip(null)}
-        >
-          <!-- effort line -->
-          <path d=${linePath} fill="none" stroke="var(--text-tertiary, #a8a29e)" stroke-width=${expanded ? 1.5 : 1} stroke-linejoin="round" />
-          <!-- trend line -->
+        <!-- effort line -->
+        <path d=${linePath} fill="none" stroke="var(--text-tertiary, #a8a29e)" stroke-width="1.5" stroke-linejoin="round" />
+        <!-- trend line -->
+        <line
+          x1=${padX} y1=${trendY0}
+          x2=${padX + plotW} y2=${trendY1}
+          stroke=${trendColor}
+          stroke-width="2"
+          stroke-dasharray="6,3"
+          opacity="0.8"
+        />
+        <!-- vertical crosshair at active point -->
+        ${active && html`
           <line
-            x1=${padX} y1=${trendY0}
-            x2=${padX + plotW} y2=${trendY1}
-            stroke=${trendColor}
-            stroke-width=${expanded ? 2 : 1.5}
-            stroke-dasharray=${expanded ? "6,3" : "4,2"}
-            opacity="0.8"
+            x1=${active.x} y1=${padY}
+            x2=${active.x} y2=${h - padY}
+            stroke="var(--text-tertiary, #a8a29e)"
+            stroke-width="0.5"
+            stroke-dasharray="3,2"
+            opacity="0.6"
           />
-          <!-- dots -->
-          ${points.map((p, i) => html`
-            <circle
-              cx=${p.x} cy=${p.y}
-              r=${p.isCurrent ? (expanded ? 5 : 3.5) : (expanded ? 3 : 1.5)}
-              fill=${p.isCurrent ? "var(--strava, #fc4c02)" : "var(--text-tertiary, #a8a29e)"}
-              stroke=${p.isCurrent ? "#fff" : "none"}
-              stroke-width=${p.isCurrent ? 1.5 : 0}
-              onMouseEnter=${() => expanded && setTooltip({ x: p.x, y: p.y, time: p.time, date: p.date, idx: i })}
-              onTouchStart=${(e) => { if (expanded) { e.stopPropagation(); setTooltip({ x: p.x, y: p.y, time: p.time, date: p.date, idx: i }); } }}
-              style=${expanded ? "cursor: pointer;" : ""}
-            />
-          `)}
-          <!-- tooltip -->
-          ${expanded && tooltip && html`
-            <g>
-              <rect
-                x=${Math.min(tooltip.x + 8, w - 90)}
-                y=${Math.max(tooltip.y - 30, 2)}
-                width="82" height="24" rx="4"
-                fill="var(--surface, #fff)" stroke="var(--border)" stroke-width="1"
-              />
-              <text
-                x=${Math.min(tooltip.x + 12, w - 86)}
-                y=${Math.max(tooltip.y - 13, 17)}
-                font-size="10" font-family="var(--font-mono)"
-                fill="var(--text)"
-              >
-                ${formatDateShort(tooltip.date)}
-              </text>
-              <text
-                x=${Math.min(tooltip.x + 72, w - 22)}
-                y=${Math.max(tooltip.y - 13, 17)}
-                font-size="10" font-family="var(--font-mono)"
-                fill="var(--text)" text-anchor="end"
-              >
-                ${formatTime(tooltip.time)}
-              </text>
-            </g>
-          `}
-        </svg>
-        ${!expanded && rateStr && html`
-          <span style="font-family: var(--font-mono); font-size: 0.6875rem; color: ${trendColor}; white-space: nowrap;">
-            ${rateStr}
-          </span>
         `}
-        ${!expanded && html`
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; opacity: 0.5;">
-            <polyline points="6 9 12 15 18 9"/>
-          </svg>
+        <!-- dots -->
+        ${points.map((p) => html`
+          <circle
+            cx=${p.x} cy=${p.y}
+            r=${p.idx === activeIdx ? 5 : p.isCurrent ? 4 : 2.5}
+            fill=${p.isCurrent ? "var(--strava, #fc4c02)" : p.idx === activeIdx ? "var(--text, #3E3A36)" : "var(--text-tertiary, #a8a29e)"}
+            stroke=${p.isCurrent || p.idx === activeIdx ? "#fff" : "none"}
+            stroke-width=${p.isCurrent || p.idx === activeIdx ? 1.5 : 0}
+          />
+        `)}
+        <!-- tooltip -->
+        ${active && html`
+          <g>
+            <rect
+              x=${tooltipX}
+              y=${finalTooltipY}
+              width=${tooltipW} height=${tooltipH} rx="4"
+              fill="var(--surface, #fff)" stroke="var(--border)" stroke-width="1"
+            />
+            <text
+              x=${tooltipX + 6}
+              y=${finalTooltipY + 17}
+              font-size="10" font-family="var(--font-mono)"
+              fill="var(--text-secondary)"
+            >
+              ${formatDateShort(active.date)}
+            </text>
+            <text
+              x=${tooltipX + tooltipW - 6}
+              y=${finalTooltipY + 17}
+              font-size="11" font-family="var(--font-mono)"
+              fill="var(--text)" font-weight="600"
+              text-anchor="end"
+            >
+              ${formatTime(active.time)}
+            </text>
+          </g>
+        `}
+      </svg>
+      <div class="flex items-center gap-3 mt-1 px-1" style="font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text-tertiary);">
+        <span>${recent.length} effort${recent.length !== 1 ? "s" : ""}</span>
+        <span>Best: ${formatTime(minT)}</span>
+        ${rateStr && html`
+          <span style="color: ${trendColor}; font-weight: 500;">Trend: ${rateStr}</span>
         `}
       </div>
-      ${expanded && html`
-        <div class="flex items-center gap-3 mt-1 px-1" style="font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text-tertiary);">
-          <span>${recent.length} effort${recent.length !== 1 ? "s" : ""}</span>
-          <span>Best: ${formatTime(minT)}</span>
-          ${rateStr && html`
-            <span style="color: ${trendColor}; font-weight: 500;">Trend: ${rateStr}</span>
-          `}
-          <svg
-            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-            style="flex-shrink: 0; opacity: 0.5; cursor: pointer; margin-left: auto;"
-            onClick=${(e) => { e.stopPropagation(); setExpanded(false); }}
-          >
-            <polyline points="18 15 12 9 6 15"/>
-          </svg>
-        </div>
-      `}
     </div>
   `;
 }
