@@ -71,6 +71,7 @@ const referencePoints = signal([]);
 const showRefForm = signal(false);
 const refType = signal("since_date");
 const pendingCount = signal(0);
+const steepestClimbName = signal(null);
 const refLabel = signal("");
 const refDate = signal("");
 const refCount = signal("10");
@@ -83,6 +84,16 @@ const syncWindowCustomDate = signal("");
 const currentSyncAfterEpoch = signal(null);
 const showFirstSyncPrompt = signal(false);
 const firstSyncChoice = signal("5y");
+
+function pickSteepestClimb(segments) {
+  let best = null;
+  for (const seg of segments) {
+    if ((seg.average_grade || 0) >= 5 && (!best || seg.average_grade > best.average_grade)) {
+      best = seg;
+    }
+  }
+  steepestClimbName.value = best ? best.name : null;
+}
 
 async function loadDashboard() {
   loading.value = true;
@@ -152,10 +163,12 @@ async function loadDashboard() {
       }
       const segments = await getAllSegments();
       stats.value = { segments: segments.length, awards: totalAwards };
+      pickSteepestClimb(segments);
     } else {
       activityAwards.value = new Map();
       const segments = await getAllSegments();
       stats.value = { segments: segments.length, awards: 0 };
+      pickSteepestClimb(segments);
     }
 
     // Compute form indicators (#106)
@@ -1109,6 +1122,17 @@ export function Dashboard() {
                 </summary>
                 <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
                   The app uses a service worker to work offline, which can sometimes serve cached files after an update. Go to Settings and tap "Clear cached code and reload" to force a fresh download. This only clears app code — your activity data is not affected.
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  What does "aeyu" mean?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  <p>It's the sound you make at the top of ${steepestClimbName.value ? steepestClimbName.value : "the climb"}.</p>
+                  <p>Really though, it was a URL that was short and available. The letters are the vowels from left to right on the keyboard — which is how you'll remember it.</p>
                 </div>
               </details>
             </div>

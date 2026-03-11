@@ -78,7 +78,7 @@ export function StickyHeader({
             <img src="icons/icon-192.png" alt="aeyu.io" style="height: 44px; width: 44px; border-radius: 8px;" />
           `}
           <div>
-            <h1 style="font-family: var(--font-display); font-size: 1.75rem; color: var(--text-on-dark); line-height: 1.1; white-space: nowrap;">
+            <h1 style="font-family: var(--font-display); font-size: 1.75rem; color: var(--text-on-dark); line-height: 1.1; white-space: nowrap;" title="The sound you make at the top of the climb">
               aeyu<span style="color: var(--accent);">.io</span>
             </h1>
             <p style="font-family: var(--font-body); font-size: 0.7rem; color: rgba(255,255,255,0.6); letter-spacing: 0.04em; margin-top: 1px;">
@@ -169,7 +169,7 @@ export function StickyHeader({
           ` : html`
             <img src="icons/icon-192.png" alt="aeyu.io" style="height: 24px; width: 24px; border-radius: 4px;" />
           `}
-          <span style="font-family: var(--font-display); font-size: 1rem; color: var(--text-on-dark); white-space: nowrap;">
+          <span style="font-family: var(--font-display); font-size: 1rem; color: var(--text-on-dark); white-space: nowrap;" title=${onBack && contextLabel ? null : "The sound you make at the top of the climb"}>
             ${onBack && contextLabel ? contextLabel : "aeyu.io"}
           </span>
           ${syncing && !onBack && html`

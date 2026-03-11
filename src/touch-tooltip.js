@@ -42,8 +42,6 @@ function show(text, x, y) {
   overlay.style.top = top + "px";
   // Fade in
   requestAnimationFrame(() => { if (overlay) overlay.style.opacity = "1"; });
-  // Auto-dismiss after 3s
-  setTimeout(dismiss, 3000);
 }
 
 function dismiss() {
@@ -66,6 +64,7 @@ export function initTouchTooltips() {
 
   document.addEventListener("touchstart", (e) => {
     cancel();
+    dismiss();
     const touch = e.touches[0];
     startX = touch.clientX;
     startY = touch.clientY;
