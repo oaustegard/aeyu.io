@@ -1101,6 +1101,16 @@ export function Dashboard() {
                   Long-press any award pill to see its description. On desktop you can hover, but touch screens don't have hover — so a half-second press triggers the tooltip instead.
                 </div>
               </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  The app seems stuck on an old version
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  The app uses a service worker to work offline, which can sometimes serve cached files after an update. Go to Settings and tap "Clear cached code and reload" to force a fresh download. This only clears app code — your activity data is not affected.
+                </div>
+              </details>
             </div>
 
           </div>
@@ -1446,6 +1456,26 @@ export function Dashboard() {
                   `}
                 `}
               </div>
+            </div>
+
+            <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
+              <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Hard Reload</p>
+              <button
+                onClick=${async () => {
+                  try {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(registrations.map(r => r.unregister()));
+                  } catch (e) { /* SW/cache API may not be available */ }
+                  window.location.reload(true);
+                }}
+                class="text-xs transition-colors"
+                style="color: var(--accent);"
+              >
+                Clear cached code and reload
+              </button>
+              <p class="text-xs mt-1" style="color: var(--border);">Forces a fresh download of all app files. Your activity data is not affected.</p>
             </div>
 
             ${!isDemo.value && html`
