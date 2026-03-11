@@ -95,9 +95,9 @@ Loads `demo-data.json` into IndexedDB with a fake auth session (athlete ID 99999
 - **HTM templating.** `html\`...\`` tagged template literals instead of JSX. Closing tags use `<//>`.
 - **IndexedDB everywhere.** All persistent state in IndexedDB. No localStorage, no cookies.
 - **Test harness.** `test/harness.py` generates deterministic mock data, injects via Playwright, takes screenshots, audits award coverage. Requires Playwright + vendor bundles.
-- **Update `_MAP.md` before pushing.** Run the codemap script to regenerate all `_MAP.md` files before every push. Stale maps cause wasted time navigating the codebase:
+- **`_MAP.md` auto-generated at session start.** The SessionStart hook regenerates all `_MAP.md` files automatically. To manually regenerate:
   ```bash
-  /home/user/.venv/bin/python .claude/skills/mapping-codebases/scripts/codemap.py . --skip vendor,design,assets,icons
+  python3 .claude/skills/mapping-codebases/scripts/codemap.py . --skip vendor,design,assets,icons
   ```
 
 ## Common Tasks
