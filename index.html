@@ -51,65 +51,7 @@
         }
       }
     </script>
-    <style>
-        :root {
-          /* Surfaces */
-          --bg: #F6F3EE;
-          --surface: #FFFFFF;
-          --surface-hover: #FAF8F4;
-          --border: #E5DFD4;
-          --border-light: #EDE8E0;
-          /* Text */
-          --text: #1A1610;
-          --text-secondary: #5C5548;
-          --text-tertiary: #8C8374;
-          --text-on-dark: #FAF7F2;
-          /* Accents */
-          --strava: #FC4C02;
-          --strava-hover: #E04400;
-          --accent: #B85A28;
-          /* Fonts */
-          --font-display: 'Instrument Serif', serif;
-          --font-body: 'DM Sans', sans-serif;
-          --font-mono: 'IBM Plex Mono', monospace;
-        }
-        .search-input::placeholder { color: rgba(255,255,255,0.5); }
-        /* Safe area insets for notched devices */
-        body {
-            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-            font-family: var(--font-body);
-            -webkit-user-select: none;
-            user-select: none;
-        }
-
-        /* Sticky header transitions */
-        .sticky-header-full {
-            transition: transform 0.25s ease, opacity 0.2s ease;
-        }
-        .sticky-header-full--hidden {
-            /* Keep in flow but visually hidden — compact takes over */
-        }
-        .sticky-header-compact {
-            transform: translateY(-100%);
-            opacity: 0;
-            transition: transform 0.25s ease, opacity 0.2s ease;
-            pointer-events: none;
-        }
-        .sticky-header-compact--visible {
-            transform: translateY(0);
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        /* Avatar dropdown animation */
-        .avatar-dropdown {
-            animation: dropdown-in 0.15s ease-out;
-        }
-        @keyframes dropdown-in {
-            from { opacity: 0; transform: translateY(-4px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-    </style>
+    <link rel="stylesheet" href="/app.css">
 </head>
 <body style="background: var(--bg); color: var(--text);">
     <div id="app">
