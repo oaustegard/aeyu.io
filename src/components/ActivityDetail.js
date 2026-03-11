@@ -611,6 +611,7 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   const metaParts = [formatDistance(effort.segment.distance), `${effort.segment.average_grade}% grade`, formatTime(effort.elapsed_time)];
   if (effort.device_watts && effort.average_watts) metaParts.push(formatPower(effort.average_watts));
   if (effort.average_heartrate) metaParts.push(`${Math.round(effort.average_heartrate)} bpm`);
+  if (effort.average_cadence) metaParts.push(`${Math.round(effort.average_cadence)} rpm`);
   tmpCtx.font = '400 34px "IBM Plex Mono", monospace';
   const metaText = metaParts.join("  ·  ");
   const metaLines = wrapText(tmpCtx, metaText, maxTextW);
@@ -945,6 +946,7 @@ const SORT_COLUMNS = [
   { key: "grade", label: "Grade" },
   { key: "power", label: "Power" },
   { key: "hr", label: "HR" },
+  { key: "cadence", label: "Cadence" },
   { key: "awards", label: "Awards" },
 ];
 
@@ -995,6 +997,10 @@ function sortEfforts(efforts, effortAwards) {
         va = a.average_heartrate || 0;
         vb = b.average_heartrate || 0;
         break;
+      case "cadence":
+        va = a.average_cadence || 0;
+        vb = b.average_cadence || 0;
+        break;
       case "awards":
         va = (effortAwards.get(a.segment.id) || []).length;
         vb = (effortAwards.get(b.segment.id) || []).length;
@@ -1015,12 +1021,14 @@ function SortArrow({ col }) {
 function SegmentSortBar({ efforts, effortAwards }) {
   const hasPower = efforts.some(e => e.device_watts && e.average_watts);
   const hasHR = efforts.some(e => e.average_heartrate);
+  const hasCadence = efforts.some(e => e.average_cadence);
 
   return html`
     <div class="flex flex-wrap gap-1.5 mb-3" style="font-family: var(--font-body);">
       ${SORT_COLUMNS.filter(c => {
         if (c.key === "power" && !hasPower) return false;
         if (c.key === "hr" && !hasHR) return false;
+        if (c.key === "cadence" && !hasCadence) return false;
         return true;
       }).map(c => {
         const active = sortColumn.value === c.key;
@@ -1365,6 +1373,9 @@ export function ActivityDetail({ id }) {
               const effortHR = effort.average_heartrate
                 ? `${Math.round(effort.average_heartrate)} bpm`
                 : null;
+              const effortCadence = effort.average_cadence
+                ? `${Math.round(effort.average_cadence)} rpm`
+                : null;
               const hasAwards = segAwards.length > 0;
 
               return html`
@@ -1384,6 +1395,7 @@ export function ActivityDetail({ id }) {
                     · ${formatTime(effort.elapsed_time)}
                     ${effortPower ? ` · ${effortPower}` : ""}
                     ${effortHR ? ` · ${effortHR}` : ""}
+                    ${effortCadence ? ` · ${effortCadence}` : ""}
                     ${effortCount > 1 ? ` · ${effortCount} efforts` : ""}
                   </div>
                   ${effort.pr_rank && html`

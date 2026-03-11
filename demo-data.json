@@ -33,7 +33,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 194
+          "average_watts": 194,
+          "average_cadence": 72.7
         },
         {
           "id": 600214,
@@ -54,7 +55,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 176
+          "average_watts": 176,
+          "average_cadence": 79.7
         },
         {
           "id": 600215,
@@ -75,7 +77,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 196
+          "average_watts": 196,
+          "average_cadence": 78.2
         },
         {
           "id": 600216,
@@ -96,7 +99,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 177
+          "average_watts": 177,
+          "average_cadence": 92.6
         }
       ],
       "device_watts": true,
@@ -114,7 +118,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 134,
-      "max_heartrate": 149
+      "max_heartrate": 149,
+      "average_cadence": 88.9
     },
     {
       "id": 20000060,
@@ -149,7 +154,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 224
+          "average_watts": 224,
+          "average_cadence": 97.0
         },
         {
           "id": 600209,
@@ -170,7 +176,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 241
+          "average_watts": 241,
+          "average_cadence": 74.4
         },
         {
           "id": 600210,
@@ -191,7 +198,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 233
+          "average_watts": 233,
+          "average_cadence": 83.8
         },
         {
           "id": 600211,
@@ -212,7 +220,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 219
+          "average_watts": 219,
+          "average_cadence": 72.8
         },
         {
           "id": 600212,
@@ -233,7 +242,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 252
+          "average_watts": 252,
+          "average_cadence": 78.1
         }
       ],
       "trainer": false,
@@ -252,7 +262,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 142,
-      "max_heartrate": 164
+      "max_heartrate": 164,
+      "average_cadence": 89.5
     },
     {
       "id": 20000057,
@@ -287,7 +298,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 246
+          "average_watts": 246,
+          "average_cadence": 72.7
         },
         {
           "id": 600199,
@@ -308,7 +320,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 206
+          "average_watts": 206,
+          "average_cadence": 77.6
         },
         {
           "id": 600200,
@@ -329,7 +342,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 224
+          "average_watts": 224,
+          "average_cadence": 90.2
         },
         {
           "id": 600201,
@@ -350,7 +364,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 235
+          "average_watts": 235,
+          "average_cadence": 87.3
         }
       ],
       "trainer": false,
@@ -368,7 +383,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 138,
-      "max_heartrate": 156
+      "max_heartrate": 156,
+      "average_cadence": 86.6
     },
     {
       "id": 20000058,
@@ -403,7 +419,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 203
+          "average_watts": 203,
+          "average_cadence": 88.5
         },
         {
           "id": 600203,
@@ -424,7 +441,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 192
+          "average_watts": 192,
+          "average_cadence": 94.7
         },
         {
           "id": 600204,
@@ -445,7 +463,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 202
+          "average_watts": 202,
+          "average_cadence": 72.2
         },
         {
           "id": 600205,
@@ -466,7 +485,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 192
+          "average_watts": 192,
+          "average_cadence": 94.6
         }
       ],
       "device_watts": true,
@@ -484,7 +504,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 136,
-      "max_heartrate": 168
+      "max_heartrate": 168,
+      "average_cadence": 81.7
     },
     {
       "id": 20000059,
@@ -519,7 +540,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 197
+          "average_watts": 197,
+          "average_cadence": 81.5
         },
         {
           "id": 600207,
@@ -540,7 +562,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 204
+          "average_watts": 204,
+          "average_cadence": 76.4
         }
       ],
       "device_watts": true,
@@ -557,7 +580,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 132,
-      "max_heartrate": 160
+      "max_heartrate": 160,
+      "average_cadence": 89.9
     },
     {
       "id": 20000056,
@@ -592,7 +616,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 252
+          "average_watts": 252,
+          "average_cadence": 81.4
         },
         {
           "id": 600195,
@@ -613,7 +638,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 242
+          "average_watts": 242,
+          "average_cadence": 74.6
         },
         {
           "id": 600196,
@@ -634,7 +660,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 240
+          "average_watts": 240,
+          "average_cadence": 74.7
         },
         {
           "id": 600197,
@@ -655,7 +682,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 224
+          "average_watts": 224,
+          "average_cadence": 95.7
         }
       ],
       "trainer": false,
@@ -673,7 +701,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 135,
-      "max_heartrate": 152
+      "max_heartrate": 152,
+      "average_cadence": 94.3
     },
     {
       "id": 20000055,
@@ -708,7 +737,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 246
+          "average_watts": 246,
+          "average_cadence": 94.6
         },
         {
           "id": 600192,
@@ -729,7 +759,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 214
+          "average_watts": 214,
+          "average_cadence": 92.4
         },
         {
           "id": 600193,
@@ -750,7 +781,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 257
+          "average_watts": 257,
+          "average_cadence": 87.0
         }
       ],
       "device_watts": true,
@@ -768,7 +800,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 128,
-      "max_heartrate": 159
+      "max_heartrate": 159,
+      "average_cadence": 88.3
     },
     {
       "id": 20000054,
@@ -803,7 +836,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 247
+          "average_watts": 247,
+          "average_cadence": 82.6
         },
         {
           "id": 600189,
@@ -824,7 +858,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 194
+          "average_watts": 194,
+          "average_cadence": 87.5
         },
         {
           "id": 600190,
@@ -845,7 +880,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 237
+          "average_watts": 237,
+          "average_cadence": 95.2
         }
       ],
       "trainer": false,
@@ -863,7 +899,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 135,
-      "max_heartrate": 167
+      "max_heartrate": 167,
+      "average_cadence": 94.5
     },
     {
       "id": 20000053,
@@ -898,7 +935,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 239
+          "average_watts": 239,
+          "average_cadence": 96.1
         },
         {
           "id": 600184,
@@ -919,7 +957,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 261
+          "average_watts": 261,
+          "average_cadence": 88.2
         },
         {
           "id": 600185,
@@ -940,7 +979,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 239
+          "average_watts": 239,
+          "average_cadence": 91.7
         },
         {
           "id": 600186,
@@ -961,7 +1001,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 226
+          "average_watts": 226,
+          "average_cadence": 73.3
         },
         {
           "id": 600187,
@@ -982,7 +1023,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 254
+          "average_watts": 254,
+          "average_cadence": 78.4
         }
       ],
       "device_watts": true,
@@ -1001,7 +1043,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 134,
-      "max_heartrate": 169
+      "max_heartrate": 169,
+      "average_cadence": 88.5
     },
     {
       "id": 20000050,
@@ -1036,7 +1079,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 166
+          "average_watts": 166,
+          "average_cadence": 74.2
         },
         {
           "id": 600175,
@@ -1057,7 +1101,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 188
+          "average_watts": 188,
+          "average_cadence": 78.5
         },
         {
           "id": 600176,
@@ -1078,7 +1123,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 187
+          "average_watts": 187,
+          "average_cadence": 74.8
         },
         {
           "id": 600177,
@@ -1099,7 +1145,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 177
+          "average_watts": 177,
+          "average_cadence": 79.8
         }
       ],
       "device_watts": true,
@@ -1117,7 +1164,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 133,
-      "max_heartrate": 161
+      "max_heartrate": 161,
+      "average_cadence": 82.9
     },
     {
       "id": 20000052,
@@ -1152,7 +1200,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 241
+          "average_watts": 241,
+          "average_cadence": 82.2
         },
         {
           "id": 600181,
@@ -1173,7 +1222,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 221
+          "average_watts": 221,
+          "average_cadence": 82.4
         },
         {
           "id": 600182,
@@ -1194,7 +1244,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 254
+          "average_watts": 254,
+          "average_cadence": 77.9
         }
       ],
       "device_watts": true,
@@ -1212,7 +1263,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 131,
-      "max_heartrate": 164
+      "max_heartrate": 164,
+      "average_cadence": 88.8
     },
     {
       "id": 20000051,
@@ -1311,7 +1363,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 243
+          "average_watts": 243,
+          "average_cadence": 98.2
         },
         {
           "id": 600172,
@@ -1332,7 +1385,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 210
+          "average_watts": 210,
+          "average_cadence": 90.1
         },
         {
           "id": 600173,
@@ -1353,7 +1407,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 251
+          "average_watts": 251,
+          "average_cadence": 89.1
         }
       ],
       "trainer": false,
@@ -1371,7 +1426,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 142,
-      "max_heartrate": 162
+      "max_heartrate": 162,
+      "average_cadence": 82.5
     },
     {
       "id": 20000046,
@@ -1406,7 +1462,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 227
+          "average_watts": 227,
+          "average_cadence": 92.4
         },
         {
           "id": 600159,
@@ -1427,7 +1484,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 219
+          "average_watts": 219,
+          "average_cadence": 76.6
         },
         {
           "id": 600160,
@@ -1448,7 +1506,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 238
+          "average_watts": 238,
+          "average_cadence": 82.6
         },
         {
           "id": 600161,
@@ -1469,7 +1528,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 226
+          "average_watts": 226,
+          "average_cadence": 99.7
         }
       ],
       "trainer": true,
@@ -1487,7 +1547,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 147,
-      "max_heartrate": 172
+      "max_heartrate": 172,
+      "average_cadence": 80.9
     },
     {
       "id": 20000048,
@@ -1522,7 +1583,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 218
+          "average_watts": 218,
+          "average_cadence": 87.6
         },
         {
           "id": 600167,
@@ -1543,7 +1605,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 222
+          "average_watts": 222,
+          "average_cadence": 91.2
         },
         {
           "id": 600168,
@@ -1564,7 +1627,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 225
+          "average_watts": 225,
+          "average_cadence": 95.6
         },
         {
           "id": 600169,
@@ -1585,7 +1649,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 207
+          "average_watts": 207,
+          "average_cadence": 93.7
         },
         {
           "id": 600170,
@@ -1606,7 +1671,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 213
+          "average_watts": 213,
+          "average_cadence": 78.4
         }
       ],
       "trainer": false,
@@ -1625,7 +1691,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 128,
-      "max_heartrate": 149
+      "max_heartrate": 149,
+      "average_cadence": 88.9
     },
     {
       "id": 20000047,
@@ -1660,7 +1727,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 225
+          "average_watts": 225,
+          "average_cadence": 80.8
         },
         {
           "id": 600163,
@@ -1681,7 +1749,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 246
+          "average_watts": 246,
+          "average_cadence": 79.5
         },
         {
           "id": 600164,
@@ -1702,7 +1771,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 208
+          "average_watts": 208,
+          "average_cadence": 77.9
         },
         {
           "id": 600165,
@@ -1723,7 +1793,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 243
+          "average_watts": 243,
+          "average_cadence": 98.4
         }
       ],
       "trainer": false,
@@ -1741,7 +1812,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 149,
-      "max_heartrate": 174
+      "max_heartrate": 174,
+      "average_cadence": 78.5
     },
     {
       "id": 20000044,
@@ -1776,7 +1848,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 252
+          "average_watts": 252,
+          "average_cadence": 80.8
         },
         {
           "id": 600151,
@@ -1797,7 +1870,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 205
+          "average_watts": 205,
+          "average_cadence": 90.4
         },
         {
           "id": 600152,
@@ -1818,7 +1892,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 201
+          "average_watts": 201,
+          "average_cadence": 83.1
         },
         {
           "id": 600153,
@@ -1839,7 +1914,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 203
+          "average_watts": 203,
+          "average_cadence": 97.6
         }
       ],
       "trainer": false,
@@ -1857,7 +1933,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 133,
-      "max_heartrate": 160
+      "max_heartrate": 160,
+      "average_cadence": 92.9
     },
     {
       "id": 20000042,
@@ -1892,7 +1969,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 192
+          "average_watts": 192,
+          "average_cadence": 79.4
         },
         {
           "id": 600144,
@@ -1913,7 +1991,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 193
+          "average_watts": 193,
+          "average_cadence": 78.9
         },
         {
           "id": 600145,
@@ -1934,7 +2013,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 167
+          "average_watts": 167,
+          "average_cadence": 87.7
         },
         {
           "id": 600146,
@@ -1955,7 +2035,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 189
+          "average_watts": 189,
+          "average_cadence": 79.4
         }
       ],
       "trainer": false,
@@ -1973,7 +2054,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 121,
-      "max_heartrate": 147
+      "max_heartrate": 147,
+      "average_cadence": 85.8
     },
     {
       "id": 20000043,
@@ -2008,7 +2090,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 298
+          "average_watts": 298,
+          "average_cadence": 97.1
         },
         {
           "id": 600148,
@@ -2029,7 +2112,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 269
+          "average_watts": 269,
+          "average_cadence": 83.2
         },
         {
           "id": 600149,
@@ -2050,7 +2134,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 304
+          "average_watts": 304,
+          "average_cadence": 78.1
         }
       ],
       "device_watts": true,
@@ -2068,7 +2153,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 148,
-      "max_heartrate": 164
+      "max_heartrate": 164,
+      "average_cadence": 87.9
     },
     {
       "id": 20000045,
@@ -2103,7 +2189,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 234
+          "average_watts": 234,
+          "average_cadence": 86.3
         },
         {
           "id": 600155,
@@ -2124,7 +2211,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 212
+          "average_watts": 212,
+          "average_cadence": 74.5
         },
         {
           "id": 600156,
@@ -2145,7 +2233,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 218
+          "average_watts": 218,
+          "average_cadence": 73.3
         },
         {
           "id": 600157,
@@ -2166,7 +2255,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 185
+          "average_watts": 185,
+          "average_cadence": 75.1
         }
       ],
       "trainer": false,
@@ -2184,7 +2274,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 138,
-      "max_heartrate": 170
+      "max_heartrate": 170,
+      "average_cadence": 95.0
     },
     {
       "id": 20000039,
@@ -2302,7 +2393,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 257
+          "average_watts": 257,
+          "average_cadence": 94.2
         },
         {
           "id": 600140,
@@ -2323,7 +2415,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 215
+          "average_watts": 215,
+          "average_cadence": 83.8
         },
         {
           "id": 600141,
@@ -2344,7 +2437,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 222
+          "average_watts": 222,
+          "average_cadence": 73.8
         },
         {
           "id": 600142,
@@ -2365,7 +2459,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 249
+          "average_watts": 249,
+          "average_cadence": 82.7
         }
       ],
       "device_watts": true,
@@ -2383,7 +2478,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 138,
-      "max_heartrate": 162
+      "max_heartrate": 162,
+      "average_cadence": 88.7
     },
     {
       "id": 20000040,
@@ -2418,7 +2514,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 188
+          "average_watts": 188,
+          "average_cadence": 86.8
         },
         {
           "id": 600138,
@@ -2439,7 +2536,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 200
+          "average_watts": 200,
+          "average_cadence": 99.2
         }
       ],
       "device_watts": true,
@@ -2457,7 +2555,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 141,
-      "max_heartrate": 175
+      "max_heartrate": 175,
+      "average_cadence": 94.9
     },
     {
       "id": 20000038,
@@ -2492,7 +2591,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 211
+          "average_watts": 211,
+          "average_cadence": 72.3
         },
         {
           "id": 600133,
@@ -2513,7 +2613,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 223
+          "average_watts": 223,
+          "average_cadence": 92.2
         }
       ],
       "trainer": false,
@@ -2531,7 +2632,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 147,
-      "max_heartrate": 173
+      "max_heartrate": 173,
+      "average_cadence": 92.6
     },
     {
       "id": 20000037,
@@ -2687,7 +2789,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 274
+          "average_watts": 274,
+          "average_cadence": 87.0
         },
         {
           "id": 600119,
@@ -2708,7 +2811,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 278
+          "average_watts": 278,
+          "average_cadence": 79.5
         },
         {
           "id": 600120,
@@ -2729,7 +2833,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 301
+          "average_watts": 301,
+          "average_cadence": 89.9
         },
         {
           "id": 600121,
@@ -2750,7 +2855,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 262
+          "average_watts": 262,
+          "average_cadence": 75.1
         },
         {
           "id": 600122,
@@ -2771,7 +2877,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 255
+          "average_watts": 255,
+          "average_cadence": 84.2
         }
       ],
       "device_watts": true,
@@ -2790,7 +2897,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 140,
-      "max_heartrate": 162
+      "max_heartrate": 162,
+      "average_cadence": 89.6
     },
     {
       "id": 20000036,
@@ -2825,7 +2933,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 229
+          "average_watts": 229,
+          "average_cadence": 98.7
         },
         {
           "id": 600124,
@@ -2846,7 +2955,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 205
+          "average_watts": 205,
+          "average_cadence": 96.5
         },
         {
           "id": 600125,
@@ -2867,7 +2977,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 172
+          "average_watts": 172,
+          "average_cadence": 79.4
         },
         {
           "id": 600126,
@@ -2888,7 +2999,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 173
+          "average_watts": 173,
+          "average_cadence": 86.0
         }
       ],
       "trainer": false,
@@ -2906,7 +3018,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 135,
-      "max_heartrate": 152
+      "max_heartrate": 152,
+      "average_cadence": 85.7
     },
     {
       "id": 20000034,
@@ -2941,7 +3054,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 222
+          "average_watts": 222,
+          "average_cadence": 97.6
         },
         {
           "id": 600114,
@@ -2962,7 +3076,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 247
+          "average_watts": 247,
+          "average_cadence": 96.4
         },
         {
           "id": 600115,
@@ -2983,7 +3098,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 226
+          "average_watts": 226,
+          "average_cadence": 80.4
         },
         {
           "id": 600116,
@@ -3004,7 +3120,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 220
+          "average_watts": 220,
+          "average_cadence": 89.9
         },
         {
           "id": 600117,
@@ -3025,7 +3142,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 221
+          "average_watts": 221,
+          "average_cadence": 89.1
         }
       ],
       "device_watts": true,
@@ -3044,7 +3162,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 139,
-      "max_heartrate": 157
+      "max_heartrate": 157,
+      "average_cadence": 81.0
     },
     {
       "id": 20000033,
@@ -3079,7 +3198,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 195
+          "average_watts": 195,
+          "average_cadence": 93.4
         },
         {
           "id": 600110,
@@ -3100,7 +3220,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 216
+          "average_watts": 216,
+          "average_cadence": 87.1
         },
         {
           "id": 600111,
@@ -3121,7 +3242,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 214
+          "average_watts": 214,
+          "average_cadence": 93.8
         },
         {
           "id": 600112,
@@ -3142,7 +3264,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 198
+          "average_watts": 198,
+          "average_cadence": 86.8
         }
       ],
       "trainer": false,
@@ -3160,7 +3283,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 135,
-      "max_heartrate": 164
+      "max_heartrate": 164,
+      "average_cadence": 80.6
     },
     {
       "id": 20000031,
@@ -3195,7 +3319,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 250
+          "average_watts": 250,
+          "average_cadence": 81.1
         },
         {
           "id": 600103,
@@ -3216,7 +3341,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 238
+          "average_watts": 238,
+          "average_cadence": 72.5
         },
         {
           "id": 600104,
@@ -3237,7 +3363,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 232
+          "average_watts": 232,
+          "average_cadence": 98.0
         },
         {
           "id": 600105,
@@ -3258,7 +3385,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 241
+          "average_watts": 241,
+          "average_cadence": 96.6
         }
       ],
       "trainer": false,
@@ -3276,7 +3404,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 146,
-      "max_heartrate": 172
+      "max_heartrate": 172,
+      "average_cadence": 78.0
     },
     {
       "id": 20000032,
@@ -3311,7 +3440,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 213
+          "average_watts": 213,
+          "average_cadence": 80.6
         },
         {
           "id": 600107,
@@ -3332,7 +3462,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 207
+          "average_watts": 207,
+          "average_cadence": 73.6
         },
         {
           "id": 600108,
@@ -3353,7 +3484,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 224
+          "average_watts": 224,
+          "average_cadence": 96.6
         }
       ],
       "device_watts": true,
@@ -3371,7 +3503,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 124,
-      "max_heartrate": 150
+      "max_heartrate": 150,
+      "average_cadence": 92.1
     },
     {
       "id": 20000030,
@@ -3674,7 +3807,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 217
+          "average_watts": 217,
+          "average_cadence": 74.4
         },
         {
           "id": 600083,
@@ -3695,7 +3829,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 228
+          "average_watts": 228,
+          "average_cadence": 85.6
         },
         {
           "id": 600084,
@@ -3716,7 +3851,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 252
+          "average_watts": 252,
+          "average_cadence": 73.9
         }
       ],
       "trainer": false,
@@ -3734,7 +3870,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 128,
-      "max_heartrate": 150
+      "max_heartrate": 150,
+      "average_cadence": 94.1
     },
     {
       "id": 20000027,
@@ -3769,7 +3906,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 162
+          "average_watts": 162,
+          "average_cadence": 93.4
         },
         {
           "id": 600091,
@@ -3790,7 +3928,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 171
+          "average_watts": 171,
+          "average_cadence": 75.6
         }
       ],
       "device_watts": true,
@@ -3808,7 +3947,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 122,
-      "max_heartrate": 149
+      "max_heartrate": 149,
+      "average_cadence": 90.9
     },
     {
       "id": 20000026,
@@ -3964,7 +4104,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 250
+          "average_watts": 250,
+          "average_cadence": 87.4
         },
         {
           "id": 600078,
@@ -3985,7 +4126,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 254
+          "average_watts": 254,
+          "average_cadence": 79.4
         },
         {
           "id": 600079,
@@ -4006,7 +4148,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 276
+          "average_watts": 276,
+          "average_cadence": 96.4
         },
         {
           "id": 600080,
@@ -4027,7 +4170,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 249
+          "average_watts": 249,
+          "average_cadence": 83.8
         },
         {
           "id": 600081,
@@ -4048,7 +4192,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 271
+          "average_watts": 271,
+          "average_cadence": 77.9
         }
       ],
       "device_watts": true,
@@ -4067,7 +4212,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 149,
-      "max_heartrate": 171
+      "max_heartrate": 171,
+      "average_cadence": 86.1
     },
     {
       "id": 20000022,
@@ -4102,7 +4248,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 201
+          "average_watts": 201,
+          "average_cadence": 92.4
         },
         {
           "id": 600073,
@@ -4123,7 +4270,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 181
+          "average_watts": 181,
+          "average_cadence": 77.6
         },
         {
           "id": 600074,
@@ -4144,7 +4292,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 228
+          "average_watts": 228,
+          "average_cadence": 80.7
         }
       ],
       "trainer": false,
@@ -4162,7 +4311,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 131,
-      "max_heartrate": 147
+      "max_heartrate": 147,
+      "average_cadence": 87.2
     },
     {
       "id": 20000023,
@@ -4197,7 +4347,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 202
+          "average_watts": 202,
+          "average_cadence": 90.2
         },
         {
           "id": 600076,
@@ -4218,7 +4369,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 211
+          "average_watts": 211,
+          "average_cadence": 84.3
         }
       ],
       "trainer": false,
@@ -4235,7 +4387,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 133,
-      "max_heartrate": 149
+      "max_heartrate": 149,
+      "average_cadence": 94.9
     },
     {
       "id": 20000019,
@@ -4270,7 +4423,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 242
+          "average_watts": 242,
+          "average_cadence": 75.4
         },
         {
           "id": 600064,
@@ -4291,7 +4445,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 223
+          "average_watts": 223,
+          "average_cadence": 78.3
         },
         {
           "id": 600065,
@@ -4312,7 +4467,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 232
+          "average_watts": 232,
+          "average_cadence": 81.5
         }
       ],
       "trainer": false,
@@ -4330,7 +4486,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 139,
-      "max_heartrate": 166
+      "max_heartrate": 166,
+      "average_cadence": 86.8
     },
     {
       "id": 20000021,
@@ -4531,7 +4688,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 248
+          "average_watts": 248,
+          "average_cadence": 78.4
         },
         {
           "id": 600060,
@@ -4552,7 +4710,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 217
+          "average_watts": 217,
+          "average_cadence": 78.2
         },
         {
           "id": 600061,
@@ -4573,7 +4732,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 228
+          "average_watts": 228,
+          "average_cadence": 74.0
         },
         {
           "id": 600062,
@@ -4594,7 +4754,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 213
+          "average_watts": 213,
+          "average_cadence": 89.7
         }
       ],
       "trainer": false,
@@ -4612,7 +4773,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 150,
-      "max_heartrate": 175
+      "max_heartrate": 175,
+      "average_cadence": 88.0
     },
     {
       "id": 20000017,
@@ -4647,7 +4809,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 232
+          "average_watts": 232,
+          "average_cadence": 97.4
         },
         {
           "id": 600057,
@@ -4668,7 +4831,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 185
+          "average_watts": 185,
+          "average_cadence": 96.1
         },
         {
           "id": 600058,
@@ -4689,7 +4853,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 227
+          "average_watts": 227,
+          "average_cadence": 74.0
         }
       ],
       "device_watts": true,
@@ -4707,7 +4872,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 127,
-      "max_heartrate": 157
+      "max_heartrate": 157,
+      "average_cadence": 81.9
     },
     {
       "id": 20000016,
@@ -4863,7 +5029,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 191
+          "average_watts": 191,
+          "average_cadence": 90.7
         },
         {
           "id": 600048,
@@ -4884,7 +5051,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 176
+          "average_watts": 176,
+          "average_cadence": 78.0
         },
         {
           "id": 600049,
@@ -4905,7 +5073,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 167
+          "average_watts": 167,
+          "average_cadence": 75.7
         },
         {
           "id": 600050,
@@ -4926,7 +5095,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 192
+          "average_watts": 192,
+          "average_cadence": 98.2
         }
       ],
       "trainer": false,
@@ -4944,7 +5114,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 127,
-      "max_heartrate": 150
+      "max_heartrate": 150,
+      "average_cadence": 82.0
     },
     {
       "id": 20000014,
@@ -4979,7 +5150,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 219
+          "average_watts": 219,
+          "average_cadence": 85.2
         },
         {
           "id": 600046,
@@ -5000,7 +5172,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 212
+          "average_watts": 212,
+          "average_cadence": 94.0
         }
       ],
       "trainer": false,
@@ -5018,7 +5191,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 133,
-      "max_heartrate": 165
+      "max_heartrate": 165,
+      "average_cadence": 87.7
     },
     {
       "id": 20000013,
@@ -5053,7 +5227,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 246
+          "average_watts": 246,
+          "average_cadence": 77.3
         },
         {
           "id": 600043,
@@ -5074,7 +5249,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 204
+          "average_watts": 204,
+          "average_cadence": 74.7
         },
         {
           "id": 600044,
@@ -5095,7 +5271,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 220
+          "average_watts": 220,
+          "average_cadence": 84.1
         }
       ],
       "device_watts": true,
@@ -5113,7 +5290,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 133,
-      "max_heartrate": 166
+      "max_heartrate": 166,
+      "average_cadence": 91.7
     },
     {
       "id": 20000012,
@@ -5148,7 +5326,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 240
+          "average_watts": 240,
+          "average_cadence": 85.1
         },
         {
           "id": 600038,
@@ -5169,7 +5348,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 236
+          "average_watts": 236,
+          "average_cadence": 92.4
         },
         {
           "id": 600039,
@@ -5190,7 +5370,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 257
+          "average_watts": 257,
+          "average_cadence": 90.9
         },
         {
           "id": 600040,
@@ -5211,7 +5392,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 243
+          "average_watts": 243,
+          "average_cadence": 99.6
         },
         {
           "id": 600041,
@@ -5232,7 +5414,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 243
+          "average_watts": 243,
+          "average_cadence": 74.8
         }
       ],
       "trainer": false,
@@ -5251,7 +5434,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 137,
-      "max_heartrate": 170
+      "max_heartrate": 170,
+      "average_cadence": 85.2
     },
     {
       "id": 20000010,
@@ -5286,7 +5470,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 218
+          "average_watts": 218,
+          "average_cadence": 81.5
         },
         {
           "id": 600031,
@@ -5307,7 +5492,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 219
+          "average_watts": 219,
+          "average_cadence": 96.1
         },
         {
           "id": 600032,
@@ -5328,7 +5514,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 244
+          "average_watts": 244,
+          "average_cadence": 79.0
         },
         {
           "id": 600033,
@@ -5349,7 +5536,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 243
+          "average_watts": 243,
+          "average_cadence": 77.3
         }
       ],
       "trainer": false,
@@ -5367,7 +5555,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 141,
-      "max_heartrate": 163
+      "max_heartrate": 163,
+      "average_cadence": 84.8
     },
     {
       "id": 20000011,
@@ -5402,7 +5591,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 248
+          "average_watts": 248,
+          "average_cadence": 83.8
         },
         {
           "id": 600035,
@@ -5423,7 +5613,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 246
+          "average_watts": 246,
+          "average_cadence": 79.8
         },
         {
           "id": 600036,
@@ -5444,7 +5635,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 262
+          "average_watts": 262,
+          "average_cadence": 79.0
         }
       ],
       "trainer": false,
@@ -5462,7 +5654,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 146,
-      "max_heartrate": 165
+      "max_heartrate": 165,
+      "average_cadence": 85.6
     },
     {
       "id": 20000009,
@@ -5497,7 +5690,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 186
+          "average_watts": 186,
+          "average_cadence": 84.4
         },
         {
           "id": 600029,
@@ -5518,7 +5712,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 178
+          "average_watts": 178,
+          "average_cadence": 96.1
         }
       ],
       "trainer": true,
@@ -5536,7 +5731,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 132,
-      "max_heartrate": 149
+      "max_heartrate": 149,
+      "average_cadence": 93.7
     },
     {
       "id": 20000008,
@@ -5571,7 +5767,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 205
+          "average_watts": 205,
+          "average_cadence": 73.4
         },
         {
           "id": 600027,
@@ -5592,7 +5789,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 211
+          "average_watts": 211,
+          "average_cadence": 100.0
         }
       ],
       "trainer": false,
@@ -5609,7 +5807,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 146,
-      "max_heartrate": 164
+      "max_heartrate": 164,
+      "average_cadence": 87.4
     },
     {
       "id": 20000007,
@@ -5746,7 +5945,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 254
+          "average_watts": 254,
+          "average_cadence": 99.1
         },
         {
           "id": 600019,
@@ -5767,7 +5967,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 237
+          "average_watts": 237,
+          "average_cadence": 97.9
         },
         {
           "id": 600020,
@@ -5788,7 +5989,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 238
+          "average_watts": 238,
+          "average_cadence": 95.8
         },
         {
           "id": 600021,
@@ -5809,7 +6011,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 225
+          "average_watts": 225,
+          "average_cadence": 76.7
         }
       ],
       "trainer": false,
@@ -5827,7 +6030,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 147,
-      "max_heartrate": 175
+      "max_heartrate": 175,
+      "average_cadence": 92.2
     },
     {
       "id": 20000005,
@@ -6066,7 +6270,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 212
+          "average_watts": 212,
+          "average_cadence": 78.0
         },
         {
           "id": 600009,
@@ -6087,7 +6292,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 179
+          "average_watts": 179,
+          "average_cadence": 83.2
         }
       ],
       "trainer": true,
@@ -6105,7 +6311,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 135,
-      "max_heartrate": 167
+      "max_heartrate": 167,
+      "average_cadence": 86.3
     },
     {
       "id": 20000002,
@@ -6140,7 +6347,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 227
+          "average_watts": 227,
+          "average_cadence": 82.6
         },
         {
           "id": 600006,
@@ -6161,7 +6369,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 185
+          "average_watts": 185,
+          "average_cadence": 99.6
         },
         {
           "id": 600007,
@@ -6182,7 +6391,8 @@
           "pr_rank": null,
           "achievements": [],
           "device_watts": true,
-          "average_watts": 222
+          "average_watts": 222,
+          "average_cadence": 79.4
         }
       ],
       "trainer": false,
@@ -6200,7 +6410,8 @@
       },
       "has_heartrate": true,
       "average_heartrate": 137,
-      "max_heartrate": 152
+      "max_heartrate": 152,
+      "average_cadence": 79.0
     },
     {
       "id": 20000001,
