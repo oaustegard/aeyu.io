@@ -280,6 +280,12 @@ export function Landing() {
             </p>
           <//>
 
+          <${FaqItem} q="How do I report a bug or request a feature?">
+            <p>
+              File an issue on the <a href="https://github.com/oaustegard/aeyu.io/issues" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: underline;">GitHub issue tracker</a>. Bug reports, feature requests, and general feedback are all welcome.
+            </p>
+          <//>
+
           <${FaqItem} q="What does 'aeyu' mean?">
             <p class="mb-2">
               It's the sound you make at the top of the climb.
