@@ -43,6 +43,16 @@ const BATCH_SIZE = 80;
 const RATE_LIMIT_THRESHOLD = 0.8;
 const LIST_PAGE_SIZE = 100; // Smaller pages for interleaved list+detail sync
 
+// Cycling-related sport types — filter out walks, runs, swims, etc.
+const CYCLING_SPORT_TYPES = new Set([
+  "Ride", "VirtualRide", "MountainBikeRide", "GravelRide", "EBikeRide",
+  "EMountainBikeRide", "Velomobile", "Handcycle",
+]);
+
+function isCyclingActivity(activity) {
+  return CYCLING_SPORT_TYPES.has(activity.sport_type);
+}
+
 // --- Rate Limit Tracking ---
 
 function parseRateLimits(response) {
@@ -167,8 +177,12 @@ async function fetchActivityListPage(page, { afterEpoch = null, cutoffEpoch = nu
     hitCutoff = filtered.length < activities.length;
   }
 
+  // Filter to cycling activities only
+  filtered = filtered.filter(isCyclingActivity);
+
   if (filtered.length === 0) {
-    return { summaries: [], hasMore: false, newestDate: null, hitCutoff: true };
+    // If we had activities but all were non-cycling, there may be more pages
+    return { summaries: [], hasMore: activities.length >= LIST_PAGE_SIZE && !hitCutoff, newestDate: null, hitCutoff };
   }
 
   const summaries = filtered.map(toActivitySummary);
@@ -204,15 +218,15 @@ async function fetchAllNewActivities(lastActivityDate) {
 
   while (true) {
     const result = await fetchActivityListPage(page, { afterEpoch });
-    if (result.summaries.length === 0) break;
 
-    allNew.push(...result.summaries);
-
-    syncProgress.value = {
-      ...syncProgress.value,
-      fetched: syncProgress.value.fetched + result.summaries.length,
-      message: `Found ${syncProgress.value.fetched + result.summaries.length} new activities...`,
-    };
+    if (result.summaries.length > 0) {
+      allNew.push(...result.summaries);
+      syncProgress.value = {
+        ...syncProgress.value,
+        fetched: syncProgress.value.fetched + result.summaries.length,
+        message: `Found ${syncProgress.value.fetched + result.summaries.length} new activities...`,
+      };
+    }
 
     if (!result.hasMore) break;
     page++;
@@ -449,11 +463,85 @@ async function runHeartRateMigration() {
 
 // --- Public API ---
 
+// 13-month priority window — gives users a full year of context quickly
+const INITIAL_WINDOW_MONTHS = 13;
+const INITIAL_WINDOW_SECONDS = INITIAL_WINDOW_MONTHS * 30.44 * 24 * 3600;
+
+// Default full sync window when user hasn't chosen (5 years)
+const DEFAULT_SYNC_WINDOW_YEARS = 5;
+
 /**
- * Start full backfill — interleaves activity list and detail fetching.
- * Fetches one page of activities (~100), then their details, then the next page.
- * This gives users visible data much faster than loading all activities first.
- * Resumable: checks has_efforts flag and sync_state on restart.
+ * Run one pass of interleaved list+detail backfill within a cutoff window.
+ * Returns true if completed (all pages fetched), false if interrupted (rate limit).
+ */
+async function runBackfillPass(cutoffEpoch, startPage, onProgress) {
+  let page = startPage;
+  let lastActivityDate = (await getSyncState()).last_activity_fetch;
+  let totalFetched = 0;
+
+  const windowLabel = cutoffEpoch
+    ? `since ${new Date(cutoffEpoch * 1000).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`
+    : "all time";
+
+  while (true) {
+    syncProgress.value = {
+      ...syncProgress.value,
+      phase: "list",
+      message: `Fetching rides ${windowLabel} (page ${page})...`,
+    };
+
+    const result = await fetchActivityListPage(page, { cutoffEpoch });
+
+    if (result.summaries.length > 0) {
+      totalFetched += result.summaries.length;
+
+      if (result.newestDate && (!lastActivityDate || result.newestDate > lastActivityDate)) {
+        lastActivityDate = result.newestDate;
+      }
+
+      syncProgress.value = {
+        ...syncProgress.value,
+        fetched: totalFetched,
+        message: `Fetched ${totalFetched} rides. Loading details...`,
+      };
+
+      await updateSyncState({
+        backfill_page: page + 1,
+        fetched_activities: (await getSyncState()).fetched_activities + result.summaries.length,
+        last_activity_fetch: lastActivityDate,
+      });
+
+      await fetchActivityDetails();
+      if (onProgress) onProgress();
+    }
+
+    if (!result.hasMore) return true; // completed
+
+    if (isRateLimited()) {
+      syncProgress.value = {
+        ...syncProgress.value,
+        message: `Rate limit approaching — pausing after ${totalFetched} rides.`,
+      };
+      return false; // interrupted
+    }
+
+    page++;
+  }
+}
+
+/**
+ * Start full backfill — two-phase approach for API rate limit efficiency.
+ *
+ * Phase 1: Fetch the last 13 months of cycling activities. This gives users
+ * a full year of segment history quickly (enough for year-best, season-first,
+ * median/quartile awards).
+ *
+ * Phase 2: Once the 13-month window is complete, extend backfill to the full
+ * sync window (default 5 years, configurable in settings).
+ *
+ * Only cycling activities are synced (Ride, VirtualRide, MountainBikeRide, etc.).
+ * Resumable: checks sync_state on restart.
+ *
  * @param {Function} [onProgress] - called after each page+detail cycle so the UI can refresh
  */
 export async function startBackfill(onProgress) {
@@ -478,82 +566,54 @@ export async function startBackfill(onProgress) {
       await runHeartRateMigration();
       await fetchActivityDetails();
     } else {
-      // Interleaved backfill: fetch page → detail → fetch page → detail
-      let page = state.backfill_page || 1;
-      let lastActivityDate = state.last_activity_fetch;
-      let totalFetched = 0;
-
-      // Apply sync window cutoff (#111) — used as client-side filter (not Strava `after` param)
-      // so that Strava returns newest activities first. Default to 3 years on first backfill.
-      let syncAfterEpoch = state.sync_after_epoch;
-      if (syncAfterEpoch === null && page === 1) {
-        syncAfterEpoch = Math.floor(Date.now() / 1000 - 3 * 365.25 * 24 * 3600);
-        await updateSyncState({ sync_after_epoch: syncAfterEpoch });
+      // Set full sync window default if not yet chosen by user
+      if (state.sync_after_epoch === null && !state.initial_backfill_complete) {
+        const defaultEpoch = Math.floor(Date.now() / 1000 - DEFAULT_SYNC_WINDOW_YEARS * 365.25 * 24 * 3600);
+        await updateSyncState({ sync_after_epoch: defaultEpoch });
       }
 
-      // Show sync window in progress messages
-      const windowLabel = syncAfterEpoch
-        ? `since ${new Date(syncAfterEpoch * 1000).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`
-        : "all time";
+      const fullSyncEpoch = (await getSyncState()).sync_after_epoch;
 
-      while (true) {
-        // Fetch one page of activity summaries
-        syncProgress.value = {
-          ...syncProgress.value,
-          phase: "list",
-          message: `Fetching activities ${windowLabel} (page ${page})...`,
-        };
+      // --- Phase 1: 13-month priority window ---
+      if (!state.initial_backfill_complete) {
+        const initialCutoff = Math.floor(Date.now() / 1000 - INITIAL_WINDOW_SECONDS);
+        // Use the later of (13-month cutoff, full sync window) so we don't
+        // exceed the user's chosen window if it's shorter than 13 months
+        const phase1Cutoff = fullSyncEpoch ? Math.max(initialCutoff, fullSyncEpoch) : initialCutoff;
 
-        const result = await fetchActivityListPage(page, { cutoffEpoch: syncAfterEpoch });
+        const page = state.backfill_page || 1;
+        const completed = await runBackfillPass(phase1Cutoff, page, onProgress);
 
-        if (result.summaries.length === 0) break;
+        if (completed && !isRateLimited()) {
+          await updateSyncState({ initial_backfill_complete: true, backfill_page: 1 });
 
-        totalFetched += result.summaries.length;
-
-        // Track newest activity date
-        if (result.newestDate && (!lastActivityDate || result.newestDate > lastActivityDate)) {
-          lastActivityDate = result.newestDate;
+          // If the full window is the same as phase 1, skip phase 2
+          if (fullSyncEpoch && fullSyncEpoch >= phase1Cutoff) {
+            await updateSyncState({ backfill_complete: true });
+          }
         }
-
-        syncProgress.value = {
-          ...syncProgress.value,
-          fetched: totalFetched,
-          message: `Fetched ${totalFetched} activities. Loading details...`,
-        };
-
-        // Save progress so we can resume if interrupted
-        await updateSyncState({
-          backfill_page: page + 1,
-          fetched_activities: (await getSyncState()).fetched_activities + result.summaries.length,
-          last_activity_fetch: lastActivityDate,
-        });
-
-        // Detail-fetch everything pending (includes this page + any prior)
-        await fetchActivityDetails();
-
-        // Notify UI so dashboard refreshes with newly synced activities
-        if (onProgress) onProgress();
-
-        if (!result.hasMore) break;
-
-        // Check rate limit before continuing to next page
-        if (isRateLimited()) {
-          syncProgress.value = {
-            ...syncProgress.value,
-            message: `Rate limit approaching — pausing after ${totalFetched} activities.`,
-          };
-          break;
-        }
-
-        page++;
       }
 
-      // If we got through all pages without being rate-limited, mark complete
-      if (!isRateLimited()) {
-        await updateSyncState({ backfill_complete: true });
+      // --- Phase 2: Full sync window (historical backfill) ---
+      const refreshedState = await getSyncState();
+      if (refreshedState.initial_backfill_complete && !refreshedState.backfill_complete && !isRateLimited()) {
+        syncProgress.value = {
+          ...syncProgress.value,
+          message: "Expanding to full history...",
+        };
+
+        const page = refreshedState.backfill_page || 1;
+        const completed = await runBackfillPass(fullSyncEpoch, page, onProgress);
+
+        if (completed && !isRateLimited()) {
+          await updateSyncState({ backfill_complete: true });
+        }
+      }
+
+      // Run migrations after full backfill completes
+      if ((await getSyncState()).backfill_complete && !isRateLimited()) {
         await runPowerMigration();
         await runHeartRateMigration();
-        // Final detail pass for any remaining from migration
         await fetchActivityDetails();
       }
     }
@@ -561,10 +621,16 @@ export async function startBackfill(onProgress) {
     const remaining = await getActivitiesWithoutEfforts();
 
     if (remaining.length === 0) {
+      const s = await getSyncState();
+      const phaseMsg = s.backfill_complete
+        ? "Sync complete!"
+        : s.initial_backfill_complete
+          ? "Recent history synced! Historical backfill continues in background."
+          : "Sync paused.";
       syncProgress.value = {
         ...syncProgress.value,
         phase: "done",
-        message: "Backfill complete!",
+        message: phaseMsg,
       };
       await updateSyncState({ last_sync: new Date().toISOString() });
     } else {

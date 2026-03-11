@@ -26,6 +26,7 @@ import {
   getAllSegments,
   getActivitiesWithoutEfforts,
   getSyncState,
+  updateSyncState,
   clearAllData,
   getResetEvent,
   setResetEvent,
@@ -77,9 +78,11 @@ const refBirthday = signal("");
 const refAge = signal("40");
 const streakData = signal(null);
 const fitnessData = signal(null);
-const syncWindowChoice = signal("3y"); // "2y" | "3y" | "4y" | "all" | "custom"
+const syncWindowChoice = signal("5y"); // "2y" | "3y" | "5y" | "all" | "custom"
 const syncWindowCustomDate = signal("");
 const currentSyncAfterEpoch = signal(null);
+const showFirstSyncPrompt = signal(false);
+const firstSyncChoice = signal("5y");
 
 async function loadDashboard() {
   loading.value = true;
@@ -121,7 +124,7 @@ async function loadDashboard() {
       const diffYears = (now - state.sync_after_epoch) / (365.25 * 24 * 3600);
       if (Math.abs(diffYears - 2) < 0.1) syncWindowChoice.value = "2y";
       else if (Math.abs(diffYears - 3) < 0.1) syncWindowChoice.value = "3y";
-      else if (Math.abs(diffYears - 4) < 0.1) syncWindowChoice.value = "4y";
+      else if (Math.abs(diffYears - 5) < 0.1) syncWindowChoice.value = "5y";
       else {
         syncWindowChoice.value = "custom";
         syncWindowCustomDate.value = new Date(state.sync_after_epoch * 1000).toISOString().slice(0, 10);
@@ -176,10 +179,15 @@ export function Dashboard() {
   useEffect(() => {
     loadDashboard();
 
-    // Start automatic background sync — handles backfill, incremental,
-    // rate limit cooldowns, and periodic checks for new activities.
+    // Check if this is a first-time sync — prompt user for data window
     if (!isDemo.value) {
-      startAutoSync(() => loadDashboard());
+      getSyncState().then((state) => {
+        if (!state.last_sync && !state.backfill_complete && !state.initial_backfill_complete && state.sync_after_epoch === null) {
+          showFirstSyncPrompt.value = true;
+        } else {
+          startAutoSync(() => loadDashboard());
+        }
+      });
     }
 
     return () => stopAutoSync();
@@ -778,6 +786,60 @@ export function Dashboard() {
         <img src="assets/strava/api_logo_pwrdBy_strava_horiz_orange.svg" alt="Powered by Strava" style="height: 18px; display: inline-block; opacity: 0.6;" />
       </footer>
 
+      <!-- First Sync Data Window Prompt -->
+      ${showFirstSyncPrompt.value && html`
+        <div
+          class="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm overflow-y-auto p-4 pt-16 sm:pt-24"
+        >
+          <div class="rounded-xl shadow-xl w-full max-w-md p-6 my-4" style="background: var(--surface); border: 1px solid var(--border);">
+            <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin-bottom: 0.5rem;">How far back should we sync?</h2>
+            <p class="text-xs mb-3" style="color: var(--text-tertiary);">
+              We'll fetch your last 13 months of rides first for quick results, then backfill to your chosen window. Only cycling activities are synced.
+            </p>
+
+            <div class="flex flex-wrap gap-1.5 mb-3">
+              ${["2y", "3y", "5y", "all"].map((opt) => {
+                const labels = { "2y": "Last 2 years", "3y": "Last 3 years", "5y": "Last 5 years", "all": "All time" };
+                const descs = { "2y": "Fastest sync", "3y": "", "5y": "Recommended", "all": "May take several sessions" };
+                const isActive = firstSyncChoice.value === opt;
+                return html`
+                  <button
+                    key=${opt}
+                    onClick=${() => { firstSyncChoice.value = opt; }}
+                    class="text-xs px-2.5 py-1.5 rounded-lg transition-colors"
+                    style=${isActive
+                      ? "background: var(--text); color: var(--surface); font-family: var(--font-body);"
+                      : "border: 1px solid var(--border); color: var(--text-secondary); font-family: var(--font-body);"}
+                  >
+                    ${labels[opt]}${descs[opt] ? html` <span class="opacity-60">(${descs[opt]})</span>` : ""}
+                  </button>
+                `;
+              })}
+            </div>
+
+            <button
+              onClick=${async () => {
+                const now = Date.now() / 1000;
+                let epoch = null;
+                if (firstSyncChoice.value === "2y") epoch = Math.floor(now - 2 * 365.25 * 24 * 3600);
+                else if (firstSyncChoice.value === "3y") epoch = Math.floor(now - 3 * 365.25 * 24 * 3600);
+                else if (firstSyncChoice.value === "5y") epoch = Math.floor(now - 5 * 365.25 * 24 * 3600);
+                // null = all time
+                await updateSyncState({ sync_after_epoch: epoch });
+                currentSyncAfterEpoch.value = epoch;
+                syncWindowChoice.value = firstSyncChoice.value;
+                showFirstSyncPrompt.value = false;
+                startAutoSync(() => loadDashboard());
+              }}
+              class="text-xs px-4 py-2 rounded font-medium transition-colors w-full"
+              style="background: var(--strava); color: white;"
+            >
+              Start Syncing
+            </button>
+          </div>
+        </div>
+      `}
+
       <!-- FAQ Modal Overlay -->
       ${showFaq.value && html`
         <div
@@ -996,8 +1058,9 @@ export function Dashboard() {
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
                 <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
-                  <p>After connecting Strava, the app fetches your activity list and then detail-fetches each activity for segment efforts. This happens in the background and is <strong>resumable</strong> — if you close the browser or hit a rate limit, sync picks up where it left off next time.</p>
-                  <p>Strava enforces API rate limits (per 15-minute window and daily). The app tracks usage and pauses automatically when limits are approached. You can configure the <strong>sync window</strong> in settings (default 2 years, or 3y/4y/all/custom date).</p>
+                  <p>After connecting Strava, the app fetches your <strong>cycling activities</strong> only (rides, virtual rides, gravel, MTB, e-bike) and detail-fetches each for segment efforts. Non-cycling activities (runs, walks, swims, etc.) are excluded.</p>
+                  <p>Sync uses a <strong>two-phase approach</strong>: your last 13 months are fetched first so you get usable data quickly, then the app backfills to your full sync window (default 5 years, configurable in settings). This is <strong>resumable</strong> — if you close the browser or hit a rate limit, sync picks up where it left off.</p>
+                  <p>Strava enforces API rate limits (per 15-minute window and daily). The app tracks usage and pauses automatically when limits are approached.</p>
                 </div>
               </details>
 
@@ -1065,11 +1128,11 @@ export function Dashboard() {
               <!-- Sync Window Settings (#111) -->
               <div>
                 <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Sync Window</p>
-                <p class="text-xs mb-2" style="color: var(--text-tertiary);">How far back to sync activities from Strava. Shorter windows sync faster and use less storage.</p>
+                <p class="text-xs mb-2" style="color: var(--text-tertiary);">How far back to sync cycling activities from Strava. The last 13 months sync first, then historical data fills in.</p>
 
                 <div class="flex flex-wrap gap-1.5 mb-2">
-                  ${["2y", "3y", "4y", "all"].map((opt) => {
-                    const labels = { "2y": "Last 2 years", "3y": "Last 3 years", "4y": "Last 4 years", "all": "All time" };
+                  ${["2y", "3y", "5y", "all"].map((opt) => {
+                    const labels = { "2y": "Last 2 years", "3y": "Last 3 years", "5y": "Last 5 years", "all": "All time" };
                     const isActive = syncWindowChoice.value === opt;
                     return html`
                       <button
@@ -1111,7 +1174,7 @@ export function Dashboard() {
                     const now = Date.now() / 1000;
                     if (syncWindowChoice.value === "2y") epoch = Math.floor(now - 2 * 365.25 * 24 * 3600);
                     else if (syncWindowChoice.value === "3y") epoch = Math.floor(now - 3 * 365.25 * 24 * 3600);
-                    else if (syncWindowChoice.value === "4y") epoch = Math.floor(now - 4 * 365.25 * 24 * 3600);
+                    else if (syncWindowChoice.value === "5y") epoch = Math.floor(now - 5 * 365.25 * 24 * 3600);
                     else if (syncWindowChoice.value === "custom" && syncWindowCustomDate.value) {
                       epoch = Math.floor(new Date(syncWindowCustomDate.value).getTime() / 1000);
                     }

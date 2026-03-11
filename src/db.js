@@ -427,6 +427,7 @@ const DEFAULT_SYNC_STATE = {
   power_backfill_complete: false,
   schema_version: 0,
   sync_after_epoch: null, // Unix timestamp — limits how far back to sync (#111)
+  initial_backfill_complete: false, // true once the 13-month priority window is done
 };
 
 export async function getSyncState() {
