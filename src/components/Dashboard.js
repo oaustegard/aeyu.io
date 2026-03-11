@@ -1127,6 +1127,16 @@ export function Dashboard() {
 
               <details class="group py-3">
                 <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  How do I report a bug or request a feature?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  File an issue on the <a href="https://github.com/oaustegard/aeyu.io/issues" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: underline;">GitHub issue tracker</a>. Bug reports, feature requests, and general feedback are all welcome.
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
                   What does "aeyu" mean?
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
