@@ -58,11 +58,7 @@ function cancel() {
     clearTimeout(timer);
     timer = null;
   }
-  if (pressTarget) {
-    pressTarget.style.removeProperty("-webkit-user-select");
-    pressTarget.style.removeProperty("user-select");
-    pressTarget = null;
-  }
+  pressTarget = null;
 }
 
 export function initTouchTooltips() {
@@ -76,15 +72,9 @@ export function initTouchTooltips() {
     const target = findTitled(e.target);
     if (!target) return;
     pressTarget = target;
-    target.style.setProperty("-webkit-user-select", "none");
-    target.style.setProperty("user-select", "none");
     timer = setTimeout(() => {
       suppressContextMenu = true;
-      if (pressTarget) {
-        pressTarget.style.removeProperty("-webkit-user-select");
-        pressTarget.style.removeProperty("user-select");
-        pressTarget = null;
-      }
+      pressTarget = null;
       const text = target.getAttribute("title");
       if (text) show(text, startX, startY);
     }, 500);
