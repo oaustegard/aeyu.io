@@ -14,3 +14,7 @@ npm install --silent preact @preact/signals htm esbuild @tailwindcss/cli 2>/dev/
 # Install Playwright for the Python test harness
 pip install playwright 2>/dev/null
 PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers python3 -m playwright install --with-deps chromium 2>/dev/null
+
+# Install tree-sitter for codemap generation and regenerate _MAP.md files
+pip install tree-sitter-language-pack 2>/dev/null
+python3 .claude/skills/mapping-codebases/scripts/codemap.py . --skip vendor,design,assets,icons 2>/dev/null
