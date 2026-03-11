@@ -240,10 +240,10 @@ async function renderShareCard(canvas, act, awardsList) {
   contentH += 32 + 48; // header + gap
   contentH += 40;      // divider gap
   contentH += nameLines.length * 74 + 8; // title (bigger font)
-  contentH += metaLines.length * 42 + 24; // meta lines + gap
+  contentH += metaLines.length * 42 + 40; // meta lines + gap
 
   if (awardsList.length > 0) {
-    contentH += pillRows.length * 56 + 16 + 32; // pill rows + gap + divider
+    contentH += pillRows.length * 56 + 24 + 32; // pill rows + gap + divider
     for (const a of highlightAwards) {
       contentH += (a.delta && a.delta > 0) ? 68 : 52;
     }
@@ -338,7 +338,7 @@ async function renderShareCard(canvas, act, awardsList) {
     ctx.fillText(line, left, y);
     y += 42;
   }
-  y += 24;
+  y += 40;
 
   // Awards
   if (awardsList.length > 0) {
@@ -369,7 +369,7 @@ async function renderShareCard(canvas, act, awardsList) {
       }
       y += 56;
     }
-    y += 16;
+    y += 24;
 
     // Divider
     ctx.strokeStyle = "#D8D0C4";
