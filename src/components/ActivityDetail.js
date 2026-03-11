@@ -199,74 +199,72 @@ function drawLogoWatermark(ctx, W, H, cardY, cardH, pad) {
 
 async function renderShareCard(canvas, act, awardsList) {
   const W = 1080;
-  const pad = 60, left = pad + 48, maxTextW = W - left - pad - 48;
-  const rightEdge = W - pad - 48;
+  const pad = 36, left = pad + 36, maxTextW = W - left - pad - 36;
+  const rightEdge = W - pad - 36;
 
-  // Wait for fonts and logo to load
   await Promise.all([
-    document.fonts.load('400 52px "Instrument Serif"'),
-    document.fonts.load('400 30px "IBM Plex Mono"'),
-    document.fonts.load('500 28px "DM Sans"'),
-    document.fonts.load('600 26px "DM Sans"'),
-    document.fonts.load('400 24px "Instrument Serif"'),
+    document.fonts.load('400 64px "Instrument Serif"'),
+    document.fonts.load('400 34px "IBM Plex Mono"'),
+    document.fonts.load('500 32px "DM Sans"'),
+    document.fonts.load('600 30px "DM Sans"'),
+    document.fonts.load('400 26px "Instrument Serif"'),
     loadLogo(),
   ]).catch(() => {});
 
-  // Pre-measure to compute dynamic height
   const tmpCanvas = document.createElement("canvas");
   tmpCanvas.width = W;
   const tmpCtx = tmpCanvas.getContext("2d");
-  tmpCtx.font = '400 52px "Instrument Serif", serif';
+  tmpCtx.font = '400 64px "Instrument Serif", serif';
   const nameLines = wrapText(tmpCtx, act.name, maxTextW);
 
-  // Build meta text and measure for wrapping (#87)
   const metaParts = [formatDateShort(act.start_date_local), formatDistance(act.distance), formatTime(act.moving_time)];
   if (act.total_elevation_gain) metaParts.push(formatElevation(act.total_elevation_gain));
   if (act.device_watts && act.average_watts) metaParts.push(formatPower(act.average_watts));
-  tmpCtx.font = '400 30px "IBM Plex Mono", monospace';
+  tmpCtx.font = '400 34px "IBM Plex Mono", monospace';
   const metaText = metaParts.join("  ·  ");
   const metaLines = wrapText(tmpCtx, metaText, maxTextW);
 
-  // Deduplicate awards for share card: best award per segment, max 5 highlights (#87)
   const highlightAwards = buildShareCardHighlights(awardsList);
 
-  // Pre-measure pill rows for wrapping (#87)
   const counts = {};
   const pillOrder = ["route_season_first", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record", "season_first_power", "np_year_best", "np_recent_best", "work_year_best", "work_recent_best", "peak_power", "peak_power_recent", "indoor_np_year_best", "indoor_work_year_best", "trainer_streak", "indoor_vs_outdoor"];
   for (const a of awardsList) counts[a.type] = (counts[a.type] || 0) + 1;
-  tmpCtx.font = '600 26px "DM Sans", sans-serif';
-  const pillRows = layoutPillRows(tmpCtx, counts, pillOrder, left, maxTextW);
+  tmpCtx.font = '600 30px "DM Sans", sans-serif';
+  const allPillRows = layoutPillRows(tmpCtx, counts, pillOrder, left, maxTextW);
+  const MAX_PILL_ROWS = 2;
+  const pillRows = allPillRows.slice(0, MAX_PILL_ROWS);
+  const pillTypesShown = new Set(pillRows.flat().map(p => p.type));
+  const hiddenPillCount = Object.keys(counts).filter(t => !pillTypesShown.has(t)).length;
 
-  // Calculate height
-  let contentH = 60;  // top padding in card
-  contentH += 28 + 60; // header + gap
-  contentH += 48;      // divider gap
-  contentH += nameLines.length * 62 + 8; // title
-  contentH += metaLines.length * 38 + 26; // meta lines + gap
+  let contentH = 48;  // top padding
+  contentH += 32 + 48; // header + gap
+  contentH += 40;      // divider gap
+  contentH += nameLines.length * 74 + 8; // title (bigger font)
+  contentH += metaLines.length * 42 + 24; // meta lines + gap
 
   if (awardsList.length > 0) {
-    contentH += pillRows.length * 52 + 20 + 36; // pill rows + gap + divider
+    contentH += pillRows.length * 56 + 16 + 32; // pill rows + gap + divider
     for (const a of highlightAwards) {
-      contentH += (a.delta && a.delta > 0) ? 60 : 48;
+      contentH += (a.delta && a.delta > 0) ? 68 : 52;
     }
-    if (awardsList.length > highlightAwards.length) contentH += 40;
+    if (awardsList.length > highlightAwards.length) contentH += 44;
   }
-  contentH += 48; // bottom padding in card
+  contentH += 48; // bottom padding
 
-  const cardY = 60, cardBottom = 60;
-  const taglineH = 60;
+  const cardY = 36, cardBottom = 36;
+  const taglineH = 56;
   const H = cardY + contentH + taglineH + cardBottom;
 
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  // Background — warm paper
-  ctx.fillStyle = "#F6F3EE";
+  // Background
+  ctx.fillStyle = "#EDE9E1";
   ctx.fillRect(0, 0, W, H);
 
-  // Topo texture — concentric circles at 3% opacity
-  ctx.strokeStyle = "rgba(26, 22, 16, 0.03)";
+  // Topo texture
+  ctx.strokeStyle = "rgba(26, 22, 16, 0.04)";
   ctx.lineWidth = 1;
   const centers = [
     [W * 0.15, H * 0.3], [W * 0.75, H * 0.2], [W * 0.5, H * 0.7],
@@ -280,23 +278,27 @@ async function renderShareCard(canvas, act, awardsList) {
     }
   }
 
-  // Card container
+  // Card shadow
   const cardW = W - pad * 2, cardH = contentH;
-  ctx.fillStyle = "#FFFFFF";
-  roundRect(ctx, pad, cardY, cardW, cardH, 24);
+  ctx.save();
+  ctx.shadowColor = "rgba(0, 0, 0, 0.10)";
+  ctx.shadowBlur = 24;
+  ctx.shadowOffsetY = 4;
+  ctx.fillStyle = "#FDFCFA";
+  roundRect(ctx, pad, cardY, cardW, cardH, 20);
   ctx.fill();
-  ctx.strokeStyle = "#E5DFD4";
-  ctx.lineWidth = 1;
-  roundRect(ctx, pad, cardY, cardW, cardH, 24);
+  ctx.restore();
+  ctx.strokeStyle = "#D8D0C4";
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, pad, cardY, cardW, cardH, 20);
   ctx.stroke();
 
-  // Logo watermark — subtle background mark
   drawLogoWatermark(ctx, W, H, cardY, cardH, pad);
 
-  let y = cardY + 60;
+  let y = cardY + 48;
 
-  // Header — wordmark left, "Participation Awards" right
-  ctx.font = '400 28px "Instrument Serif", serif';
+  // Header
+  ctx.font = '400 30px "Instrument Serif", serif';
   ctx.fillStyle = "#1A1610";
   ctx.textAlign = "left";
   ctx.fillText("aeyu", left, y);
@@ -304,129 +306,127 @@ async function renderShareCard(canvas, act, awardsList) {
   ctx.fillStyle = "#B85A28";
   ctx.fillText(".io", left + aeyuW, y);
 
-  ctx.font = '400 28px "DM Sans", sans-serif';
-  ctx.fillStyle = "#8C8374";
+  ctx.font = '400 30px "DM Sans", sans-serif';
+  ctx.fillStyle = "#7A7164";
   ctx.textAlign = "right";
   ctx.fillText("Participation Awards", rightEdge, y);
   ctx.textAlign = "left";
-  y += 60;
+  y += 48;
 
   // Divider
-  ctx.strokeStyle = "#E5DFD4";
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = "#D8D0C4";
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(left, y);
   ctx.lineTo(rightEdge, y);
   ctx.stroke();
-  y += 48;
+  y += 40;
 
-  // Activity name
-  ctx.font = '400 52px "Instrument Serif", serif';
+  // Activity name — larger
+  ctx.font = '400 64px "Instrument Serif", serif';
   ctx.fillStyle = "#1A1610";
   for (const line of nameLines) {
     ctx.fillText(line, left, y);
-    y += 62;
+    y += 74;
   }
   y += 8;
 
-  // Meta — wrapped to fit (#87)
-  ctx.font = '400 30px "IBM Plex Mono", monospace';
-  ctx.fillStyle = "#5C5548";
+  // Meta
+  ctx.font = '400 34px "IBM Plex Mono", monospace';
+  ctx.fillStyle = "#4A4438";
   for (const line of metaLines) {
     ctx.fillText(line, left, y);
-    y += 38;
+    y += 42;
   }
-  y += 26;
+  y += 24;
 
   // Awards
   if (awardsList.length > 0) {
-    // Summary pills — multi-row wrapping (#87)
     for (const row of pillRows) {
       for (const pill of row) {
-        ctx.font = '600 26px "DM Sans", sans-serif';
+        ctx.font = '600 30px "DM Sans", sans-serif';
         const colors = AWARD_COLORS[pill.type];
         if (!colors) continue;
 
-        const iconSize = 20;
+        const iconSize = 22;
         const iconPad = 6;
         const textW = ctx.measureText(pill.label).width;
         const tw = 16 + iconSize + iconPad + textW + 16;
 
         ctx.fillStyle = colors.bg;
-        roundRect(ctx, pill.x, y - 28, tw, 40, 20);
+        roundRect(ctx, pill.x, y - 30, tw, 44, 22);
         ctx.fill();
         ctx.strokeStyle = colors.border;
-        ctx.lineWidth = 1;
-        roundRect(ctx, pill.x, y - 28, tw, 40, 20);
+        ctx.lineWidth = 1.5;
+        roundRect(ctx, pill.x, y - 30, tw, 44, 22);
         ctx.stroke();
 
-        drawIcon(ctx, pill.type, pill.x + 14, y - 26, iconSize, colors.accent, 2);
+        drawIcon(ctx, pill.type, pill.x + 14, y - 28, iconSize, colors.accent, 2);
 
         ctx.fillStyle = colors.text;
-        ctx.font = '600 26px "DM Sans", sans-serif';
+        ctx.font = '600 30px "DM Sans", sans-serif';
         ctx.fillText(pill.label, pill.x + 14 + iconSize + iconPad, y);
       }
-      y += 52;
+      y += 56;
     }
-    y += 20;
+    y += 16;
 
     // Divider
-    ctx.strokeStyle = "#E5DFD4";
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = "#D8D0C4";
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(left, y);
     ctx.lineTo(rightEdge, y);
     ctx.stroke();
-    y += 36;
+    y += 32;
 
-    // Top segment highlights — deduplicated, max 5 (#87)
+    // Top segment highlights
     for (const award of highlightAwards) {
       const colors = AWARD_COLORS[award.type];
       if (!colors) continue;
 
-      drawIcon(ctx, award.type, left, y - 14, 20, colors.accent, 2);
+      drawIcon(ctx, award.type, left, y - 14, 22, colors.accent, 2);
 
-      ctx.font = '500 28px "DM Sans", sans-serif';
+      ctx.font = '500 32px "DM Sans", sans-serif';
       ctx.fillStyle = "#1A1610";
       const segName = award.segment || award.route_name || "";
       const awardLabel = AWARD_LABELS[award.type]?.label || "";
       const displayName = segName ? `${segName} — ${awardLabel}` : awardLabel;
-      // Truncate to fit
       let truncated = displayName;
-      const rightLabelW = 150; // reserve space for time/power
-      while (ctx.measureText(truncated).width > maxTextW - rightLabelW - 28 && truncated.length > 3) {
+      const rightLabelW = 160;
+      while (ctx.measureText(truncated).width > maxTextW - rightLabelW - 32 && truncated.length > 3) {
         truncated = truncated.slice(0, -4) + "…";
       }
-      ctx.fillText(truncated, left + 28, y + 4);
+      ctx.fillText(truncated, left + 32, y + 4);
 
       const rightLabel = award.time != null ? formatTime(award.time) : (award.power ? `${Math.round(award.power)}W` : "");
-      ctx.font = '500 28px "IBM Plex Mono", monospace';
+      ctx.font = '500 32px "IBM Plex Mono", monospace';
       ctx.fillStyle = colors.accent;
       ctx.textAlign = "right";
       ctx.fillText(rightLabel, rightEdge, y + 4);
       ctx.textAlign = "left";
 
       if (award.delta && award.delta > 0) {
-        ctx.font = '400 22px "IBM Plex Mono", monospace';
-        ctx.fillStyle = "#8C8374";
-        ctx.fillText(`${formatTime(award.delta)} faster`, left + 28, y + 30);
+        ctx.font = '400 24px "IBM Plex Mono", monospace';
+        ctx.fillStyle = "#7A7164";
+        ctx.fillText(`${formatTime(award.delta)} faster`, left + 32, y + 32);
       }
-      y += (award.delta && award.delta > 0) ? 60 : 48;
+      y += (award.delta && award.delta > 0) ? 68 : 52;
     }
 
     const remaining = awardsList.length - highlightAwards.length;
     if (remaining > 0) {
-      ctx.font = '400 24px "DM Sans", sans-serif';
-      ctx.fillStyle = "#8C8374";
+      ctx.font = '400 26px "DM Sans", sans-serif';
+      ctx.fillStyle = "#7A7164";
       ctx.fillText(`+ ${remaining} more awards`, left, y + 8);
     }
   }
 
   // Tagline
-  ctx.font = 'italic 24px "Instrument Serif", serif';
-  ctx.fillStyle = "#8C8374";
+  ctx.font = 'italic 26px "Instrument Serif", serif';
+  ctx.fillStyle = "#7A7164";
   ctx.textAlign = "center";
-  ctx.fillText("It's just you and your efforts", W / 2, H - 30);
+  ctx.fillText("It's just you and your efforts", W / 2, H - 28);
   ctx.textAlign = "left";
 }
 
@@ -516,8 +516,8 @@ function drawPerformanceChart(ctx, segment, currentEffortId, chartX, chartY, cha
   ctx.setLineDash([]);
 
   // Time labels for min/max
-  ctx.font = '400 20px "IBM Plex Mono", monospace';
-  ctx.fillStyle = "#8C8374";
+  ctx.font = '400 22px "IBM Plex Mono", monospace';
+  ctx.fillStyle = "#7A7164";
   ctx.textAlign = "right";
   ctx.fillText(formatTime(minT), chartX + chartW - padX, chartY + padY - 6);
   ctx.fillText(formatTime(maxT), chartX + chartW - padX, chartY + chartH - padY + 18);
@@ -566,8 +566,8 @@ function drawPerformanceChart(ctx, segment, currentEffortId, chartX, chartY, cha
   ctx.restore();
 
   // Stats below chart
-  ctx.font = '400 22px "IBM Plex Mono", monospace';
-  ctx.fillStyle = "#8C8374";
+  ctx.font = '400 24px "IBM Plex Mono", monospace';
+  ctx.fillStyle = "#7A7164";
   const statsY = chartY + chartH + 28;
   ctx.fillText(`${recent.length} efforts  ·  Best: ${formatTime(minT)}`, chartX, statsY);
 
@@ -579,7 +579,7 @@ function drawPerformanceChart(ctx, segment, currentEffortId, chartX, chartY, cha
         ? `${sign}${abs.toFixed(1)}s/mo`
         : `${sign}${Math.floor(abs / 60)}:${String(Math.round(abs % 60)).padStart(2, "0")}/mo`;
       ctx.fillStyle = trendColor;
-      ctx.font = '500 22px "IBM Plex Mono", monospace';
+      ctx.font = '500 24px "IBM Plex Mono", monospace';
       ctx.textAlign = "right";
       ctx.fillText(`Trend: ${rateStr}`, chartX + chartW, statsY);
       ctx.textAlign = "left";
@@ -589,78 +589,73 @@ function drawPerformanceChart(ctx, segment, currentEffortId, chartX, chartY, cha
 
 async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   const W = 1080;
-  const pad = 60, left = pad + 48, maxTextW = W - left - pad - 48;
-  const rightEdge = W - pad - 48;
+  const pad = 36, left = pad + 36, maxTextW = W - left - pad - 36;
+  const rightEdge = W - pad - 36;
 
-  // Wait for fonts and logo
   await Promise.all([
-    document.fonts.load('400 52px "Instrument Serif"'),
-    document.fonts.load('400 30px "IBM Plex Mono"'),
-    document.fonts.load('500 28px "DM Sans"'),
-    document.fonts.load('600 26px "DM Sans"'),
-    document.fonts.load('400 24px "Instrument Serif"'),
+    document.fonts.load('400 64px "Instrument Serif"'),
+    document.fonts.load('400 34px "IBM Plex Mono"'),
+    document.fonts.load('500 32px "DM Sans"'),
+    document.fonts.load('600 30px "DM Sans"'),
+    document.fonts.load('400 26px "Instrument Serif"'),
     loadLogo(),
   ]).catch(() => {});
 
-  // Pre-measure
   const tmpCanvas = document.createElement("canvas");
   tmpCanvas.width = W;
   const tmpCtx = tmpCanvas.getContext("2d");
 
-  tmpCtx.font = '400 52px "Instrument Serif", serif';
+  tmpCtx.font = '400 64px "Instrument Serif", serif';
   const nameLines = wrapText(tmpCtx, effort.segment.name, maxTextW);
 
   const metaParts = [formatDistance(effort.segment.distance), `${effort.segment.average_grade}% grade`, formatTime(effort.elapsed_time)];
   if (effort.device_watts && effort.average_watts) metaParts.push(formatPower(effort.average_watts));
-  tmpCtx.font = '400 30px "IBM Plex Mono", monospace';
+  tmpCtx.font = '400 34px "IBM Plex Mono", monospace';
   const metaText = metaParts.join("  ·  ");
   const metaLines = wrapText(tmpCtx, metaText, maxTextW);
 
-  // Pill layout
   const counts = {};
   const pillOrder = ["year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "season_first", "anniversary", "reference_best"];
   for (const a of segAwards) counts[a.type] = (counts[a.type] || 0) + 1;
-  tmpCtx.font = '600 26px "DM Sans", sans-serif';
-  const pillRows = layoutPillRows(tmpCtx, counts, pillOrder, left, maxTextW);
+  tmpCtx.font = '600 30px "DM Sans", sans-serif';
+  const allPillRows = layoutPillRows(tmpCtx, counts, pillOrder, left, maxTextW);
+  const MAX_PILL_ROWS = 2;
+  const pillRows = allPillRows.slice(0, MAX_PILL_ROWS);
 
-  // Context line (activity name + date)
-  tmpCtx.font = '400 26px "DM Sans", sans-serif';
+  tmpCtx.font = '400 28px "DM Sans", sans-serif';
   const contextText = `${act.name}  ·  ${formatDateShort(act.start_date_local)}`;
   const contextLines = wrapText(tmpCtx, contextText, maxTextW);
 
-  // Height calculation
-  let contentH = 60; // top padding
-  contentH += 28 + 60; // header + gap
-  contentH += 48; // divider
-  contentH += nameLines.length * 62 + 8; // segment name
-  contentH += metaLines.length * 38 + 26; // meta
+  let contentH = 48; // top padding
+  contentH += 32 + 48; // header + gap
+  contentH += 40; // divider
+  contentH += nameLines.length * 74 + 8; // segment name
+  contentH += metaLines.length * 42 + 24; // meta
 
-  // Performance chart
   const hasChart = segment && segment.efforts && segment.efforts.length >= 2;
-  const chartH = 200, chartStatsH = 36;
-  if (hasChart) contentH += chartH + chartStatsH + 28; // chart + stats + gap
+  const chartH = 220, chartStatsH = 36;
+  if (hasChart) contentH += chartH + chartStatsH + 28;
 
-  // Pre-wrap award messages for height calculation
-  const awardMsgMaxW = maxTextW - 28; // account for icon + gap
-  tmpCtx.font = '400 26px "DM Sans", sans-serif';
-  const displayAwards = segAwards.slice(0, 5);
+  const awardMsgMaxW = maxTextW - 32;
+  tmpCtx.font = '400 28px "DM Sans", sans-serif';
+  const displayAwards = segAwards.slice(0, 4);
   const wrappedAwardMsgs = displayAwards.map(a => {
     const msg = a.message || (AWARD_LABELS[a.type]?.label || "");
     return wrapText(tmpCtx, msg, awardMsgMaxW);
   });
 
   if (segAwards.length > 0) {
-    contentH += pillRows.length * 52 + 20 + 36; // pills + gap + divider
+    contentH += pillRows.length * 56 + 16 + 32; // pills + gap + divider
     for (const lines of wrappedAwardMsgs) {
-      contentH += lines.length * 32 + 16; // wrapped lines + gap between awards
+      contentH += lines.length * 36 + 16;
     }
-    if (segAwards.length > displayAwards.length) contentH += 40;
+    if (segAwards.length > displayAwards.length) contentH += 44;
   }
 
-  contentH += 24 + contextLines.length * 32 + 24; // context section
+  contentH += 24 + contextLines.length * 36 + 24; // context section
   contentH += 48; // bottom padding
 
-  const cardY = 60, cardBottom = 60, taglineH = 60;
+  const cardY = 36, cardBottom = 36, taglineH = 56;
   const H = cardY + contentH + taglineH + cardBottom;
 
   canvas.width = W;
@@ -668,11 +663,11 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   const ctx = canvas.getContext("2d");
 
   // Background
-  ctx.fillStyle = "#F6F3EE";
+  ctx.fillStyle = "#EDE9E1";
   ctx.fillRect(0, 0, W, H);
 
   // Topo texture
-  ctx.strokeStyle = "rgba(26, 22, 16, 0.03)";
+  ctx.strokeStyle = "rgba(26, 22, 16, 0.04)";
   ctx.lineWidth = 1;
   const centers = [
     [W * 0.15, H * 0.3], [W * 0.75, H * 0.2], [W * 0.5, H * 0.7],
@@ -686,23 +681,27 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
     }
   }
 
-  // Card
+  // Card with shadow
   const cardW = W - pad * 2, cardH = contentH;
-  ctx.fillStyle = "#FFFFFF";
-  roundRect(ctx, pad, cardY, cardW, cardH, 24);
+  ctx.save();
+  ctx.shadowColor = "rgba(0, 0, 0, 0.10)";
+  ctx.shadowBlur = 24;
+  ctx.shadowOffsetY = 4;
+  ctx.fillStyle = "#FDFCFA";
+  roundRect(ctx, pad, cardY, cardW, cardH, 20);
   ctx.fill();
-  ctx.strokeStyle = "#E5DFD4";
-  ctx.lineWidth = 1;
-  roundRect(ctx, pad, cardY, cardW, cardH, 24);
+  ctx.restore();
+  ctx.strokeStyle = "#D8D0C4";
+  ctx.lineWidth = 1.5;
+  roundRect(ctx, pad, cardY, cardW, cardH, 20);
   ctx.stroke();
 
-  // Logo watermark
   drawLogoWatermark(ctx, W, H, cardY, cardH, pad);
 
-  let y = cardY + 60;
+  let y = cardY + 48;
 
   // Header
-  ctx.font = '400 28px "Instrument Serif", serif';
+  ctx.font = '400 30px "Instrument Serif", serif';
   ctx.fillStyle = "#1A1610";
   ctx.textAlign = "left";
   ctx.fillText("aeyu", left, y);
@@ -710,39 +709,39 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   ctx.fillStyle = "#B85A28";
   ctx.fillText(".io", left + aeyuW, y);
 
-  ctx.font = '400 28px "DM Sans", sans-serif';
-  ctx.fillStyle = "#8C8374";
+  ctx.font = '400 30px "DM Sans", sans-serif';
+  ctx.fillStyle = "#7A7164";
   ctx.textAlign = "right";
   ctx.fillText("Segment Awards", rightEdge, y);
   ctx.textAlign = "left";
-  y += 60;
+  y += 48;
 
   // Divider
-  ctx.strokeStyle = "#E5DFD4";
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = "#D8D0C4";
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(left, y);
   ctx.lineTo(rightEdge, y);
   ctx.stroke();
-  y += 48;
+  y += 40;
 
-  // Segment name
-  ctx.font = '400 52px "Instrument Serif", serif';
+  // Segment name — larger
+  ctx.font = '400 64px "Instrument Serif", serif';
   ctx.fillStyle = "#1A1610";
   for (const line of nameLines) {
     ctx.fillText(line, left, y);
-    y += 62;
+    y += 74;
   }
   y += 8;
 
   // Meta
-  ctx.font = '400 30px "IBM Plex Mono", monospace';
-  ctx.fillStyle = "#5C5548";
+  ctx.font = '400 34px "IBM Plex Mono", monospace';
+  ctx.fillStyle = "#4A4438";
   for (const line of metaLines) {
     ctx.fillText(line, left, y);
-    y += 38;
+    y += 42;
   }
-  y += 26;
+  y += 24;
 
   // Performance chart
   if (hasChart) {
@@ -753,44 +752,43 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
 
   // Awards
   if (segAwards.length > 0) {
-    // Pills
     for (const row of pillRows) {
       for (const pill of row) {
-        ctx.font = '600 26px "DM Sans", sans-serif';
+        ctx.font = '600 30px "DM Sans", sans-serif';
         const colors = AWARD_COLORS[pill.type];
         if (!colors) continue;
 
-        const iconSize = 20;
+        const iconSize = 22;
         const iconPad = 6;
         const textW = ctx.measureText(pill.label).width;
         const tw = 16 + iconSize + iconPad + textW + 16;
 
         ctx.fillStyle = colors.bg;
-        roundRect(ctx, pill.x, y - 28, tw, 40, 20);
+        roundRect(ctx, pill.x, y - 30, tw, 44, 22);
         ctx.fill();
         ctx.strokeStyle = colors.border;
-        ctx.lineWidth = 1;
-        roundRect(ctx, pill.x, y - 28, tw, 40, 20);
+        ctx.lineWidth = 1.5;
+        roundRect(ctx, pill.x, y - 30, tw, 44, 22);
         ctx.stroke();
 
-        drawIcon(ctx, pill.type, pill.x + 14, y - 26, iconSize, colors.accent, 2);
+        drawIcon(ctx, pill.type, pill.x + 14, y - 28, iconSize, colors.accent, 2);
 
         ctx.fillStyle = colors.text;
-        ctx.font = '600 26px "DM Sans", sans-serif';
+        ctx.font = '600 30px "DM Sans", sans-serif';
         ctx.fillText(pill.label, pill.x + 14 + iconSize + iconPad, y);
       }
-      y += 52;
+      y += 56;
     }
-    y += 20;
+    y += 16;
 
     // Divider
-    ctx.strokeStyle = "#E5DFD4";
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = "#D8D0C4";
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(left, y);
     ctx.lineTo(rightEdge, y);
     ctx.stroke();
-    y += 36;
+    y += 32;
 
     // Award details — wrapped text
     for (let i = 0; i < displayAwards.length; i++) {
@@ -799,51 +797,51 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
       if (!colors) continue;
       const msgLines = wrappedAwardMsgs[i];
 
-      drawIcon(ctx, award.type, left, y - 14, 20, colors.accent, 2);
+      drawIcon(ctx, award.type, left, y - 14, 22, colors.accent, 2);
 
-      ctx.font = '400 26px "DM Sans", sans-serif';
-      ctx.fillStyle = "#5C5548";
+      ctx.font = '400 28px "DM Sans", sans-serif';
+      ctx.fillStyle = "#4A4438";
       for (const line of msgLines) {
-        ctx.fillText(line, left + 28, y + 4);
-        y += 32;
+        ctx.fillText(line, left + 32, y + 4);
+        y += 36;
       }
-      y += 16; // gap between awards
+      y += 16;
     }
 
     const remaining = segAwards.length - displayAwards.length;
     if (remaining > 0) {
-      ctx.font = '400 24px "DM Sans", sans-serif';
-      ctx.fillStyle = "#8C8374";
+      ctx.font = '400 26px "DM Sans", sans-serif';
+      ctx.fillStyle = "#7A7164";
       ctx.fillText(`+ ${remaining} more awards`, left, y + 8);
     }
   }
 
   // Context — activity name + date at bottom of card
-  y = cardY + contentH - 48 - contextLines.length * 32;
-  ctx.strokeStyle = "#E5DFD4";
-  ctx.lineWidth = 1;
+  y = cardY + contentH - 48 - contextLines.length * 36;
+  ctx.strokeStyle = "#D8D0C4";
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(left, y - 16);
   ctx.lineTo(rightEdge, y - 16);
   ctx.stroke();
-  ctx.font = '400 26px "DM Sans", sans-serif';
-  ctx.fillStyle = "#8C8374";
+  ctx.font = '400 28px "DM Sans", sans-serif';
+  ctx.fillStyle = "#7A7164";
   for (const line of contextLines) {
     ctx.fillText(line, left, y + 8);
-    y += 32;
+    y += 36;
   }
 
   // Tagline
-  ctx.font = 'italic 24px "Instrument Serif", serif';
-  ctx.fillStyle = "#8C8374";
+  ctx.font = 'italic 26px "Instrument Serif", serif';
+  ctx.fillStyle = "#7A7164";
   ctx.textAlign = "center";
-  ctx.fillText("It's just you and your efforts", W / 2, H - 30);
+  ctx.fillText("It's just you and your efforts", W / 2, H - 28);
   ctx.textAlign = "left";
 }
 
 
 /**
- * Build share card highlights: best award per segment, max 5 rows (#87).
+ * Build share card highlights: best award per segment, max 4 rows.
  * Deduplicates segments — picks the highest-tier award for each.
  * Includes ride-level awards (no segment) too.
  */
@@ -870,10 +868,10 @@ function buildShareCardHighlights(awardsList) {
       bySegment.set(key, a);
     }
   }
-  // Sort by tier descending, take top 5
+  // Sort by tier descending, take top 4
   return [...bySegment.values()]
     .sort((a, b) => (TIER[b.type] || 0) - (TIER[a.type] || 0))
-    .slice(0, 5);
+    .slice(0, 4);
 }
 
 /**
@@ -883,7 +881,7 @@ function layoutPillRows(ctx, counts, order, startX, maxW) {
   const rows = [];
   let currentRow = [];
   let x = startX;
-  const iconSize = 20, iconPad = 6, pillPad = 16, gap = 12;
+  const iconSize = 22, iconPad = 6, pillPad = 16, gap = 12;
 
   for (const type of order) {
     if (!counts[type]) continue;
