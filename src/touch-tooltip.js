@@ -46,8 +46,10 @@ function show(text, x, y) {
 
 function dismiss() {
   if (overlay) {
-    overlay.remove();
+    const el = overlay;
     overlay = null;
+    el.style.opacity = "0";
+    setTimeout(() => el.remove(), 200);
   }
 }
 
@@ -89,6 +91,7 @@ export function initTouchTooltips() {
 
   document.addEventListener("touchend", () => {
     cancel();
+    if (overlay) setTimeout(dismiss, 1500);
     setTimeout(() => { suppressContextMenu = false; }, 50);
   }, { passive: true });
 
