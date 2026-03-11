@@ -124,13 +124,13 @@
 - **syncProgress** (variable) :24
 - **rateLimitStatus** (variable) :33
 - **isSyncing** (variable) :40
-- **startBackfill** (f) `(onProgress)` :547
-- **incrementalSync** (f) `()` :659
-- **updateSyncWindow** (f) `(newEpoch)` :727
-- **manualSync** (f) `(onProgress)` :752
-- **startAutoSync** (f) `(onComplete)` :778
-- **stopAutoSync** (f) `()` :787
-- **resyncActivity** (f) `(activityId)` :854
+- **startBackfill** (f) `(onProgress)` :551
+- **incrementalSync** (f) `()` :663
+- **updateSyncWindow** (f) `(newEpoch)` :731
+- **manualSync** (f) `(onProgress)` :756
+- **startAutoSync** (f) `(onComplete)` :782
+- **stopAutoSync** (f) `()` :791
+- **resyncActivity** (f) `(activityId)` :858
 
 ### touch-tooltip.js
 - **initTouchTooltips** (f) `()` :64

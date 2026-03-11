@@ -129,6 +129,7 @@ function toActivitySummary(a) {
     has_heartrate: a.has_heartrate || false,
     average_heartrate: a.average_heartrate || null,
     max_heartrate: a.max_heartrate || null,
+    average_cadence: a.average_cadence || null,
     // Group ride detection fields (#58)
     start_latlng: a.start_latlng || null,
     athlete_count: a.athlete_count || 1,
@@ -303,6 +304,7 @@ async function fetchActivityDetails() {
         // Heart rate fields per segment effort (#106)
         average_heartrate: e.average_heartrate || null,
         max_heartrate: e.max_heartrate || null,
+        average_cadence: e.average_cadence || null,
       }));
 
       const updated = {
@@ -320,6 +322,7 @@ async function fetchActivityDetails() {
         has_heartrate: full.has_heartrate || false,
         average_heartrate: full.average_heartrate || null,
         max_heartrate: full.max_heartrate || null,
+        average_cadence: full.average_cadence || activity.average_cadence || null,
         // Group ride detection fields (#58)
         start_latlng: full.start_latlng || activity.start_latlng || null,
         athlete_count: full.athlete_count || activity.athlete_count || 1,
@@ -341,6 +344,7 @@ async function fetchActivityDetails() {
           device_watts: effort.device_watts,
           average_heartrate: effort.average_heartrate,
           max_heartrate: effort.max_heartrate,
+          average_cadence: effort.average_cadence,
         });
       }
 
@@ -881,6 +885,7 @@ export async function resyncActivity(activityId) {
     device_watts: e.device_watts || false,
     average_heartrate: e.average_heartrate || null,
     max_heartrate: e.max_heartrate || null,
+    average_cadence: e.average_cadence || null,
   }));
 
   const updated = {
@@ -902,6 +907,7 @@ export async function resyncActivity(activityId) {
     has_heartrate: full.has_heartrate || false,
     average_heartrate: full.average_heartrate || null,
     max_heartrate: full.max_heartrate || null,
+    average_cadence: full.average_cadence || existing.average_cadence || null,
     start_latlng: full.start_latlng || existing.start_latlng || null,
     athlete_count: full.athlete_count || existing.athlete_count || 1,
     has_efforts: true,
@@ -925,6 +931,7 @@ export async function resyncActivity(activityId) {
       device_watts: effort.device_watts,
       average_heartrate: effort.average_heartrate,
       max_heartrate: effort.max_heartrate,
+      average_cadence: effort.average_cadence,
     });
   }
 
