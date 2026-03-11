@@ -173,17 +173,24 @@ const SUPPRESSED_IN_RECOVERY = new Set([
 // Caps per-segment awards to reduce noise when a single segment earns many.
 
 /** Maximum regular awards per segment */
-const MAX_AWARDS_PER_SEGMENT = 3;
+const MAX_AWARDS_PER_SEGMENT = 2;
 
 /** Maximum awards of the same type per activity (controls flood of beat_median, top_quartile, etc.) */
 const MAX_AWARDS_PER_TYPE = {
-  beat_median:   5,
-  top_quartile:  5,
-  top_decile:    5,
-  consistency:   3,
-  closing_in:    3,
-  monthly_best:  5,
-  recent_best:   5,
+  year_best:          10,
+  beat_median:         5,
+  top_quartile:        5,
+  top_decile:          5,
+  consistency:         3,
+  closing_in:          3,
+  monthly_best:        5,
+  recent_best:         5,
+  improvement_streak:  5,
+  best_month_ever:     5,
+  ytd_best_time:       5,
+  ytd_best_power:      3,
+  anniversary:         3,
+  comeback:            3,
 };
 
 /** Award types that get a bonus slot (not counted against the cap) */
@@ -191,7 +198,9 @@ const COMEBACK_MODE_TYPES = new Set(["comeback_pb", "comeback_full", "recovery_m
 
 /** Subsumption rules: higher award removes lower ones on the same segment */
 const SUBSUMES = {
-  year_best: ["recent_best", "monthly_best"],
+  year_best: ["recent_best", "monthly_best", "best_month_ever", "ytd_best_time"],
+  ytd_best_time: ["best_month_ever", "monthly_best"],
+  best_month_ever: ["monthly_best"],
   comeback_full: ["comeback_pb", "recovery_milestone", "comeback"],
   comeback_pb: ["comeback"],
 };
@@ -274,9 +283,25 @@ export function rankSegmentAwards(awards) {
     ranked.push(...cappedRegular, ...bonusComeback);
   }
 
-  // 5. Per-activity type caps: limit how many awards of the same type appear
-  // Sort by tier so we keep the best when capping
-  ranked.sort((a, b) => (AWARD_TIER[b.type] || 0) - (AWARD_TIER[a.type] || 0));
+  // 5. Tag each award with whether it's the "headline" for its segment.
+  // An award is a headline if it's the highest-tier surviving award on its segment.
+  // When capping per type, headlines are kept preferentially.
+  const segmentTopTier = new Map();
+  for (const a of ranked) {
+    const tier = AWARD_TIER[a.type] || 0;
+    const prev = segmentTopTier.get(a.segment_id) || 0;
+    if (tier > prev) segmentTopTier.set(a.segment_id, tier);
+  }
+  for (const a of ranked) {
+    a._isHeadline = (AWARD_TIER[a.type] || 0) === segmentTopTier.get(a.segment_id);
+  }
+
+  // 6. Per-activity type caps: limit how many awards of the same type appear.
+  // Sort so headlines come first (preferred to survive the cap), then by tier.
+  ranked.sort((a, b) => {
+    if (a._isHeadline !== b._isHeadline) return a._isHeadline ? -1 : 1;
+    return (AWARD_TIER[b.type] || 0) - (AWARD_TIER[a.type] || 0);
+  });
   const typeCounts = {};
   const afterTypeCap = ranked.filter((a) => {
     const cap = MAX_AWARDS_PER_TYPE[a.type];
@@ -284,6 +309,9 @@ export function rankSegmentAwards(awards) {
     typeCounts[a.type] = (typeCounts[a.type] || 0) + 1;
     return typeCounts[a.type] <= cap;
   });
+
+  // Clean up internal tags
+  for (const a of afterTypeCap) delete a._isHeadline;
 
   return [...afterTypeCap, ...rideLevelAwards];
 }
