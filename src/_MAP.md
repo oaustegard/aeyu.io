@@ -133,7 +133,7 @@
 - **resyncActivity** (f) `(activityId)` :854
 
 ### touch-tooltip.js
-- **initTouchTooltips** (f) `()` :68
+- **initTouchTooltips** (f) `()` :64
 
 ### units.js
 > Imports: `signals, db.js`
