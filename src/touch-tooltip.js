@@ -7,6 +7,8 @@ let overlay = null;
 let timer = null;
 let startX = 0;
 let startY = 0;
+let pressTarget = null;
+let suppressContextMenu = false;
 
 function findTitled(el) {
   while (el && el !== document.body) {
@@ -56,6 +58,11 @@ function cancel() {
     clearTimeout(timer);
     timer = null;
   }
+  if (pressTarget) {
+    pressTarget.style.removeProperty("-webkit-user-select");
+    pressTarget.style.removeProperty("user-select");
+    pressTarget = null;
+  }
 }
 
 export function initTouchTooltips() {
@@ -68,7 +75,16 @@ export function initTouchTooltips() {
     startY = touch.clientY;
     const target = findTitled(e.target);
     if (!target) return;
+    pressTarget = target;
+    target.style.setProperty("-webkit-user-select", "none");
+    target.style.setProperty("user-select", "none");
     timer = setTimeout(() => {
+      suppressContextMenu = true;
+      if (pressTarget) {
+        pressTarget.style.removeProperty("-webkit-user-select");
+        pressTarget.style.removeProperty("user-select");
+        pressTarget = null;
+      }
       const text = target.getAttribute("title");
       if (text) show(text, startX, startY);
     }, 500);
@@ -84,7 +100,15 @@ export function initTouchTooltips() {
 
   document.addEventListener("touchend", () => {
     cancel();
+    setTimeout(() => { suppressContextMenu = false; }, 50);
   }, { passive: true });
+
+  document.addEventListener("contextmenu", (e) => {
+    if (suppressContextMenu) {
+      e.preventDefault();
+      suppressContextMenu = false;
+    }
+  });
 
   // Dismiss on any tap
   document.addEventListener("click", dismiss, { passive: true });
