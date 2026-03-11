@@ -1038,16 +1038,6 @@ function SegmentSortBar({ efforts, effortAwards }) {
           </button>
         `;
       })}
-      ${sortColumn.value && html`
-        <button
-          onClick=${() => { sortColumn.value = null; sortDirection.value = "asc"; }}
-          class="inline-flex items-center text-xs px-2 py-1 rounded-lg transition-colors"
-          style="color: var(--text-tertiary); cursor: pointer;"
-          title="Reset to activity order"
-        >
-          ✕
-        </button>
-      `}
     </div>
   `;
 }
@@ -1376,15 +1366,15 @@ export function ActivityDetail({ id }) {
               const hasAwards = segAwards.length > 0;
 
               return html`
-                <div class="rounded-xl p-4" style=${hasAwards
+                <div class="relative rounded-xl p-4" style=${hasAwards
                   ? "background: var(--surface); border: 1px solid var(--border);"
                   : "background: var(--surface); border: 1px solid var(--border); opacity: 0.7;"}>
-                  <div class="flex items-center gap-1.5" style="font-family: var(--font-body); font-size: 16px; font-weight: 500; color: var(--text);">
+                  <a href=${`https://www.strava.com/segments/${effort.segment.id}`} target="_blank" rel="noopener noreferrer" class="absolute inline-flex items-center gap-0.5 flex-shrink-0 whitespace-nowrap" style="top: 0.75rem; right: 0.75rem; font-size: 0.625rem; font-weight: 600; color: var(--strava); text-decoration: none; opacity: 0.6; transition: opacity 0.15s;" onMouseOver=${e => e.currentTarget.style.opacity = '1'} onMouseOut=${e => e.currentTarget.style.opacity = '0.6'} onClick=${e => e.stopPropagation()}>
+                    View on Strava
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  </a>
+                  <div class="pr-20" style="font-family: var(--font-body); font-size: 16px; font-weight: 500; color: var(--text);">
                     ${effort.segment.name}
-                    <a href=${`https://www.strava.com/segments/${effort.segment.id}`} target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-0.5 flex-shrink-0 whitespace-nowrap" style="font-size: 0.625rem; font-weight: 600; color: var(--strava); text-decoration: none; opacity: 0.6; transition: opacity 0.15s;" onMouseOver=${e => e.currentTarget.style.opacity = '1'} onMouseOut=${e => e.currentTarget.style.opacity = '0.6'} onClick=${e => e.stopPropagation()}>
-                      View on Strava
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    </a>
                   </div>
                   <div class="mt-1" style="font-family: var(--font-mono); font-size: 14px; color: var(--text-secondary);">
                     ${formatDistance(effort.segment.distance)}
