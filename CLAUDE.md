@@ -8,7 +8,7 @@ A 100% client-side cycling awards app. Connects to Strava via OAuth, syncs activ
 
 ## Code Navigation
 
-**Read `_MAP.md` files before reading source files.** Every directory has a `_MAP.md` showing all exported functions with signatures, classes, imports, and line numbers. Start with the root `_MAP.md`, follow links to subdirectory maps, and only open source files when you need implementation details. This avoids reading thousands of lines to find a function signature.
+**Always start by reading `_MAP.md` to orient yourself.** Before exploring or modifying any code, read the root `_MAP.md` first, then follow links to subdirectory maps. This gives you the full picture of exports, signatures, and line numbers without reading thousands of lines of source. Only open source files when you need implementation details.
 
 ```
 _MAP.md              → root overview, subdirectory links
@@ -95,6 +95,7 @@ Loads `demo-data.json` into IndexedDB with a fake auth session (athlete ID 99999
 - **HTM templating.** `html\`...\`` tagged template literals instead of JSX. Closing tags use `<//>`.
 - **IndexedDB everywhere.** All persistent state in IndexedDB. No localStorage, no cookies.
 - **Test harness.** `test/harness.py` generates deterministic mock data, injects via Playwright, takes screenshots, audits award coverage. Requires Playwright + vendor bundles.
+- **Update `_MAP.md` before pushing.** Run `npx codebase-map scan && npx codebase-map format > _MAP.md` (or the `mapping-codebases` skill if available) to regenerate all `_MAP.md` files before every push. Stale maps cause wasted time navigating the codebase.
 
 ## Common Tasks
 
