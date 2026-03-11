@@ -138,11 +138,15 @@ export function SegmentSparkline({ segment, currentEffortId }) {
   // Tooltip positioning: show above the point, centered horizontally
   const tooltipW = 110;
   const tooltipH = 28;
+  const pointR = 5;
+  const tooltipGap = 4;
   const tooltipX = active ? Math.max(2, Math.min(active.x - tooltipW / 2, w - tooltipW - 2)) : 0;
-  const tooltipY = active ? Math.max(2, active.y - tooltipH - 8) : 0;
-  // If tooltip would overlap point from above, flip below
-  const flipBelow = active && tooltipY < 2;
-  const finalTooltipY = flipBelow && active ? active.y + 10 : tooltipY;
+  const aboveY = active ? Math.max(2, active.y - tooltipH - pointR - tooltipGap) : 0;
+  // Flip below if tooltip above would overlap the point
+  const overlapAbove = active && (aboveY + tooltipH + tooltipGap > active.y - pointR);
+  const belowY = active ? active.y + pointR + tooltipGap : 0;
+  const fitsBelow = active && (belowY + tooltipH <= h - 2);
+  const finalTooltipY = (overlapAbove && fitsBelow) ? belowY : aboveY;
 
   return html`
     <div style="margin-top: 6px;">
