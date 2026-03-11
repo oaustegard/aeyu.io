@@ -5,7 +5,7 @@
 
 ### ActivityDetail.js
 > Imports: `preact, signals, hooks, db.js, awards.js`...
-- **ActivityDetail** (f) `({ id })` :1048
+- **ActivityDetail** (f) `({ id })` :1046
 
 ### Dashboard.js
 > Imports: `preact, signals, hooks, auth.js, sync.js`...
