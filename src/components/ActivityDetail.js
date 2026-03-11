@@ -610,6 +610,7 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
 
   const metaParts = [formatDistance(effort.segment.distance), `${effort.segment.average_grade}% grade`, formatTime(effort.elapsed_time)];
   if (effort.device_watts && effort.average_watts) metaParts.push(formatPower(effort.average_watts));
+  if (effort.average_heartrate) metaParts.push(`${Math.round(effort.average_heartrate)} bpm`);
   tmpCtx.font = '400 34px "IBM Plex Mono", monospace';
   const metaText = metaParts.join("  ·  ");
   const metaLines = wrapText(tmpCtx, metaText, maxTextW);
@@ -1361,6 +1362,9 @@ export function ActivityDetail({ id }) {
               const effortPower = effort.device_watts && effort.average_watts
                 ? formatPower(effort.average_watts)
                 : null;
+              const effortHR = effort.average_heartrate
+                ? `${Math.round(effort.average_heartrate)} bpm`
+                : null;
               const hasAwards = segAwards.length > 0;
 
               return html`
@@ -1379,6 +1383,7 @@ export function ActivityDetail({ id }) {
                     · ${effort.segment.average_grade}% grade
                     · ${formatTime(effort.elapsed_time)}
                     ${effortPower ? ` · ${effortPower}` : ""}
+                    ${effortHR ? ` · ${effortHR}` : ""}
                     ${effortCount > 1 ? ` · ${effortCount} efforts` : ""}
                   </div>
                   ${effort.pr_rank && html`
