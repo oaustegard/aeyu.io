@@ -28,13 +28,13 @@
 
 ### awards.js
 > Imports: `db.js, units.js, routes.js`
-- **rankSegmentAwards** (f) `(awards)` :232
-- **computeAwards** (f) `(activity, resetEvent = null, referencePoints = [])` :553
-- **computeRideLevelAwards** (f) `(activity, allActivities, resetEvent = null)` :1113
-- **computeAwardsForActivities** (f) `(activities)` :1820
-- **computeWeeklyStreaks** (f) `(allActivities)` :1951
-- **detectGroupRides** (f) `(allActivities)` :2059
-- **computeStreakData** (f) `(allActivities)` :2219
+- **rankSegmentAwards** (f) `(awards)` :241
+- **computeAwards** (f) `(activity, resetEvent = null, referencePoints = [])` :581
+- **computeRideLevelAwards** (f) `(activity, allActivities, resetEvent = null)` :1141
+- **computeAwardsForActivities** (f) `(activities)` :1848
+- **computeWeeklyStreaks** (f) `(allActivities)` :1979
+- **detectGroupRides** (f) `(allActivities)` :2087
+- **computeStreakData** (f) `(allActivities)` :2247
 
 ### config.js
 - **STRAVA_CLIENT_ID** (variable) :6
