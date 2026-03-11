@@ -9,7 +9,7 @@
 
 ### Dashboard.js
 > Imports: `preact, signals, hooks, auth.js, sync.js`...
-- **Dashboard** (f) `()` :172
+- **Dashboard** (f) `()` :185
 
 ### InstallBanner.js
 > Imports: `preact, install.js`

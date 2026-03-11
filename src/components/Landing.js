@@ -279,6 +279,17 @@ export function Landing() {
               effort recognized.
             </p>
           <//>
+
+          <${FaqItem} q="What does 'aeyu' mean?">
+            <p class="mb-2">
+              It's the sound you make at the top of the climb.
+            </p>
+            <p>
+              Really though, it was a URL that was short and available. The
+              letters are the vowels from left to right on the keyboard —
+              which is how you'll remember it.
+            </p>
+          <//>
         </div>
       </div>
     </div>
