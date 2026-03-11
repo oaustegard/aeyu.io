@@ -1,5 +1,5 @@
 # aeyu.io/
-*Files: 13 | Subdirectories: 3*
+*Files: 15 | Subdirectories: 3*
 
 ## Subdirectories
 
@@ -78,4 +78,6 @@
 - CNAME
 - demo-data.json
 - manifest.json
+- package-lock.json
+- package.json
 
