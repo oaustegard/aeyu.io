@@ -134,6 +134,7 @@ function buildSummary(act, awardsList) {
   const lines = [];
   lines.push(act.name);
   let meta = `${formatDateShort(act.start_date_local)} · ${formatDistance(act.distance)} · ${formatTime(act.moving_time)}`;
+  if (act.average_speed) meta += ` · ${formatSpeed(act.average_speed)}`;
   if (act.total_elevation_gain) meta += ` · ${formatElevation(act.total_elevation_gain)}`;
   if (act.device_watts && act.average_watts) meta += ` · ${formatPower(act.average_watts)}`;
   lines.push(meta);
@@ -219,6 +220,7 @@ async function renderShareCard(canvas, act, awardsList) {
   const nameLines = wrapText(tmpCtx, act.name, maxTextW);
 
   const metaParts = [formatDateShort(act.start_date_local), formatDistance(act.distance), formatTime(act.moving_time)];
+  if (act.average_speed) metaParts.push(formatSpeed(act.average_speed));
   if (act.total_elevation_gain) metaParts.push(formatElevation(act.total_elevation_gain));
   if (act.device_watts && act.average_watts) metaParts.push(formatPower(act.average_watts));
   tmpCtx.font = '400 34px "IBM Plex Mono", monospace';
@@ -1227,6 +1229,7 @@ export function ActivityDetail({ id }) {
             ${formatDateFull(act.start_date_local)}
             · ${formatDistance(act.distance)}
             · ${formatTime(act.moving_time)}
+            ${act.average_speed ? ` · ${formatSpeed(act.average_speed)}` : ""}
             ${act.total_elevation_gain ? ` · ${formatElevation(act.total_elevation_gain)} elevation` : ""}
             ${ridePower ? ` · ${ridePower} avg` : ""}
           </p>
