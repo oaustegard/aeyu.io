@@ -10,6 +10,7 @@ import {
   putActivities,
   putActivity,
   getActivity,
+  getAllActivities,
   getActivitiesWithoutEfforts,
   getActivitiesWithoutPower,
   getActivitiesWithoutHeartRate,
@@ -18,6 +19,7 @@ import {
   appendEffort,
   removeEffortsForActivity,
 } from "./db.js";
+import { computePowerCurve } from "./power-curve.js";
 
 // --- Signals ---
 
@@ -397,6 +399,59 @@ async function fetchActivityDetails() {
   return detailed;
 }
 
+// --- Power Curve Fetching ---
+
+async function fetchPowerCurves() {
+  const all = await getAllActivities();
+  const pending = all.filter(
+    (a) => a.device_watts && a.has_efforts && !("power_curve" in a)
+  );
+  if (pending.length === 0) return;
+
+  syncProgress.value = {
+    ...syncProgress.value,
+    phase: "detail",
+    message: `Fetching power curves: 0/${pending.length}`,
+  };
+
+  let completed = 0;
+
+  for (const activity of pending) {
+    if (isRateLimited()) {
+      syncProgress.value = {
+        ...syncProgress.value,
+        message: `Power curves paused (rate limit) — ${completed}/${pending.length} done.`,
+      };
+      break;
+    }
+
+    try {
+      const data = await stravaFetch(
+        `/activities/${activity.id}/streams?keys=watts,time&key_by_type=true`
+      );
+      const watts = data.watts && data.watts.data ? data.watts.data : null;
+      const curve = watts ? computePowerCurve(watts) : null;
+      await putActivity({ ...activity, power_curve: curve });
+    } catch (err) {
+      if (err instanceof RateLimitError) {
+        syncProgress.value = {
+          ...syncProgress.value,
+          message: `Power curves paused (rate limit) — ${completed}/${pending.length} done.`,
+        };
+        break;
+      }
+      // 404/403 means no streams available — mark as null so we don't retry
+      await putActivity({ ...activity, power_curve: null });
+    }
+
+    completed++;
+    syncProgress.value = {
+      ...syncProgress.value,
+      message: `Fetching power curves: ${completed}/${pending.length}`,
+    };
+  }
+}
+
 // --- Phase 3: Power Fields Migration ---
 
 /**
@@ -569,6 +624,7 @@ export async function startBackfill(onProgress) {
       await runPowerMigration();
       await runHeartRateMigration();
       await fetchActivityDetails();
+      if (!isRateLimited()) await fetchPowerCurves();
     } else {
       // Set full sync window default if not yet chosen by user
       if (state.sync_after_epoch === null && !state.initial_backfill_complete) {
@@ -619,6 +675,7 @@ export async function startBackfill(onProgress) {
         await runPowerMigration();
         await runHeartRateMigration();
         await fetchActivityDetails();
+        if (!isRateLimited()) await fetchPowerCurves();
       }
     }
 
@@ -695,6 +752,9 @@ export async function incrementalSync() {
       };
       await fetchActivityDetails();
     }
+
+    // Fetch power curves for activities with power meters
+    if (!isRateLimited()) await fetchPowerCurves();
 
     const stillPending = await getActivitiesWithoutEfforts();
     syncProgress.value = {

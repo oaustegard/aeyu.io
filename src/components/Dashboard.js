@@ -49,6 +49,7 @@ import { isDemo, exitDemo, startDemo } from "../demo.js";
 import { renderIconSVG } from "../icons.js";
 import { AWARD_LABELS } from "../award-config.js";
 import { computeFitnessSummary } from "../fitness.js";
+import { getAllTimeBestCurve, estimateFTP, POWER_CURVE_DURATIONS, DURATION_LABELS } from "../power-curve.js";
 import { StickyHeader, headerCompact } from "./StickyHeader.js";
 
 const recentActivities = signal([]);
@@ -79,6 +80,7 @@ const refBirthday = signal("");
 const refAge = signal("40");
 const streakData = signal(null);
 const fitnessData = signal(null);
+const powerCurveData = signal(null);
 const syncWindowChoice = signal("5y"); // "2y" | "3y" | "5y" | "all" | "custom"
 const syncWindowCustomDate = signal("");
 const currentSyncAfterEpoch = signal(null);
@@ -104,6 +106,7 @@ async function loadDashboard() {
   stats.value = { segments: 0, awards: 0 };
   streakData.value = null;
   fitnessData.value = null;
+  powerCurveData.value = null;
   backfillComplete.value = false;
   pendingCount.value = 0;
   try {
@@ -176,6 +179,16 @@ async function loadDashboard() {
       fitnessData.value = await computeFitnessSummary();
     } catch (e) {
       console.warn("Fitness computation failed:", e);
+    }
+
+    // Load power curve data
+    try {
+      const bestCurve = await getAllTimeBestCurve();
+      if (Object.keys(bestCurve).length > 0) {
+        powerCurveData.value = { curve: bestCurve, ftp: estimateFTP(bestCurve) };
+      }
+    } catch (e) {
+      console.warn("Power curve computation failed:", e);
     }
   } finally {
     loading.value = false;
@@ -673,6 +686,41 @@ export function Dashboard() {
                 </span>
               </div>
             `}
+          </div>
+        `}
+
+        <!-- Power Curve -->
+        ${!loading.value && powerCurveData.value && html`
+          <div class="mb-6 rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="group relative inline-block cursor-help" style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin: 0;">Power Curve
+                <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 top-full mt-2 text-white text-xs rounded px-3 py-2 z-10" style="background: var(--text); font-family: var(--font-body); font-weight: 400; white-space: normal; width: 220px; text-align: center;">All-time best average power at each standard duration from your power meter data</span>
+              </h2>
+              ${powerCurveData.value.ftp && html`
+                <div class="flex items-center gap-1.5" title="Estimated FTP: 95% of 20-min best power">
+                  <span style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">est. FTP</span>
+                  <span style="font-family: var(--font-display); font-size: 1.25rem; color: var(--text);">${powerCurveData.value.ftp}</span>
+                  <span style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">W</span>
+                </div>
+              `}
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              ${POWER_CURVE_DURATIONS.filter((dur) => powerCurveData.value.curve[dur]).map((dur) => {
+                const watts = powerCurveData.value.curve[dur];
+                const maxWatts = Math.max(...POWER_CURVE_DURATIONS.map((d) => powerCurveData.value.curve[d] || 0));
+                const pct = maxWatts > 0 ? Math.round((watts / maxWatts) * 100) : 0;
+                const labels = { 5: "Sprint", 30: "30s", 60: "1 min", 300: "VO\u2082max", 1200: "FTP", 3600: "60 min" };
+                return html`
+                  <div style="display: flex; align-items: center; gap: 6px;" title="${DURATION_LABELS[dur]} best: ${watts}W">
+                    <span style="font-size: 0.6875rem; color: var(--text-secondary); width: 52px; flex-shrink: 0; text-align: right;">${labels[dur]}</span>
+                    <div style="flex: 1; height: 14px; background: var(--border); border-radius: 3px; overflow: hidden;">
+                      <div style="height: 100%; width: ${pct}%; background: #4882A8; border-radius: 3px; transition: width 0.3s;"></div>
+                    </div>
+                    <span style="font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text); min-width: 2.5rem; text-align: right;">${watts}W</span>
+                  </div>
+                `;
+              })}
+            </div>
           </div>
         `}
 
