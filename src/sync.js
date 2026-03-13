@@ -406,7 +406,7 @@ async function fetchActivityDetails() {
 async function fetchPowerCurves() {
   const all = await getAllActivities();
   const pending = all.filter(
-    (a) => a.device_watts && a.has_efforts && !("power_curve" in a)
+    (a) => a.device_watts && a.has_efforts && a.power_curve !== false && !a.power_curve
   );
   if (pending.length === 0) return;
 
@@ -433,7 +433,8 @@ async function fetchPowerCurves() {
       );
       const watts = data.watts && data.watts.data ? data.watts.data : null;
       const curve = watts ? computePowerCurve(watts) : null;
-      await putActivity({ ...activity, power_curve: curve });
+      // Use false for permanent "no data" (streams exist but no watts), truthy curve for success
+      await putActivity({ ...activity, power_curve: curve || false });
     } catch (err) {
       if (err instanceof RateLimitError) {
         syncProgress.value = {
@@ -443,8 +444,9 @@ async function fetchPowerCurves() {
         break;
       }
       if (err.status === 404 || err.status === 403) {
-        // No streams available for this activity — mark permanently
-        await putActivity({ ...activity, power_curve: null });
+        // No streams available for this activity — mark permanently with false
+        // (null is reserved for retryable/legacy entries)
+        await putActivity({ ...activity, power_curve: false });
       } else {
         // Transient error (network, 500, etc.) — skip but leave for retry
         console.warn(`Power curve fetch failed for activity ${activity.id}:`, err.message);
