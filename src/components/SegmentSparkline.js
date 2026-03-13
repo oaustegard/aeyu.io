@@ -136,7 +136,8 @@ export function SegmentSparkline({ segment, currentEffortId }) {
   const active = activeIdx != null ? points[activeIdx] : null;
 
   // Tooltip positioning: show above the point, centered horizontally
-  const tooltipW = 110;
+  const hasLongTime = active && active.time >= 3600;
+  const tooltipW = hasLongTime ? 140 : 110;
   const tooltipH = 28;
   const pointR = 5;
   const tooltipGap = 4;
