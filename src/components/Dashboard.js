@@ -43,6 +43,7 @@ import {
   formatTime,
   formatDateWeekday,
   formatElevation,
+  formatSpeed,
   formatPower,
 } from "../units.js";
 import { isDemo, exitDemo, startDemo } from "../demo.js";
@@ -800,6 +801,7 @@ export function Dashboard() {
                     ${formatDateWeekday(activity.start_date_local)}
                     · ${formatDistance(activity.distance)}
                     · ${formatTime(activity.moving_time)}
+                    ${activity.average_speed ? ` · ${formatSpeed(activity.average_speed)}` : ""}
                     ${activity.total_elevation_gain ? ` · ${formatElevation(activity.total_elevation_gain)}` : ""}
                     ${powerLabel ? ` · ${powerLabel}` : ""}
                   </div>
