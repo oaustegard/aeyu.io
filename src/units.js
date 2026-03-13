@@ -58,29 +58,29 @@ export async function setUnitPreference(system) {
 export function formatDistance(meters) {
   if (unitSystem.value === "imperial") {
     const miles = meters / 1609.344;
-    if (miles >= 0.1) return `${miles.toFixed(1)} mi`;
-    return `${Math.round(meters * 3.28084)} ft`;
+    if (miles >= 0.1) return `${miles.toFixed(1)}\u00A0mi`;
+    return `${Math.round(meters * 3.28084)}\u00A0ft`;
   }
   const km = meters / 1000;
-  return km >= 1 ? `${km.toFixed(1)} km` : `${Math.round(meters)} m`;
+  return km >= 1 ? `${km.toFixed(1)}\u00A0km` : `${Math.round(meters)}\u00A0m`;
 }
 
 /** Format elevation (input: meters) */
 export function formatElevation(meters) {
   if (unitSystem.value === "imperial") {
-    return `${Math.round(meters * 3.28084)} ft`;
+    return `${Math.round(meters * 3.28084)}\u00A0ft`;
   }
-  return `${Math.round(meters)}m`;
+  return `${Math.round(meters)}\u00A0m`;
 }
 
 /** Format speed (input: meters/second) */
 export function formatSpeed(metersPerSecond) {
   if (unitSystem.value === "imperial") {
     const mph = metersPerSecond * 2.23694;
-    return `${mph.toFixed(1)} mph`;
+    return `${mph.toFixed(1)}\u00A0mph`;
   }
   const kmh = metersPerSecond * 3.6;
-  return `${kmh.toFixed(1)} km/h`;
+  return `${kmh.toFixed(1)}\u00A0km/h`;
 }
 
 /** Format time (input: seconds) — same regardless of unit system */
