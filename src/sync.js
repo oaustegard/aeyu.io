@@ -92,7 +92,9 @@ async function stravaFetch(path) {
   }
 
   if (!response.ok) {
-    throw new Error(`Strava API error: ${response.status}`);
+    const err = new Error(`Strava API error: ${response.status}`);
+    err.status = response.status;
+    throw err;
   }
 
   return response.json();
@@ -440,8 +442,13 @@ async function fetchPowerCurves() {
         };
         break;
       }
-      // 404/403 means no streams available — mark as null so we don't retry
-      await putActivity({ ...activity, power_curve: null });
+      if (err.status === 404 || err.status === 403) {
+        // No streams available for this activity — mark permanently
+        await putActivity({ ...activity, power_curve: null });
+      } else {
+        // Transient error (network, 500, etc.) — skip but leave for retry
+        console.warn(`Power curve fetch failed for activity ${activity.id}:`, err.message);
+      }
     }
 
     completed++;
@@ -675,8 +682,12 @@ export async function startBackfill(onProgress) {
         await runPowerMigration();
         await runHeartRateMigration();
         await fetchActivityDetails();
-        if (!isRateLimited()) await fetchPowerCurves();
       }
+
+      // Fetch power curves for any activities that have details + power meter,
+      // even if backfill is still in progress — don't defer all power data
+      // until full history is synced
+      if (!isRateLimited()) await fetchPowerCurves();
     }
 
     const remaining = await getActivitiesWithoutEfforts();
