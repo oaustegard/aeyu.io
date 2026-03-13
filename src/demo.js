@@ -8,7 +8,9 @@ import { openDB, switchToDemoDB, switchToRealDB, deleteDemoDB, getAuth } from ".
 import { authState } from "./auth.js";
 
 export const isDemo = signal(false);
+export const demoError = signal(null);
 
+let demoStarting = false;
 const DEMO_DATA_URL = "./demo-data.json";
 const DEMO_ATHLETE = {
   id: 99999999,
@@ -48,58 +50,69 @@ export async function checkDemo() {
 
 /** Load demo data into a separate demo database. Real data is never touched. */
 export async function startDemo() {
-  const resp = await fetch(DEMO_DATA_URL);
-  if (!resp.ok) throw new Error("Failed to load demo data");
-  const data = await resp.json();
+  if (demoStarting) return;
+  demoStarting = true;
+  demoError.value = null;
+  try {
+    const resp = await fetch(DEMO_DATA_URL);
+    if (!resp.ok) throw new Error("Failed to load demo data");
+    const data = await resp.json();
 
-  // Switch to the isolated demo database
-  switchToDemoDB();
-  const db = await openDB();
+    // Switch to the isolated demo database
+    switchToDemoDB();
+    const db = await openDB();
 
-  // Set fake auth session
-  const session = {
-    access_token: "demo_token",
-    refresh_token: "demo_refresh",
-    expires_at: Math.floor(Date.now() / 1000) + 86400,
-    athlete: DEMO_ATHLETE,
-  };
-  await new Promise((resolve, reject) => {
-    const tx = db.transaction("auth", "readwrite");
-    tx.objectStore("auth").put(session, "session");
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+    // Set fake auth session
+    const session = {
+      access_token: "demo_token",
+      refresh_token: "demo_refresh",
+      expires_at: Math.floor(Date.now() / 1000) + 86400,
+      athlete: DEMO_ATHLETE,
+    };
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction("auth", "readwrite");
+      tx.objectStore("auth").put(session, "session");
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
 
-  // Store demo activities, segments, and sync state
-  await new Promise((resolve, reject) => {
-    const tx = db.transaction(["activities", "segments", "sync_state"], "readwrite");
-    for (const act of data.activities) {
-      tx.objectStore("activities").put(act);
-    }
-    for (const seg of data.segments) {
-      tx.objectStore("segments").put(seg);
-    }
-    tx.objectStore("sync_state").put(
-      {
-        last_activity_fetch: new Date().toISOString(),
-        backfill_complete: true,
-        backfill_page: 1,
-        total_activities: data.activities.length,
-        fetched_activities: data.activities.length,
-        detailed_activities: data.activities.length,
-        last_sync: new Date().toISOString(),
-        power_backfill_complete: true,
-        schema_version: 2,
-      },
-      "state"
-    );
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+    // Store demo activities, segments, and sync state
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(["activities", "segments", "sync_state"], "readwrite");
+      for (const act of data.activities) {
+        tx.objectStore("activities").put(act);
+      }
+      for (const seg of data.segments) {
+        tx.objectStore("segments").put(seg);
+      }
+      tx.objectStore("sync_state").put(
+        {
+          last_activity_fetch: new Date().toISOString(),
+          backfill_complete: true,
+          backfill_page: 1,
+          total_activities: data.activities.length,
+          fetched_activities: data.activities.length,
+          detailed_activities: data.activities.length,
+          last_sync: new Date().toISOString(),
+          power_backfill_complete: true,
+          schema_version: 2,
+        },
+        "state"
+      );
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
 
-  sessionStorage.setItem("aeyu_demo_active", "true");
-  authState.value = session;
-  isDemo.value = true;
+    sessionStorage.setItem("aeyu_demo_active", "true");
+    authState.value = session;
+    isDemo.value = true;
+  } catch (err) {
+    console.error("Demo start failed:", err);
+    switchToRealDB();
+    demoError.value = err.message || "Unknown error loading demo";
+  } finally {
+    demoStarting = false;
+  }
 }
 
 /** Exit demo — switch back to real DB, restore real auth if present, delete demo DB */
