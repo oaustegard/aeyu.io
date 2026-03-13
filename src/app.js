@@ -7,7 +7,7 @@ import { html } from "htm/preact";
 import { render, Component } from "preact";
 import { signal, effect } from "@preact/signals";
 import { authState, initAuth } from "./auth.js";
-import { checkDemo, isDemo, startDemo, exitDemo } from "./demo.js";
+import { checkDemo, isDemo, startDemo, exitDemo, demoError } from "./demo.js";
 import { initInstallDetection } from "./install.js";
 import { initTouchTooltips } from "./touch-tooltip.js";
 import { Landing } from "./components/Landing.js";
@@ -108,7 +108,24 @@ function App() {
   // /demo is always accessible — start demo if needed
   if (currentRoute === "demo") {
     if (isDemo.value) return html`<${Dashboard} key="demo" />`;
-    startDemo().then(() => safeRender());
+    if (demoError.value) {
+      return html`<div class="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">
+        <p style="color: var(--text-secondary); font-family: var(--font-body);">
+          Failed to load demo.
+        </p>
+        <p style="color: var(--text-tertiary); font-family: var(--font-mono); font-size: 0.75rem; max-width: 400px; word-break: break-word;">
+          ${demoError.value}
+        </p>
+        <button
+          onClick=${() => { demoError.value = null; startDemo(); }}
+          style="background: var(--strava); color: white; padding: 0.5rem 1.5rem; border-radius: 0.5rem; border: none; cursor: pointer; font-family: var(--font-body);"
+        >Try Again</button>
+        <a href="/"
+          style="color: var(--text-tertiary); font-family: var(--font-body); font-size: 0.875rem;"
+        >Back to Home</a>
+      </div>`;
+    }
+    startDemo();
     return html`<div class="min-h-screen flex items-center justify-center"
       style="color: var(--text-secondary); font-family: var(--font-body);">Loading demo…</div>`;
   }
@@ -188,6 +205,7 @@ async function init() {
     const __ = route.value;
     const ___ = routeParams.value;
     const ____ = isDemo.value;
+    const _____ = demoError.value;
     safeRender();
   });
 }
