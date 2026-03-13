@@ -85,14 +85,15 @@ export function formatSpeed(metersPerSecond) {
 
 /** Format time (input: seconds) — same regardless of unit system */
 export function formatTime(seconds) {
-  if (seconds >= 3600) {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
+  const total = Math.round(seconds);
+  if (total >= 3600) {
+    const h = Math.floor(total / 3600);
+    const m = Math.floor((total % 3600) / 60);
+    const s = total % 60;
     return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
+  const m = Math.floor(total / 60);
+  const s = total % 60;
   return m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
 }
 
