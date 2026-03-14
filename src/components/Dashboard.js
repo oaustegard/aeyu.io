@@ -651,7 +651,7 @@ export function Dashboard() {
                   <div class="flex items-center gap-2 mb-2">
                     <span style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary); display: inline-flex; align-items: center;">Aerobic Efficiency
                       <${ChartHelp} id="aerobic-eff">
-                        <strong>Aerobic Efficiency</strong> (EF = Normalized Power / avg HR) measures output per heartbeat. Higher = fitter. Requires both a power meter and HR monitor. Indoor rides with power but no HR strap are tracked separately. Bars show monthly averages over the last 12 months. Trend compares the last 6 weeks to the prior 6 weeks.
+                        <strong>Aerobic Efficiency</strong> (EF = Normalized Power / avg HR) measures output per heartbeat. Higher = fitter. Requires both a power meter and HR monitor \u2014 only rides with both are counted. Indoor rides with power but no HR strap are tracked separately. Bars show monthly averages over the last 12 months. Trend compares the last 6 weeks to the prior 6 weeks.
                       <//>
                     </span>
                     ${fitnessData.value.aerobicEfficiency.ef.trend != null && html`
