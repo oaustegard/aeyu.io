@@ -651,7 +651,7 @@ export function Dashboard() {
                   <div class="flex items-center gap-2 mb-2">
                     <span style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary); display: inline-flex; align-items: center;">Aerobic Efficiency
                       <${ChartHelp} id="aerobic-eff">
-                        <strong>Aerobic Efficiency</strong> (EF = Normalized Power / avg HR) measures output per heartbeat. Higher = fitter. The displayed value is the average EF from your last 6 weeks of steady-state rides. Bars show monthly averages over the last 12 months. Trend compares the last 6 weeks to the prior 6 weeks.
+                        <strong>Aerobic Efficiency</strong> (EF = Normalized Power / avg HR) measures output per heartbeat. Higher = fitter. Requires both a power meter and HR monitor. Indoor rides with power but no HR strap are tracked separately. Bars show monthly averages over the last 12 months. Trend compares the last 6 weeks to the prior 6 weeks.
                       <//>
                     </span>
                     ${fitnessData.value.aerobicEfficiency.ef.trend != null && html`
@@ -662,10 +662,13 @@ export function Dashboard() {
                     `}
                   </div>
                   <div class="flex items-baseline gap-2">
-                    <div style="font-family: var(--font-display); font-size: 2rem; color: var(--text);">${fitnessData.value.aerobicEfficiency.ef.current}</div>
+                    ${fitnessData.value.aerobicEfficiency.ef.current != null ? html`
+                      <div style="font-family: var(--font-display); font-size: 2rem; color: var(--text);">${fitnessData.value.aerobicEfficiency.ef.current}</div>
+                    ` : ''}
                     <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">
-                      EF (W/bpm)
-                      \u2022 ${fitnessData.value.aerobicEfficiency.ef.recentCount} ride${fitnessData.value.aerobicEfficiency.ef.recentCount !== 1 ? 's' : ''} in last 6 wk
+                      ${fitnessData.value.aerobicEfficiency.ef.current != null ? 'EF (W/bpm) \u2022 ' : ''}${fitnessData.value.aerobicEfficiency.ef.recentCount} ride${fitnessData.value.aerobicEfficiency.ef.recentCount !== 1 ? 's' : ''} with HR+power in last 6\u00A0wk${fitnessData.value.aerobicEfficiency.ef.powerOnlyCount > 0 ? html`
+                        <br/>${fitnessData.value.aerobicEfficiency.ef.powerOnlyCount} indoor power ride${fitnessData.value.aerobicEfficiency.ef.powerOnlyCount !== 1 ? 's' : ''} (avg ${fitnessData.value.aerobicEfficiency.ef.powerOnlyAvgNP}\u00A0W, no\u00A0HR)
+                      ` : ''}
                     </div>
                   </div>
                   <!-- Monthly EF bar chart (replaces scatter plot) -->
@@ -729,29 +732,32 @@ export function Dashboard() {
               const efDir = efTrend > 2 ? "improving" : efTrend < -2 ? "dipping" : "steady";
               const efAbs = efTrend != null ? `${Math.abs(efTrend).toFixed(0)}%` : null;
 
+              const powerOnlyCount = fitnessData.value.aerobicEfficiency.ef?.powerOnlyCount || 0;
+              const powerOnlyNote = powerOnlyCount > 0 ? ` Indoor power training ongoing (${powerOnlyCount} ride${powerOnlyCount !== 1 ? 's' : ''} without HR).` : '';
+
               let message, detail;
               if (interp === "ideal") {
                 message = `Climb power ${capDir} and efficiency ${efDir}`;
-                detail = "Strong form \u2014 both metrics trending well.";
+                detail = "Strong form \u2014 both metrics trending well." + powerOnlyNote;
               } else if (interp === "pushing") {
                 message = `Climb power ${capDir}; efficiency ${efDir}`;
-                detail = "Pushing harder \u2014 output rising while economy stays stable.";
+                detail = "Pushing harder \u2014 output rising while economy stays stable." + powerOnlyNote;
               } else if (interp === "building") {
                 message = `Efficiency ${efDir}; climb power ${capDir}`;
-                detail = "Base building \u2014 aerobic economy is improving.";
+                detail = "Base building \u2014 aerobic economy is improving." + powerOnlyNote;
               } else if (interp === "overreaching") {
                 message = `Climb power ${capDir} but efficiency ${efDir}${efAbs ? ` (~${efAbs})` : ''}`;
-                detail = "Output is up but costing more \u2014 consider recovery.";
+                detail = "Output is up but costing more \u2014 consider recovery." + powerOnlyNote;
               } else if (interp === "detraining") {
                 message = `Climb power ${capDir}; efficiency ${efDir}${efAbs ? ` (~${efAbs})` : ''}`;
                 if (season === "off_season" || season === "early_season") {
-                  detail = "Typical for this time of year \u2014 numbers usually rise once consistent riding resumes.";
+                  detail = "Typical for this time of year \u2014 numbers usually rise once consistent riding resumes." + powerOnlyNote;
                 } else {
-                  detail = "Both metrics are dropping \u2014 could indicate insufficient volume or recovery needs.";
+                  detail = "Both metrics are dropping \u2014 could indicate insufficient volume or recovery needs." + powerOnlyNote;
                 }
               } else {
                 message = `Climb power ${capDir}; efficiency ${efDir}`;
-                detail = "Fitness is holding at current levels.";
+                detail = "Fitness is holding at current levels." + powerOnlyNote;
               }
 
               // Muted colors: only ideal gets light green, others are neutral
@@ -865,7 +871,7 @@ export function Dashboard() {
                 .filter((t) => typeCounts.has(t))
                 .map((t) => ({ type: t, count: typeCounts.get(t) }));
 
-              const powerLabel = activity.device_watts && activity.average_watts
+              const powerLabel = (activity.device_watts || activity.sport_type === "VirtualRide") && activity.average_watts
                 ? formatPower(activity.average_watts)
                 : null;
 

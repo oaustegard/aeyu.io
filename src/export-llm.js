@@ -17,6 +17,11 @@ function filterByDays(activities, days) {
   return activities.filter((a) => new Date(a.start_date).getTime() >= cutoff);
 }
 
+// VirtualRide power always comes from a trainer — treat it as device watts
+function hasRealPower(a) {
+  return a.device_watts || a.sport_type === "VirtualRide";
+}
+
 function slimActivity(a) {
   const slim = {
     name: a.name,
@@ -29,10 +34,10 @@ function slimActivity(a) {
     segment_count: (a.segment_efforts || []).length,
     trainer: a.trainer || false,
   };
-  if (a.device_watts && a.weighted_average_watts) {
+  if (hasRealPower(a) && a.weighted_average_watts) {
     slim.np_watts = Math.round(a.weighted_average_watts);
   }
-  if (a.device_watts && a.average_watts) {
+  if (hasRealPower(a) && a.average_watts) {
     slim.avg_watts = Math.round(a.average_watts);
   }
   if (a.kilojoules) slim.kj = Math.round(a.kilojoules);
@@ -57,9 +62,9 @@ function buildWeeklyRollups(activities) {
     w.distance_km += a.distance / 1000;
     w.elevation_m += a.total_elevation_gain || 0;
     w.moving_min += a.moving_time / 60;
-    if (a.device_watts && a.weighted_average_watts) { w.np_sum += a.weighted_average_watts; w.np_count++; }
+    if (hasRealPower(a) && a.weighted_average_watts) { w.np_sum += a.weighted_average_watts; w.np_count++; }
     if (a.has_heartrate && a.average_heartrate) { w.hr_sum += a.average_heartrate; w.hr_count++; }
-    if (a.trainer) w.indoor++;
+    if (a.trainer || a.sport_type === "VirtualRide") w.indoor++;
   }
   return Object.entries(weeks)
     .sort(([a], [b]) => a.localeCompare(b))
@@ -158,7 +163,7 @@ export async function buildLLMContext(options = {}) {
   const totalRides = sorted.length;
   const firstRide = sorted.length > 0 ? sorted[0].start_date_local?.slice(0, 10) : null;
   const lastRide = sorted.length > 0 ? sorted[sorted.length - 1].start_date_local?.slice(0, 10) : null;
-  const hasPower = sorted.some((a) => a.device_watts);
+  const hasPower = sorted.some((a) => hasRealPower(a));
   const hasHR = sorted.some((a) => a.has_heartrate);
   const sportTypes = [...new Set(sorted.map((a) => a.sport_type))];
 
@@ -323,7 +328,7 @@ function buildFormContext(allActivities, rideDate) {
     const totalDist = acts.reduce((s, a) => s + (a.distance || 0), 0);
     const totalTime = acts.reduce((s, a) => s + (a.moving_time || 0), 0);
     const totalElev = acts.reduce((s, a) => s + (a.total_elevation_gain || 0), 0);
-    const withPower = acts.filter(a => a.device_watts && a.weighted_average_watts);
+    const withPower = acts.filter(a => hasRealPower(a) && a.weighted_average_watts);
     const withHR = acts.filter(a => a.has_heartrate && a.average_heartrate);
     const out = {
       rides: acts.length,
@@ -384,8 +389,8 @@ export async function buildRideExport(activityId, options = {}) {
     max_speed_kph: +((act.max_speed || 0) * 3.6).toFixed(1),
     trainer: act.trainer || false,
   };
-  if (act.device_watts && act.average_watts) ride.avg_watts = Math.round(act.average_watts);
-  if (act.device_watts && act.weighted_average_watts) ride.np_watts = Math.round(act.weighted_average_watts);
+  if (hasRealPower(act) && act.average_watts) ride.avg_watts = Math.round(act.average_watts);
+  if (hasRealPower(act) && act.weighted_average_watts) ride.np_watts = Math.round(act.weighted_average_watts);
   if (act.kilojoules) ride.kj = Math.round(act.kilojoules);
   if (act.has_heartrate && act.average_heartrate) {
     ride.avg_hr = Math.round(act.average_heartrate);

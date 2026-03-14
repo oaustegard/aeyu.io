@@ -150,7 +150,7 @@ function buildSummary(act, awardsList) {
   let meta = `${formatDateShort(act.start_date_local)} · ${formatDistance(act.distance)} · ${formatTime(act.moving_time)}`;
   if (act.average_speed) meta += ` · ${formatSpeed(act.average_speed)}`;
   if (act.total_elevation_gain) meta += ` · ${formatElevation(act.total_elevation_gain)}`;
-  if (act.device_watts && act.average_watts) meta += ` · ${formatPower(act.average_watts)}`;
+  if ((act.device_watts || act.sport_type === "VirtualRide") && act.average_watts) meta += ` · ${formatPower(act.average_watts)}`;
   lines.push(meta);
 
   if (awardsList.length > 0) {
@@ -236,7 +236,7 @@ async function renderShareCard(canvas, act, awardsList) {
   const metaParts = [formatDateShort(act.start_date_local), formatDistance(act.distance), formatTime(act.moving_time)];
   if (act.average_speed) metaParts.push(formatSpeed(act.average_speed));
   if (act.total_elevation_gain) metaParts.push(formatElevation(act.total_elevation_gain));
-  if (act.device_watts && act.average_watts) metaParts.push(formatPower(act.average_watts));
+  if ((act.device_watts || act.sport_type === "VirtualRide") && act.average_watts) metaParts.push(formatPower(act.average_watts));
   tmpCtx.font = '400 34px "IBM Plex Mono", monospace';
   const metaText = metaParts.join("  ·  ");
   const metaLines = wrapText(tmpCtx, metaText, maxTextW);
@@ -1202,7 +1202,7 @@ export function ActivityDetail({ id }) {
   }
 
   // Ride-level power display
-  const ridePower = act.device_watts && act.average_watts ? formatPower(act.average_watts) : null;
+  const ridePower = (act.device_watts || act.sport_type === "VirtualRide") && act.average_watts ? formatPower(act.average_watts) : null;
 
   return html`
     <div class="min-h-screen" style="background: var(--bg);">
