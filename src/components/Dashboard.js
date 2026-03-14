@@ -1627,7 +1627,17 @@ export function Dashboard() {
                   try {
                     const ctx = await buildLLMContext({ days: parseInt(exportDays.value) });
                     const text = exportFormat.value === "markdown" ? contextToMarkdown(ctx) : JSON.stringify(ctx, null, 2);
-                    await navigator.clipboard.writeText(text);
+                    try {
+                      await navigator.clipboard.writeText(text);
+                    } catch (_clipErr) {
+                      const ta = document.createElement("textarea");
+                      ta.value = text;
+                      ta.style.cssText = "position:fixed;opacity:0";
+                      document.body.appendChild(ta);
+                      ta.select();
+                      document.execCommand("copy");
+                      ta.remove();
+                    }
                     exportStatus.value = "copied";
                     setTimeout(() => { exportStatus.value = null; }, 3000);
                   } catch (e) {
