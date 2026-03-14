@@ -219,11 +219,13 @@ export async function computePerformanceCapacity() {
 export async function computeAerobicEfficiency() {
   const allActivities = await getAllActivities();
 
-  // Filter to cycling activities with power meter + HR data + minimum duration
+  // Filter to cycling activities with power + HR data + minimum duration
+  // VirtualRide always has real power from the trainer — don't require device_watts
   const eligible = allActivities.filter((a) =>
     a.has_heartrate &&
     a.average_heartrate > 0 &&
-    a.device_watts &&
+    (a.device_watts || a.sport_type === "VirtualRide") &&
+    a.average_watts > 0 &&
     a.moving_time >= MIN_EF_MOVING_TIME &&
     (a.sport_type === "Ride" || a.sport_type === "VirtualRide" || a.sport_type === "MountainBikeRide")
   );
