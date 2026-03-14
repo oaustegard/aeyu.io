@@ -651,7 +651,7 @@ export function Dashboard() {
                   <div class="flex items-center gap-2 mb-2">
                     <span style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary); display: inline-flex; align-items: center;">Aerobic Efficiency
                       <${ChartHelp} id="aerobic-eff">
-                        <strong>Aerobic Efficiency</strong> (EF = Normalized Power / avg HR) measures output per heartbeat. Higher = fitter. Bars show monthly averages over the last 12 months. Trend compares the last 6 weeks to the prior 6 weeks.
+                        <strong>Aerobic Efficiency</strong> (EF = Normalized Power / avg HR) measures output per heartbeat. Higher = fitter. The displayed value is the average EF from your last 6 weeks of steady-state rides. Bars show monthly averages over the last 12 months. Trend compares the last 6 weeks to the prior 6 weeks.
                       <//>
                     </span>
                     ${fitnessData.value.aerobicEfficiency.ef.trend != null && html`
@@ -665,7 +665,7 @@ export function Dashboard() {
                     <div style="font-family: var(--font-display); font-size: 2rem; color: var(--text);">${fitnessData.value.aerobicEfficiency.ef.current}</div>
                     <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">
                       EF (W/bpm)
-                      \u2022 ${fitnessData.value.aerobicEfficiency.ef.recentCount} recent rides
+                      \u2022 ${fitnessData.value.aerobicEfficiency.ef.recentCount} ride${fitnessData.value.aerobicEfficiency.ef.recentCount !== 1 ? 's' : ''} in last 6 wk
                     </div>
                   </div>
                   <!-- Monthly EF bar chart (replaces scatter plot) -->
@@ -1064,7 +1064,7 @@ export function Dashboard() {
                 </summary>
                 <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
                   <p><strong>Climb Form</strong> (0\u2013100) shows how your recent climb efforts compare to your personal history. It tracks segment times, converts them to estimated power-to-weight, and ranks recent efforts against your all-time range. The sparkline shows your 4-week rolling average over the last 6 months. Trend arrows compare the last 6 weeks to the prior 6 weeks. Tap "Climb details" to see per-segment breakdowns.</p>
-                  <p><strong>Aerobic Efficiency</strong> measures output per heartbeat (EF = Normalized Power / avg HR, per Friel). Higher = more work per heartbeat = fitter. Only steady-state rides \u226530 min with a power meter are included. The bar chart shows monthly averages over the last 12 months. Trend compares the last 6 weeks to the prior 6 weeks.</p>
+                  <p><strong>Aerobic Efficiency</strong> measures output per heartbeat (EF = Normalized Power / avg HR, per Friel). Higher = more work per heartbeat = fitter. Only steady-state rides \u226530 min with a power meter are included. The displayed value is the average EF from your last 6 weeks of qualifying rides. The bar chart shows monthly averages over the last 12 months. Trend compares the last 6 weeks to the prior 6 weeks.</p>
                   <p>The interpretation below describes the current trajectory with seasonal context \u2014 declining numbers in winter or early spring are normal for outdoor cyclists.</p>
                 </div>
               </details>
