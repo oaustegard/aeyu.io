@@ -87,6 +87,36 @@ const syncWindowCustomDate = signal("");
 const currentSyncAfterEpoch = signal(null);
 const showFirstSyncPrompt = signal(false);
 const firstSyncChoice = signal("5y");
+const activeChartHelp = signal(null);
+
+function ChartHelp({ id, children }) {
+  const isOpen = activeChartHelp.value === id;
+  return html`
+    <span class="relative" style="display: inline-flex; align-items: center;">
+      <button
+        onClick=${(e) => { e.stopPropagation(); activeChartHelp.value = isOpen ? null : id; }}
+        class="inline-flex items-center justify-center rounded-full"
+        style="width: 18px; height: 18px; font-size: 11px; font-weight: 600; color: var(--text-tertiary); border: 1.5px solid var(--text-tertiary); background: transparent; cursor: pointer; line-height: 1; padding: 0; margin-left: 6px; flex-shrink: 0;"
+        aria-label="Help"
+      >?</button>
+      ${isOpen && html`
+        <div onClick=${() => { activeChartHelp.value = null; }} style="position: fixed; inset: 0; z-index: 19;"></div>
+        <div
+          onClick=${(e) => e.stopPropagation()}
+          class="absolute z-20 rounded-lg shadow-lg p-4"
+          style="top: calc(100% + 8px); left: 50%; transform: translateX(-50%); width: 280px; background: var(--surface); border: 1px solid var(--border); font-family: var(--font-body); font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.5;"
+        >
+          <button
+            onClick=${() => { activeChartHelp.value = null; }}
+            style="position: absolute; top: 6px; right: 8px; background: none; border: none; cursor: pointer; color: var(--text-tertiary); font-size: 16px; line-height: 1; padding: 2px;"
+            aria-label="Close"
+          >\u00D7</button>
+          ${children}
+        </div>
+      `}
+    </span>
+  `;
+}
 
 function pickSteepestClimb(segments) {
   let best = null;
@@ -527,8 +557,10 @@ export function Dashboard() {
         <!-- Form Indicators (#106) -->
         ${!loading.value && fitnessData.value && (fitnessData.value.performanceCapacity.hasData || fitnessData.value.aerobicEfficiency.hasData) && html`
           <div class="mb-6 rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
-            <h2 class="group relative inline-block cursor-help" style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin-bottom: 1rem;">Form Indicators
-              <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 top-full mt-2 text-white text-xs rounded px-3 py-2 whitespace-nowrap z-10" style="background: var(--text); font-family: var(--font-body); font-weight: 400;">Capacity + efficiency together tell a training story</span>
+            <h2 class="inline-flex items-center" style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin-bottom: 1rem;">Form Indicators
+              <${ChartHelp} id="form-indicators">
+                Capacity + efficiency together tell a training story. Rising capacity + rising efficiency = ideal. Rising capacity + falling efficiency = possible overreaching.<br/><br/>See the individual charts below for details on each metric.
+              <//>
             </h2>
 
             <div class="${fitnessData.value.performanceCapacity.hasData && fitnessData.value.aerobicEfficiency.hasData ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'grid grid-cols-1 gap-4'}">
@@ -537,8 +569,10 @@ export function Dashboard() {
               ${fitnessData.value.performanceCapacity.hasData && html`
                 <div class="rounded-lg p-4" style="background: var(--bg); border: 1px solid var(--border);">
                   <div class="flex items-center gap-2 mb-2">
-                    <span class="group relative cursor-help" style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary);">Performance Capacity
-                      <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 text-white text-xs rounded px-3 py-2 z-10" style="background: var(--text); font-family: var(--font-body); bottom: 100%; margin-bottom: 0.5rem; white-space: normal; width: 220px; text-align: center;">0-100 score from your climb segments. Bars show each climb\u2019s percentile vs. your all-time history (last 90 days, recency-weighted).</span>
+                    <span style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary); display: inline-flex; align-items: center;">Performance Capacity
+                      <${ChartHelp} id="perf-capacity">
+                        <strong>Performance Capacity</strong> (0\u2013100) measures what your body can produce. It tracks your climb segment times, converts them to estimated power-to-weight, and ranks recent efforts (last 90 days) against your all-time history.<br/><br/>Bars show each climb colored by percentile: green (\u226570), blue (\u226540), red (below 40). Long-press or hover a bar for details.
+                      <//>
                     </span>
                     ${fitnessData.value.performanceCapacity.trend != null && html`
                       <span style="font-size: 0.75rem; color: ${fitnessData.value.performanceCapacity.trend > 2 ? '#3D7A4A' : fitnessData.value.performanceCapacity.trend < -2 ? '#A05060' : 'var(--text-tertiary)'};">
@@ -571,8 +605,10 @@ export function Dashboard() {
               ${fitnessData.value.aerobicEfficiency.hasData && html`
                 <div class="rounded-lg p-4" style="background: var(--bg); border: 1px solid var(--border);">
                   <div class="flex items-center gap-2 mb-2">
-                    <span class="group relative cursor-help" style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary);">Aerobic Efficiency
-                      <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 text-white text-xs rounded px-3 py-2 z-10" style="background: var(--text); font-family: var(--font-body); bottom: 100%; margin-bottom: 0.5rem; white-space: normal; width: 220px; text-align: center;">Efficiency Factor (power or speed \u00F7 heart rate). Each dot is a ride; the dashed line shows your trend over time.</span>
+                    <span style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary); display: inline-flex; align-items: center;">Aerobic Efficiency
+                      <${ChartHelp} id="aerobic-eff">
+                        <strong>Aerobic Efficiency</strong> measures output per heartbeat (Efficiency Factor = power/HR or speed/HR). Higher = more work per heartbeat = fitter.<br/><br/>Each dot is a ride. The dashed trend line shows overall direction: green = improving, red = declining. Long-press or hover a dot for the date and exact EF.
+                      <//>
                     </span>
                     ${fitnessData.value.aerobicEfficiency.ef.trend != null && html`
                       <span style="font-size: 0.75rem; color: ${fitnessData.value.aerobicEfficiency.ef.trend > 2 ? '#3D7A4A' : fitnessData.value.aerobicEfficiency.ef.trend < -2 ? '#A05060' : 'var(--text-tertiary)'};">
@@ -694,8 +730,11 @@ export function Dashboard() {
         ${!loading.value && powerCurveData.value && html`
           <div class="mb-6 rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
             <div class="flex items-center justify-between mb-3">
-              <h2 class="group relative inline-block cursor-help" style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin: 0;">Power Curve
-                <span class="invisible group-hover:visible absolute left-1/2 -translate-x-1/2 top-full mt-2 text-white text-xs rounded px-3 py-2 z-10" style="background: var(--text); font-family: var(--font-body); font-weight: 400; white-space: normal; width: 220px; text-align: center;">All-time best average power at each standard duration from your power meter data</span>
+              <h2 class="inline-flex items-center" style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin: 0;">Power Curve
+                <${ChartHelp} id="power-curve">
+                  Your all-time best average power at each standard duration from your power meter data.<br/><br/>
+                  <strong>FTP</strong> (Functional Threshold Power) is estimated as 95% of your best 20-minute power. Durations: 5s sprint, 30s, 1 min, 5 min VO\u2082max, 20 min FTP, 60 min sustained.
+                <//>
               </h2>
               ${powerCurveData.value.ftp && html`
                 <div class="flex items-center gap-1.5" title="Estimated FTP: 95% of 20-min best power">
