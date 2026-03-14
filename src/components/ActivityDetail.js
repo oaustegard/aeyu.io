@@ -26,7 +26,7 @@ import { renderIconSVG, drawIcon } from "../icons.js";
 import { AWARD_LABELS, AWARD_COLORS } from "../award-config.js";
 import { StickyHeader } from "./StickyHeader.js";
 import { SegmentSparkline } from "./SegmentSparkline.js";
-import { buildRideExport, rideToMarkdown } from "../export-llm.js";
+import { buildRideExport, rideToMarkdown, buildSegmentExport, segmentToMarkdown } from "../export-llm.js";
 
 const activity = signal(null);
 const awards = signal([]);
@@ -42,6 +42,7 @@ const sortDirection = signal("asc"); // "asc" or "desc"
 const llmExportStatus = signal(null); // null | "loading" | "copied" | "error"
 const llmExportFormat = signal("markdown");
 const llmIncludeForm = signal(true);
+const segmentLlmExportStatus = signal(null); // null | { segmentId, state: "loading"|"copied"|"error" }
 
 function formatDateShort(isoString) {
   return new Date(isoString).toLocaleDateString("en-US", {
@@ -1531,6 +1532,41 @@ export function ActivityDetail({ id }) {
                         Share Segment
                       </button>
                     </div>
+                  `}
+                  ${effortCount >= 2 && html`
+                    <button
+                      onClick=${async (e) => {
+                        e.stopPropagation();
+                        const sid = effort.segment.id;
+                        segmentLlmExportStatus.value = { segmentId: sid, state: "loading" };
+                        try {
+                          const textPromise = (async () => {
+                            const ctx = await buildSegmentExport(sid);
+                            if (!ctx) throw new Error("Segment not found");
+                            return llmExportFormat.value === "markdown" ? segmentToMarkdown(ctx) : JSON.stringify(ctx, null, 2);
+                          })();
+                          const blobPromise = textPromise.then(t => new Blob([t], { type: "text/plain" }));
+                          await navigator.clipboard.write([new ClipboardItem({ "text/plain": blobPromise })]);
+                          segmentLlmExportStatus.value = { segmentId: sid, state: "copied" };
+                          setTimeout(() => { segmentLlmExportStatus.value = null; }, 3000);
+                        } catch (err) {
+                          console.error("Segment export failed:", err);
+                          segmentLlmExportStatus.value = { segmentId: sid, state: "error" };
+                          setTimeout(() => { segmentLlmExportStatus.value = null; }, 3000);
+                        }
+                      }}
+                      disabled=${segmentLlmExportStatus.value?.segmentId === effort.segment.id && segmentLlmExportStatus.value?.state === "loading"}
+                      class="inline-flex items-center gap-1 text-xs mt-2 transition-colors"
+                      style="color: var(--accent); font-family: var(--font-body);"
+                      title="Export this segment's effort history for LLM analysis"
+                    >
+                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
+                      </svg>
+                      ${segmentLlmExportStatus.value?.segmentId === effort.segment.id
+                        ? segmentLlmExportStatus.value.state === "loading" ? "Exporting..." : segmentLlmExportStatus.value.state === "copied" ? "Copied!" : "Export failed"
+                        : "Export for AI"}
+                    </button>
                   `}
                 </div>
               `;

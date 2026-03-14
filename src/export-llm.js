@@ -512,3 +512,118 @@ export function rideToMarkdown(ctx) {
 
   return md;
 }
+
+// ── Single Segment Export ──────────────────────────────────────
+
+function slimSegmentEffort(e, actMap) {
+  const out = {
+    date: e.start_date_local?.slice(0, 10),
+    elapsed_time_s: e.elapsed_time,
+    moving_time_s: e.moving_time,
+  };
+  if (e.device_watts && e.average_watts) out.avg_watts = Math.round(e.average_watts);
+  if (e.average_heartrate) out.avg_hr = Math.round(e.average_heartrate);
+  if (e.max_heartrate) out.max_hr = Math.round(e.max_heartrate);
+  if (e.average_cadence) out.avg_cadence = Math.round(e.average_cadence);
+  if (e.pr_rank) out.pr_rank = e.pr_rank;
+  if (actMap && e.activity_id) {
+    const act = actMap.get(e.activity_id);
+    if (act) out.ride_name = act.name;
+  }
+  return out;
+}
+
+export async function buildSegmentExport(segmentId) {
+  const seg = await getSegment(Number(segmentId));
+  if (!seg || !seg.efforts || seg.efforts.length === 0) return null;
+
+  const allActs = await getAllActivities();
+  const actMap = new Map(allActs.map(a => [a.id, a]));
+
+  const efforts = [...seg.efforts]
+    .sort((a, b) => (a.start_date_local || "").localeCompare(b.start_date_local || ""))
+    .map(e => slimSegmentEffort(e, actMap));
+
+  const times = seg.efforts.map(e => e.elapsed_time).filter(t => t > 0);
+  const sortedTimes = [...times].sort((a, b) => a - b);
+  const best = sortedTimes[0];
+  const worst = sortedTimes[sortedTimes.length - 1];
+  const median = sortedTimes[Math.floor(sortedTimes.length / 2)];
+  const mean = Math.round(times.reduce((s, t) => s + t, 0) / times.length);
+
+  const withPower = seg.efforts.filter(e => e.device_watts && e.average_watts);
+  const withHR = seg.efforts.filter(e => e.average_heartrate);
+
+  const stats = {
+    total_efforts: seg.efforts.length,
+    best_time_s: best,
+    worst_time_s: worst,
+    median_time_s: median,
+    mean_time_s: mean,
+  };
+  if (withPower.length > 0) {
+    const powers = withPower.map(e => Math.round(e.average_watts));
+    stats.best_power_w = Math.max(...powers);
+    stats.avg_power_w = Math.round(powers.reduce((s, p) => s + p, 0) / powers.length);
+  }
+  if (withHR.length > 0) {
+    const hrs = withHR.map(e => Math.round(e.average_heartrate));
+    stats.avg_hr = Math.round(hrs.reduce((s, h) => s + h, 0) / hrs.length);
+  }
+
+  return {
+    generated_at: new Date().toISOString(),
+    export_type: "segment_history",
+    segment: {
+      id: seg.id,
+      name: seg.name,
+      distance_km: +(seg.distance / 1000).toFixed(2),
+      average_grade_pct: seg.average_grade,
+      elevation_gain_m: Math.round((seg.elevation_high || 0) - (seg.elevation_low || 0)),
+      climb_category: seg.climb_category,
+    },
+    stats,
+    efforts,
+  };
+}
+
+export function segmentToMarkdown(ctx) {
+  if (!ctx) return "";
+  const s = ctx.segment;
+  let md = `# Segment: ${s.name}\n`;
+  md += `Distance: ${s.distance_km} km · Grade: ${s.average_grade_pct}% · Elevation gain: ${s.elevation_gain_m} m`;
+  if (s.climb_category > 0) md += ` · Cat ${s.climb_category}`;
+  md += `\n\n`;
+
+  const st = ctx.stats;
+  md += `## Summary Statistics (${st.total_efforts} efforts)\n`;
+  md += `- Best time: ${st.best_time_s}s · Worst: ${st.worst_time_s}s · Median: ${st.median_time_s}s · Mean: ${st.mean_time_s}s\n`;
+  if (st.best_power_w) md += `- Best power: ${st.best_power_w} W · Avg power: ${st.avg_power_w} W\n`;
+  if (st.avg_hr) md += `- Avg HR: ${st.avg_hr} bpm\n`;
+  md += `\n`;
+
+  md += `## All Efforts\n`;
+  md += `| Date | Time (s) | Moving (s) |`;
+  const hasPower = ctx.efforts.some(e => e.avg_watts);
+  const hasHR = ctx.efforts.some(e => e.avg_hr);
+  const hasCadence = ctx.efforts.some(e => e.avg_cadence);
+  if (hasPower) md += ` Watts |`;
+  if (hasHR) md += ` HR |`;
+  if (hasCadence) md += ` Cadence |`;
+  md += ` Ride |\n`;
+  md += `|------|----------|------------|`;
+  if (hasPower) md += `-------|`;
+  if (hasHR) md += `-----|`;
+  if (hasCadence) md += `---------|`;
+  md += `------|\n`;
+  for (const e of ctx.efforts) {
+    md += `| ${e.date} | ${e.elapsed_time_s} | ${e.moving_time_s} |`;
+    if (hasPower) md += ` ${e.avg_watts || "-"} |`;
+    if (hasHR) md += ` ${e.avg_hr || "-"} |`;
+    if (hasCadence) md += ` ${e.avg_cadence || "-"} |`;
+    md += ` ${e.ride_name || "-"} |\n`;
+  }
+  md += `\n`;
+
+  return md;
+}
