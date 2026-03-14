@@ -68,3 +68,91 @@ export const AWARD_LABELS = {
 export const AWARD_COLORS = Object.fromEntries(
   Object.entries(AWARD_LABELS).map(([k, v]) => [k, { bg: v.bg, text: v.text, accent: v.dot, border: v.border }])
 );
+
+// Grouped award types for settings toggles — each group can be toggled as a unit
+// or individual types within can be toggled. Descriptions match FAQ.
+export const AWARD_GROUPS = [
+  {
+    group: "Segment Awards",
+    types: [
+      { type: "season_first", desc: "First effort on a segment this calendar year." },
+      { type: "year_best", desc: "Fastest time on a segment this year (after March, with 3+ efforts)." },
+      { type: "ytd_best_time", desc: "Fastest time by this date across multiple years — your best performance at this point in the season." },
+      { type: "ytd_best_power", desc: "Highest measured power by this date across multiple years. Only counts power meter data." },
+      { type: "recent_best", desc: "Fastest of your last 5 attempts on a segment." },
+      { type: "beat_median", desc: "Beat your median time by 2%+ on a segment (requires 5+ efforts)." },
+      { type: "top_quartile", desc: "In the top 25% of your own history on this segment (requires 5+ efforts)." },
+      { type: "top_decile", desc: "In the top 10% of your own history. Supersedes Top Quartile and Beat Median." },
+      { type: "consistency", desc: "Remarkably consistent — low variance across your last 8 efforts (CV < 3%)." },
+      { type: "monthly_best", desc: "Fastest time on a segment this calendar month." },
+      { type: "improvement_streak", desc: "3+ consecutive improving times on a segment — each ride faster than the last." },
+      { type: "comeback", desc: "Beat your median after 3+ slower efforts in a row." },
+      { type: "closing_in", desc: "Within 5% of your all-time PR on a segment — you're close to a personal best." },
+      { type: "best_month_ever", desc: "Fastest time in this calendar month across all years — your best March ever, for example." },
+      { type: "milestone", desc: "Round-number attempt on a segment (10th, 25th, 50th, 100th, etc.)." },
+      { type: "anniversary", desc: "Rode this segment on the same date in a previous year." },
+      { type: "reference_best", desc: "Best effort within a user-defined window — since a date, in last N efforts, or since turning an age." },
+    ],
+  },
+  {
+    group: "Ride Awards",
+    types: [
+      { type: "distance_record", desc: "Your longest ride of the year by distance." },
+      { type: "elevation_record", desc: "Most elevation gain in a single ride this year." },
+      { type: "segment_count", desc: "Most segments hit in a single ride this year." },
+      { type: "endurance_record", desc: "Longest ride by moving time this year — your biggest endurance effort." },
+      { type: "route_season_first", desc: "First time riding a known route this year." },
+    ],
+  },
+  {
+    group: "Streaks & Consistency",
+    types: [
+      { type: "weekly_streak", desc: "Consecutive weeks with at least one ride. One missed week is forgiven — two consecutive misses break the streak." },
+      { type: "group_consistency", desc: "Detects recurring rides by day, time, and location. Tracks your attendance streak on each group ride." },
+    ],
+  },
+  {
+    group: "Power Awards",
+    types: [
+      { type: "season_first_power", desc: "First ride with power data this year." },
+      { type: "np_year_best", desc: "Highest Normalized Power this year." },
+      { type: "np_recent_best", desc: "Highest NP in recent rides." },
+      { type: "work_year_best", desc: "Most total work (kJ) this year." },
+      { type: "work_recent_best", desc: "Most total work (kJ) in recent rides." },
+      { type: "peak_power", desc: "Highest max power this year." },
+      { type: "peak_power_recent", desc: "Highest max power in recent rides." },
+      { type: "watt_milestone", desc: "First ride where your average power exceeds a threshold (100W, 150W, ... 350W)." },
+      { type: "kj_milestone", desc: "First ride exceeding an energy threshold (500kJ, 1000kJ, ... 3000kJ)." },
+      { type: "power_progression", desc: "Your Normalized Power is trending upward over your last 10 rides." },
+      { type: "power_consistency", desc: "Low variation in NP across your last 10 rides — steady, repeatable power output." },
+      { type: "ftp_milestone", desc: "Your estimated FTP crosses a threshold (150W, 200W, ... 400W). Requires power curve data." },
+    ],
+  },
+  {
+    group: "Power Curve",
+    types: [
+      { type: "curve_year_best", desc: "Year's best power at a standard duration (5s sprint, 1min anaerobic, 5min VO2max, 20min FTP, etc)." },
+      { type: "curve_all_time", desc: "All-time personal record at a standard power curve duration. Your best ever." },
+    ],
+  },
+  {
+    group: "Indoor Training",
+    types: [
+      { type: "indoor_np_year_best", desc: "Highest indoor Normalized Power this year." },
+      { type: "indoor_work_year_best", desc: "Most indoor work (kJ) this year." },
+      { type: "trainer_streak", desc: "Consecutive weeks with indoor rides." },
+      { type: "indoor_vs_outdoor", desc: "Comparing indoor and outdoor performance." },
+    ],
+  },
+  {
+    group: "Comeback Mode",
+    types: [
+      { type: "comeback_pb", desc: "Post-injury personal best on a segment. Only appears when Comeback Mode is active." },
+      { type: "recovery_milestone", desc: "You've reached 80%, 90%, or 95% of your pre-injury best on a segment." },
+      { type: "comeback_full", desc: "You've matched or beaten your pre-injury best. Full recovery on this segment." },
+      { type: "comeback_distance", desc: "Post-injury distance record." },
+      { type: "comeback_elevation", desc: "Post-injury climbing record." },
+      { type: "comeback_endurance", desc: "Post-injury endurance record." },
+    ],
+  },
+];
