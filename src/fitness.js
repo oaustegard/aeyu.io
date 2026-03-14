@@ -24,8 +24,8 @@ const MIN_MOVING_TIME = 120;          // 2 min minimum to avoid approach-speed s
 const MIN_GRADE_PERCENT = 4;          // Minimum gradient for climb identification
 const ROLLING_WINDOW_DAYS = 90;       // Performance index rolling window
 const RECENCY_HALF_LIFE_DAYS = 30;    // Exponential recency weighting half-life
-const MIN_EF_MOVING_TIME = 2700;      // 45 min minimum for whole-ride EF (warmup dominates shorter rides)
-const MAX_VARIABILITY_INDEX = 1.10;   // VI = NP/AP; steady aerobic rides are ≤1.05, allow up to 1.10
+const MIN_EF_MOVING_TIME = 1800;      // 30 min minimum for whole-ride EF
+const MAX_VARIABILITY_INDEX = 1.25;   // VI = NP/AP; allow real-world rides with stops and terrain variation
 
 // --- Climb Identification ---
 
@@ -261,13 +261,13 @@ export async function computeAerobicEfficiency() {
     return { ef: null, hasData: false, reason: "insufficient_ef_data" };
   }
 
-  // Sort by date
-  efData.sort((a, b) => a.date - b.date);
+  // Sort by date descending (most recent first) so we always prioritize recent rides
+  efData.sort((a, b) => b.date - a.date);
 
   const now = Date.now();
   const windowMs = ROLLING_WINDOW_DAYS * 86400000;
 
-  // Current window EF (last 90 days)
+  // Current window EF (last 90 days) — most recent rides are first
   const recentEF = efData.filter((d) => now - d.date <= windowMs);
   const olderEF = efData.filter((d) => d.date >= now - windowMs * 2 && d.date < now - windowMs);
 
@@ -289,6 +289,9 @@ export async function computeAerobicEfficiency() {
     trend = ((currentEF - olderEFAvg) / olderEFAvg) * 100; // Percentage change
   }
 
+  // Chart history: take the 50 most recent data points, reverse to chronological for display
+  const chartHistory = efData.slice(0, 50).reverse();
+
   // Build monthly history for chart
   const monthlyEF = buildMonthlyHistory(efData);
 
@@ -296,7 +299,7 @@ export async function computeAerobicEfficiency() {
     ef: {
       current: currentEF ? +currentEF.toFixed(2) : null,
       trend,
-      history: efData.slice(-50), // Last 50 data points for chart
+      history: chartHistory,
       monthlyHistory: monthlyEF,
       recentCount: recentEF.length,
       totalCount: efData.length,
