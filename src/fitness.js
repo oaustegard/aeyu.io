@@ -309,18 +309,27 @@ function buildRollingHistory(climbSegments) {
 export async function computeAerobicEfficiency() {
   const allActivities = await getAllActivities();
 
-  // Filter to cycling activities with power + HR data + minimum duration
-  // VirtualRide always has real power from the trainer — don't require device_watts
+  const CYCLING_TYPES = new Set(["Ride", "VirtualRide", "MountainBikeRide", "GravelRide"]);
+  const hasPower = (a) => (a.device_watts || a.sport_type === "VirtualRide") && a.average_watts > 0;
+
+  // Rides with power + HR + minimum duration → full EF calculation
   const eligible = allActivities.filter((a) =>
     a.has_heartrate &&
     a.average_heartrate > 0 &&
-    (a.device_watts || a.sport_type === "VirtualRide") &&
-    a.average_watts > 0 &&
+    hasPower(a) &&
     a.moving_time >= MIN_EF_MOVING_TIME &&
-    (a.sport_type === "Ride" || a.sport_type === "VirtualRide" || a.sport_type === "MountainBikeRide")
+    CYCLING_TYPES.has(a.sport_type)
   );
 
-  if (eligible.length < 3) {
+  // Rides with power but NO HR → can't compute EF but still represent training
+  const powerOnly = allActivities.filter((a) =>
+    (!a.has_heartrate || !a.average_heartrate) &&
+    hasPower(a) &&
+    a.moving_time >= MIN_EF_MOVING_TIME &&
+    CYCLING_TYPES.has(a.sport_type)
+  );
+
+  if (eligible.length < 3 && powerOnly.length === 0) {
     return { ef: null, hasData: false, reason: eligible.length === 0 ? "no_power_hr_data" : "insufficient_data" };
   }
 
@@ -347,7 +356,25 @@ export async function computeAerobicEfficiency() {
     });
   }
 
+  // Count power-only rides in recent window for display
+  const now0 = Date.now();
+  const trendMs0 = TREND_WINDOW_DAYS * 86400000;
+  const recentPowerOnly = powerOnly.filter((a) => now0 - new Date(a.start_date).getTime() <= trendMs0);
+  const recentPowerOnlyNP = recentPowerOnly.length > 0
+    ? Math.round(recentPowerOnly.reduce((s, a) => s + (a.weighted_average_watts || a.average_watts), 0) / recentPowerOnly.length)
+    : null;
+
   if (efData.length < 3) {
+    // Even without enough EF data, return power-only info if available
+    if (recentPowerOnly.length > 0) {
+      return {
+        ef: null,
+        hasData: false,
+        reason: "insufficient_ef_data",
+        powerOnlyCount: recentPowerOnly.length,
+        powerOnlyAvgNP: recentPowerOnlyNP,
+      };
+    }
     return { ef: null, hasData: false, reason: "insufficient_ef_data" };
   }
 
@@ -365,7 +392,25 @@ export async function computeAerobicEfficiency() {
     ? recentEF.reduce((sum, d) => sum + d.ef, 0) / recentEF.length
     : null;
 
-  // If no recent rides, don't claim we have data — the card would show stale/empty info
+  // If no recent EF rides but there ARE power-only rides, still show the card
+  if (currentEF == null && recentPowerOnly.length > 0) {
+    const twelveMonthsMs = EF_HISTORY_MONTHS * 30 * 86400000;
+    const cappedData = efData.filter((d) => now - d.date <= twelveMonthsMs);
+    const monthlyEF = buildMonthlyHistory(cappedData);
+    return {
+      ef: {
+        current: null,
+        trend: null,
+        monthlyHistory: monthlyEF,
+        recentCount: 0,
+        totalCount: efData.length,
+        hasPowerData: true,
+        powerOnlyCount: recentPowerOnly.length,
+        powerOnlyAvgNP: recentPowerOnlyNP,
+      },
+      hasData: true,
+    };
+  }
   if (currentEF == null) {
     return { ef: null, hasData: false, reason: "no_recent_data" };
   }
@@ -394,6 +439,8 @@ export async function computeAerobicEfficiency() {
       recentCount: recentEF.length,
       totalCount: efData.length,
       hasPowerData: true,
+      powerOnlyCount: recentPowerOnly.length,
+      powerOnlyAvgNP: recentPowerOnlyNP,
     },
     hasData: true,
   };
