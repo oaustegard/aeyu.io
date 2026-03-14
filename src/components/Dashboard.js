@@ -1273,7 +1273,7 @@ export function Dashboard() {
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
                 <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
-                  <p>Yes! Go to Settings and use "Export for AI Coach" to copy a compact summary of your recent training to the clipboard. It includes weekly volume rollups, monthly trends, fitness indicators, consistency streaks, and your last 10 rides — everything an LLM needs to give you coaching advice without overwhelming its context window.</p>
+                  <p>Yes! Go to Settings and use "Export for AI Coach" to copy a compact summary of your recent training to the clipboard. It includes weekly volume rollups, monthly trends, fitness indicators, consistency streaks, and your last 25 rides — everything an LLM needs to give you coaching advice.</p>
                   <p>You can also export a single ride from any Activity Detail page. The ride export includes all segment efforts with awards, and optionally your form context leading into the ride (training load from the preceding 7/14/30 days, recent rides, fitness indicators, and streaks).</p>
                   <p>Choose Markdown (best for chat) or JSON (best for structured prompts). Paste the result into ChatGPT, Claude, or any LLM and ask for training analysis.</p>
                 </div>

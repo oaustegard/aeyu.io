@@ -2,7 +2,7 @@
  * LLM Export — Build a compact training context for AI coaching.
  *
  * Aggregates recent rides, pre-computed fitness trends, streak data,
- * and award distributions into a ~2-5KB JSON or markdown payload
+ * and award distributions into a compact JSON or markdown payload
  * that fits comfortably in any LLM context window.
  */
 
@@ -162,7 +162,7 @@ export async function buildLLMContext(options = {}) {
   const hasHR = sorted.some((a) => a.has_heartrate);
   const sportTypes = [...new Set(sorted.map((a) => a.sport_type))];
 
-  const recentDetail = recent.slice(-10).reverse().map(slimActivity);
+  const recentDetail = recent.slice(-25).reverse().map(slimActivity);
 
   return {
     generated_at: new Date().toISOString(),
@@ -336,7 +336,7 @@ function buildFormContext(allActivities, rideDate) {
     return out;
   };
 
-  const recent = last14.slice(0, 7).map(slimActivity);
+  const recent = last14.slice(0, 15).map(slimActivity);
 
   return {
     preceding_7_days: rollup(last14.filter(a => new Date(a.start_date).getTime() >= rideDateMs - 7 * 86400000)),
