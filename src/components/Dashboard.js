@@ -52,6 +52,7 @@ import { AWARD_LABELS } from "../award-config.js";
 import { computeFitnessSummary } from "../fitness.js";
 import { getAllTimeBestCurve, estimateFTP, POWER_CURVE_DURATIONS, DURATION_LABELS } from "../power-curve.js";
 import { StickyHeader, headerCompact } from "./StickyHeader.js";
+import { buildLLMContext, contextToMarkdown } from "../export-llm.js";
 
 const recentActivities = signal([]);
 const activityAwards = signal(new Map());
@@ -87,6 +88,9 @@ const syncWindowCustomDate = signal("");
 const currentSyncAfterEpoch = signal(null);
 const showFirstSyncPrompt = signal(false);
 const firstSyncChoice = signal("5y");
+const exportDays = signal("90");
+const exportFormat = signal("markdown");
+const exportStatus = signal(null); // null | "loading" | "copied" | "error"
 
 function pickSteepestClimb(segments) {
   let best = null;
@@ -1187,6 +1191,17 @@ export function Dashboard() {
 
               <details class="group py-3">
                 <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  Can I export my data for an AI coach?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  <p>Yes! Go to Settings and use "Export for AI Coach" to copy a compact summary of your recent training to the clipboard. It includes weekly volume rollups, monthly trends, fitness indicators, consistency streaks, and your last 10 rides — everything an LLM needs to give you coaching advice without overwhelming its context window.</p>
+                  <p>You can choose a time window (30 days to 1 year) and export as Markdown (best for chat) or JSON (best for structured prompts). Paste the result into ChatGPT, Claude, or any LLM and ask for training analysis.</p>
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
                   What does "aeyu" mean?
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
@@ -1540,6 +1555,54 @@ export function Dashboard() {
                   `}
                 `}
               </div>
+            </div>
+
+            <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
+              <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Export for AI Coach</p>
+              <p class="text-xs mb-2" style="color: var(--border);">Copy a compact summary of your recent training data for use with ChatGPT, Claude, or other LLMs.</p>
+              <div class="flex items-center gap-2 mb-2">
+                <select
+                  value=${exportDays.value}
+                  onChange=${(e) => { exportDays.value = e.target.value; exportStatus.value = null; }}
+                  class="text-xs rounded px-2 py-1 focus:outline-none"
+                  style="border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-family: var(--font-mono);"
+                >
+                  <option value="30">Last 30 days</option>
+                  <option value="90">Last 90 days</option>
+                  <option value="180">Last 6 months</option>
+                  <option value="365">Last year</option>
+                </select>
+                <select
+                  value=${exportFormat.value}
+                  onChange=${(e) => { exportFormat.value = e.target.value; exportStatus.value = null; }}
+                  class="text-xs rounded px-2 py-1 focus:outline-none"
+                  style="border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-family: var(--font-mono);"
+                >
+                  <option value="markdown">Markdown</option>
+                  <option value="json">JSON</option>
+                </select>
+              </div>
+              <button
+                onClick=${async () => {
+                  exportStatus.value = "loading";
+                  try {
+                    const ctx = await buildLLMContext({ days: parseInt(exportDays.value) });
+                    const text = exportFormat.value === "markdown" ? contextToMarkdown(ctx) : JSON.stringify(ctx, null, 2);
+                    await navigator.clipboard.writeText(text);
+                    exportStatus.value = "copied";
+                    setTimeout(() => { exportStatus.value = null; }, 3000);
+                  } catch (e) {
+                    console.error("Export failed:", e);
+                    exportStatus.value = "error";
+                    setTimeout(() => { exportStatus.value = null; }, 3000);
+                  }
+                }}
+                disabled=${exportStatus.value === "loading"}
+                class="text-xs transition-colors"
+                style="color: var(--accent);"
+              >
+                ${exportStatus.value === "loading" ? "Building export..." : exportStatus.value === "copied" ? "Copied to clipboard!" : exportStatus.value === "error" ? "Export failed" : "Copy training data to clipboard"}
+              </button>
             </div>
 
             <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
