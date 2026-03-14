@@ -48,7 +48,7 @@ import {
 } from "../units.js";
 import { isDemo, exitDemo, startDemo } from "../demo.js";
 import { renderIconSVG } from "../icons.js";
-import { AWARD_LABELS } from "../award-config.js";
+import { AWARD_LABELS, AWARD_GROUPS } from "../award-config.js";
 import { computeFitnessSummary } from "../fitness.js";
 import { getAllTimeBestCurve, estimateFTP, POWER_CURVE_DURATIONS, DURATION_LABELS } from "../power-curve.js";
 import { StickyHeader, headerCompact } from "./StickyHeader.js";
@@ -92,6 +92,7 @@ const exportDays = signal("90");
 const exportFormat = signal("markdown");
 const exportStatus = signal(null); // null | "loading" | "copied" | "error"
 const activeChartHelp = signal(null);
+const disabledAwardTypes = signal(new Set());
 
 function ChartHelp({ id, children }) {
   const isOpen = activeChartHelp.value === id;
@@ -149,6 +150,7 @@ async function loadDashboard() {
     activeResetEvent.value = await getResetEvent();
     const userConfig = await getUserConfig();
     referencePoints.value = userConfig.referencePoints || [];
+    disabledAwardTypes.value = new Set(userConfig.disabledAwards || []);
     const activities = await getAllActivities();
     // Sort by date descending, take recent 20
     activities.sort((a, b) => b.start_date_local.localeCompare(a.start_date_local));
@@ -192,7 +194,7 @@ async function loadDashboard() {
     // all improve with more data). Awards recalculate after every sync.
     const withEfforts = recent.filter((a) => a.has_efforts);
     if (withEfforts.length > 0) {
-      const awards = await computeAwardsForActivities(withEfforts);
+      const awards = await computeAwardsForActivities(withEfforts, disabledAwardTypes.value);
       activityAwards.value = awards;
 
       let totalAwards = 0;
@@ -265,7 +267,7 @@ export function Dashboard() {
     // Recompute awards to update formatted messages
     const withEfforts = recentActivities.value.filter((a) => a.has_efforts);
     if (withEfforts.length > 0) {
-      const awards = await computeAwardsForActivities(withEfforts);
+      const awards = await computeAwardsForActivities(withEfforts, disabledAwardTypes.value);
       activityAwards.value = awards;
     }
   }
@@ -1241,6 +1243,16 @@ export function Dashboard() {
 
               <details class="group py-3">
                 <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  Can I hide certain award types?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  Yes. Go to Settings and scroll to "Award Toggles." Each award type has a checkbox — uncheck it to stop that type from appearing on your dashboard and activity detail pages. You can toggle entire groups at once (e.g. all Power Awards) or individual types. Your preference is saved locally and persists across sessions.
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
                   What does "aeyu" mean?
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
@@ -1593,6 +1605,81 @@ export function Dashboard() {
                     <p class="text-xs mt-1" style="color: var(--border);">Hides demoralizing comparisons while you rebuild. Tracks recovery milestones toward your pre-injury best.</p>
                   `}
                 `}
+              </div>
+            </div>
+
+            <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
+              <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Award Toggles</p>
+              <p class="text-xs mb-2" style="color: var(--text-tertiary);">Turn off award types you don't want to see. Changes apply after recomputation.</p>
+              <div class="space-y-3">
+                ${AWARD_GROUPS.map(({ group, types }) => {
+                  const allDisabled = types.every((t) => disabledAwardTypes.value.has(t.type));
+                  const someDisabled = types.some((t) => disabledAwardTypes.value.has(t.type));
+                  return html`
+                    <details class="group" key=${group}>
+                      <summary class="flex items-center justify-between cursor-pointer py-1">
+                        <span class="text-xs font-medium" style="color: var(--text);">${group}</span>
+                        <div class="flex items-center gap-2">
+                          ${someDisabled && !allDisabled ? html`<span class="text-xs" style="color: var(--text-tertiary);">partial</span>` : null}
+                          <button
+                            onClick=${async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const next = new Set(disabledAwardTypes.value);
+                              if (allDisabled) {
+                                types.forEach((t) => next.delete(t.type));
+                              } else {
+                                types.forEach((t) => next.add(t.type));
+                              }
+                              disabledAwardTypes.value = next;
+                              const config = await getUserConfig();
+                              await setUserConfig({ ...config, disabledAwards: [...next] });
+                              await loadDashboard();
+                            }}
+                            class="text-xs px-2 py-0.5 rounded transition-colors"
+                            style=${allDisabled
+                              ? "background: var(--border); color: var(--text-secondary);"
+                              : "background: var(--bg); color: var(--text-tertiary);"}
+                          >
+                            ${allDisabled ? "Enable all" : "Disable all"}
+                          </button>
+                          <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                      </summary>
+                      <div class="pt-1 pb-2 space-y-1">
+                        ${types.map(({ type, desc }) => {
+                          const al = AWARD_LABELS[type];
+                          const isDisabled = disabledAwardTypes.value.has(type);
+                          return html`
+                            <label key=${type} class="flex items-start gap-2 py-1 cursor-pointer rounded px-1 transition-colors" style=${isDisabled ? "opacity: 0.5;" : ""}>
+                              <input
+                                type="checkbox"
+                                checked=${!isDisabled}
+                                onChange=${async () => {
+                                  const next = new Set(disabledAwardTypes.value);
+                                  if (isDisabled) next.delete(type); else next.add(type);
+                                  disabledAwardTypes.value = next;
+                                  const config = await getUserConfig();
+                                  await setUserConfig({ ...config, disabledAwards: [...next] });
+                                  await loadDashboard();
+                                }}
+                                class="mt-0.5 flex-shrink-0"
+                                style="accent-color: ${al?.dot || '#6B6260'};"
+                              />
+                              <div class="min-w-0">
+                                <span class="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full" style="background: ${al?.bg || '#ECEAE6'}; color: ${al?.text || '#3E3A36'}; border: 1px solid ${al?.border || '#D4D0C8'};">
+                                  ${al ? renderIconSVG(type, { size: 10, color: al.dot }) : null}
+                                  ${al?.label || type}
+                                </span>
+                                <p class="text-xs mt-0.5" style="color: var(--text-tertiary);">${desc}</p>
+                              </div>
+                            </label>
+                          `;
+                        })}
+                      </div>
+                    </details>
+                  `;
+                })}
               </div>
             </div>
 

@@ -113,6 +113,16 @@ async function loadActivity(id) {
         }
       }
 
+      // Filter out disabled award types
+      const disabled = new Set(userConfig.disabledAwards || []);
+      if (disabled.size > 0) {
+        awardsList = awardsList.filter((a) => {
+          if (disabled.has(a.type)) return false;
+          if (a.type === "route_season_first" && disabled.has("season_first")) return false;
+          return true;
+        });
+      }
+
       awards.value = awardsList;
 
       const history = new Map();

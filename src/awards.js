@@ -1845,10 +1845,11 @@ export function computeRideLevelAwards(activity, allActivities, resetEvent = nul
  * @param {Array} activities — Activities with segment_efforts populated
  * @returns {Map} — Map of activity.id → awards array
  */
-export async function computeAwardsForActivities(activities) {
+export async function computeAwardsForActivities(activities, disabledAwardTypes = null) {
   const resetEvent = await getResetEvent();
   const userConfig = await getUserConfig();
   const referencePoints = userConfig.referencePoints || [];
+  const disabled = disabledAwardTypes || new Set(userConfig.disabledAwards || []);
   const result = new Map();
 
   // Detect routes from ALL activities (not just the recent subset)
@@ -1902,6 +1903,16 @@ export async function computeAwardsForActivities(activities) {
         };
         allAwards = [...nonSeasonFirsts, routeAward];
       }
+    }
+
+    // Filter out disabled award types
+    if (disabled.size > 0) {
+      allAwards = allAwards.filter((a) => {
+        if (disabled.has(a.type)) return false;
+        // route_season_first is derived from season_first — disable if season_first is disabled
+        if (a.type === "route_season_first" && disabled.has("season_first")) return false;
+        return true;
+      });
     }
 
     if (allAwards.length > 0) {
