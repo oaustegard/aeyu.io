@@ -558,24 +558,24 @@ export function Dashboard() {
           </div>
         </div>
 
-        <!-- Form Indicators (#106) -->
+        <!-- Form Indicators (#106, redesigned #189) -->
         ${!loading.value && fitnessData.value && (fitnessData.value.performanceCapacity.hasData || fitnessData.value.aerobicEfficiency.hasData) && html`
           <div class="mb-6 rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
             <h2 class="inline-flex items-center" style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin-bottom: 1rem;">Form Indicators
               <${ChartHelp} id="form-indicators">
-                Capacity + efficiency together tell a training story. Rising capacity + rising efficiency = ideal. Rising capacity + falling efficiency = possible overreaching.<br/><br/>See the individual charts below for details on each metric.
+                These indicators track your recent form over 6-week windows. The sparkline shows your 4-week rolling score over the last 6 months. Trend arrows compare the last 6 weeks to the prior 6 weeks.
               <//>
             </h2>
 
             <div class="${fitnessData.value.performanceCapacity.hasData && fitnessData.value.aerobicEfficiency.hasData ? 'grid grid-cols-1 sm:grid-cols-2 gap-4' : 'grid grid-cols-1 gap-4'}">
 
-              <!-- Performance Capacity -->
+              <!-- Climb Form (was Performance Capacity) -->
               ${fitnessData.value.performanceCapacity.hasData && html`
                 <div class="rounded-lg p-4" style="background: var(--bg); border: 1px solid var(--border);">
                   <div class="flex items-center gap-2 mb-2">
-                    <span style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary); display: inline-flex; align-items: center;">Performance Capacity
-                      <${ChartHelp} id="perf-capacity">
-                        <strong>Performance Capacity</strong> (0\u2013100) measures what your body can produce. It tracks your climb segment times, converts them to estimated power-to-weight, and ranks recent efforts (last 90 days) against your all-time history.<br/><br/>Bars show each climb colored by percentile: green (\u226570), blue (\u226540), red (below 40). Long-press or hover a bar for details.
+                    <span style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary); display: inline-flex; align-items: center;">Climb Form
+                      <${ChartHelp} id="climb-form">
+                        <strong>Climb Form</strong> (0\u2013100) tracks how your recent climb efforts compare to your personal history. The sparkline shows your 4-week rolling average over 6 months. Trend arrow compares the last 6 weeks to the prior 6 weeks.
                       <//>
                     </span>
                     ${fitnessData.value.performanceCapacity.trend != null && html`
@@ -587,21 +587,59 @@ export function Dashboard() {
                   <div class="flex items-baseline gap-2">
                     <div style="font-family: var(--font-display); font-size: 2rem; color: var(--text);">${fitnessData.value.performanceCapacity.score}</div>
                     <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">
-                      from ${fitnessData.value.performanceCapacity.segments.length} climb${fitnessData.value.performanceCapacity.segments.length !== 1 ? 's' : ''}
+                      riding climbs at ${fitnessData.value.performanceCapacity.score}% of your best
                     </div>
                   </div>
-                  <!-- Segment bar chart -->
-                  <div class="mt-3" style="display: flex; flex-direction: column; gap: 6px;">
-                    ${fitnessData.value.performanceCapacity.segments.slice(0, 5).map((seg) => html`
-                      <div style="display: flex; align-items: center; gap: 6px;" title="${seg.segmentName}: ${Math.round(seg.score)}/100 from ${seg.effortCount} efforts (${seg.recentCount} recent)">
-                        <span class="truncate" style="font-size: 0.6875rem; color: var(--text-secondary); width: 40%; min-width: 0; flex-shrink: 0;">${seg.segmentName}</span>
-                        <div style="flex: 1; height: 14px; background: var(--border); border-radius: 3px; overflow: hidden; position: relative;">
-                          <div style="height: 100%; width: ${Math.round(seg.score)}%; background: ${seg.score >= 70 ? '#3D7A4A' : seg.score >= 40 ? '#4882A8' : '#A05060'}; border-radius: 3px; transition: width 0.3s;"></div>
-                        </div>
-                        <span style="font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text); min-width: 1.5rem; text-align: right;">${Math.round(seg.score)}</span>
-                      </div>
-                    `)}
+                  <div style="font-family: var(--font-body); font-size: 0.6875rem; color: var(--text-tertiary); margin-top: 0.125rem;">
+                    Based on ${fitnessData.value.performanceCapacity.totalEfforts} effort${fitnessData.value.performanceCapacity.totalEfforts !== 1 ? 's' : ''} across ${fitnessData.value.performanceCapacity.climbCount} climb${fitnessData.value.performanceCapacity.climbCount !== 1 ? 's' : ''}
                   </div>
+                  <!-- 6-month sparkline of 4-week rolling score -->
+                  ${fitnessData.value.performanceCapacity.rollingHistory.length > 1 && (() => {
+                    const pts = fitnessData.value.performanceCapacity.rollingHistory;
+                    const scores = pts.map((p) => p.score);
+                    const minS = Math.min(...scores);
+                    const maxS = Math.max(...scores);
+                    const range = maxS - minS || 1;
+                    const W = 280, H = 50, ML = 4, MR = 4, MT = 4, MB = 4;
+                    const cW = W - ML - MR, cH = H - MT - MB;
+                    const xPos = (i) => ML + (i / (pts.length - 1)) * cW;
+                    const yPos = (s) => MT + cH - ((s - minS) / range) * cH;
+                    const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${xPos(i).toFixed(1)},${yPos(p.score).toFixed(1)}`).join(' ');
+                    const lastPt = pts[pts.length - 1];
+                    const gradientD = pathD + ` L${xPos(pts.length - 1).toFixed(1)},${H - MB} L${ML},${H - MB} Z`;
+                    return html`
+                      <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; margin-top: 0.5rem; overflow: visible;">
+                        <defs>
+                          <linearGradient id="climbGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#4882A8" stop-opacity="0.15" />
+                            <stop offset="100%" stop-color="#4882A8" stop-opacity="0.02" />
+                          </linearGradient>
+                        </defs>
+                        <path d="${gradientD}" fill="url(#climbGrad)" />
+                        <path d="${pathD}" fill="none" stroke="#4882A8" stroke-width="1.5" stroke-linejoin="round" />
+                        <circle cx="${xPos(pts.length - 1)}" cy="${yPos(lastPt.score)}" r="3" fill="#4882A8" />
+                      </svg>
+                    `;
+                  })()}
+                  <!-- Collapsible segment detail -->
+                  ${fitnessData.value.performanceCapacity.segments.length > 0 && html`
+                    <details style="margin-top: 0.5rem;">
+                      <summary style="font-family: var(--font-body); font-size: 0.6875rem; color: var(--text-tertiary); cursor: pointer; user-select: none;">
+                        Climb details
+                      </summary>
+                      <div class="mt-2" style="display: flex; flex-direction: column; gap: 4px;">
+                        ${fitnessData.value.performanceCapacity.segments.slice(0, 8).map((seg) => html`
+                          <div style="display: flex; align-items: center; gap: 6px;" title="${seg.segmentName}: ${Math.round(seg.score)}/100 from ${seg.effortCount} efforts (${seg.recentCount} recent)">
+                            <span class="truncate" style="font-size: 0.625rem; color: var(--text-secondary); width: 40%; min-width: 0; flex-shrink: 0;">${seg.segmentName}</span>
+                            <div style="flex: 1; height: 10px; background: var(--border); border-radius: 3px; overflow: hidden;">
+                              <div style="height: 100%; width: ${Math.round(seg.score)}%; background: ${seg.score >= 70 ? '#3D7A4A' : seg.score >= 40 ? '#4882A8' : '#A05060'}; border-radius: 3px;"></div>
+                            </div>
+                            <span style="font-family: var(--font-mono); font-size: 0.625rem; color: var(--text-tertiary); min-width: 1.5rem; text-align: right;">${Math.round(seg.score)}</span>
+                          </div>
+                        `)}
+                      </div>
+                    </details>
+                  `}
                 </div>
               `}
 
@@ -611,7 +649,7 @@ export function Dashboard() {
                   <div class="flex items-center gap-2 mb-2">
                     <span style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary); display: inline-flex; align-items: center;">Aerobic Efficiency
                       <${ChartHelp} id="aerobic-eff">
-                        <strong>Aerobic Efficiency</strong> measures output per heartbeat (EF = Normalized Power / avg HR, per Friel). Higher = more work per heartbeat = fitter. Only includes steady-state rides ≥45 min with a power meter.<br/><br/>Each dot is a ride. The dashed trend line shows overall direction: green = improving, red = declining. Long-press or hover a dot for the date and exact EF.
+                        <strong>Aerobic Efficiency</strong> (EF = Normalized Power / avg HR) measures output per heartbeat. Higher = fitter. Bars show monthly averages over the last 12 months. Trend compares the last 6 weeks to the prior 6 weeks.
                       <//>
                     </span>
                     ${fitnessData.value.aerobicEfficiency.ef.trend != null && html`
@@ -628,49 +666,23 @@ export function Dashboard() {
                       \u2022 ${fitnessData.value.aerobicEfficiency.ef.recentCount} recent rides
                     </div>
                   </div>
-                  <!-- EF scatter plot with trend line -->
-                  ${fitnessData.value.aerobicEfficiency.ef.history.length > 2 && (() => {
-                    const pts = fitnessData.value.aerobicEfficiency.ef.history;
-                    const efs = pts.map((p) => p.ef);
-                    const dates = pts.map((p) => p.date);
+                  <!-- Monthly EF bar chart (replaces scatter plot) -->
+                  ${fitnessData.value.aerobicEfficiency.ef.monthlyHistory.length > 1 && (() => {
+                    const months = fitnessData.value.aerobicEfficiency.ef.monthlyHistory;
+                    const efs = months.map((m) => m.ef);
                     const minEf = Math.min(...efs);
                     const maxEf = Math.max(...efs);
                     const efRange = maxEf - minEf || 0.1;
-                    const padded = { min: Math.max(0, minEf - efRange * 0.1), max: maxEf + efRange * 0.1 };
+                    const padded = { min: Math.max(0, minEf - efRange * 0.15), max: maxEf + efRange * 0.1 };
                     const pRange = padded.max - padded.min;
-                    const minDate = Math.min(...dates);
-                    const maxDate = Math.max(...dates);
-                    const dateRange = maxDate - minDate || 1;
-                    // SVG dimensions: left margin for y-axis, bottom margin for x-axis
-                    const W = 280, H = 90, ML = 32, MR = 4, MT = 4, MB = 18;
+                    const W = 280, H = 80, ML = 32, MR = 4, MT = 4, MB = 18;
                     const cW = W - ML - MR, cH = H - MT - MB;
-                    const x = (d) => ML + ((d - minDate) / dateRange) * cW;
-                    const y = (ef) => MT + cH - ((ef - padded.min) / pRange) * cH;
-                    // Linear regression for trend line
-                    const n = pts.length;
-                    const sumX = dates.reduce((s, d) => s + d, 0);
-                    const sumY = efs.reduce((s, e) => s + e, 0);
-                    const sumXY = pts.reduce((s, p) => s + p.date * p.ef, 0);
-                    const sumX2 = dates.reduce((s, d) => s + d * d, 0);
-                    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-                    const intercept = (sumY - slope * sumX) / n;
-                    const trendY1 = slope * minDate + intercept;
-                    const trendY2 = slope * maxDate + intercept;
-                    // Y-axis tick values (3 ticks: min, mid, max of padded range)
+                    const barW = Math.max(6, Math.min(20, (cW / months.length) - 3));
                     const yTicks = [padded.min, padded.min + pRange / 2, padded.max].map((v) => +v.toFixed(2));
-                    // X-axis month labels
+                    const y = (ef) => MT + cH - ((ef - padded.min) / pRange) * cH;
                     const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                    const xLabels = [];
-                    const startDate = new Date(minDate);
-                    const endDate = new Date(maxDate);
-                    let cur = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 1);
-                    while (cur <= endDate) {
-                      xLabels.push({ date: cur.getTime(), label: monthNames[cur.getMonth()] });
-                      cur = new Date(cur.getFullYear(), cur.getMonth() + 2, 1);
-                    }
-                    // Only show ~4-6 labels max
-                    const labelStep = Math.max(1, Math.ceil(xLabels.length / 5));
-                    const shownLabels = xLabels.filter((_, i) => i % labelStep === 0);
+                    // Show ~4-6 labels max
+                    const labelStep = Math.max(1, Math.ceil(months.length / 6));
                     return html`
                       <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; margin-top: 0.75rem; overflow: visible;">
                         <!-- Y-axis ticks -->
@@ -678,17 +690,23 @@ export function Dashboard() {
                           <text x="${ML - 3}" y="${y(v) + 1}" text-anchor="end" style="font-size: 7px; fill: var(--text-tertiary); font-family: var(--font-mono);">${v}</text>
                           <line x1="${ML}" y1="${y(v)}" x2="${W - MR}" y2="${y(v)}" stroke="var(--border)" stroke-width="0.5" stroke-dasharray="2,2" />
                         `)}
-                        <!-- X-axis labels -->
-                        ${shownLabels.map((l) => html`
-                          <text x="${x(l.date)}" y="${H - 2}" text-anchor="middle" style="font-size: 7px; fill: var(--text-tertiary); font-family: var(--font-mono);">${l.label}</text>
-                        `)}
-                        <!-- Trend line -->
-                        <line x1="${x(minDate)}" y1="${y(trendY1)}" x2="${x(maxDate)}" y2="${y(trendY2)}" stroke="${slope > 0 ? '#3D7A4A' : '#A05060'}" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.7" />
-                        <!-- Data points -->
-                        ${pts.map((p) => {
-                          const d = new Date(p.date);
-                          const label = `${d.toLocaleDateString()}: EF ${p.ef.toFixed(2)}`;
-                          return html`<g><circle cx="${x(p.date)}" cy="${y(p.ef)}" r="8" fill="transparent" style="cursor: pointer;"><title>${label}</title></circle><circle cx="${x(p.date)}" cy="${y(p.ef)}" r="2.5" fill="#4882A8" opacity="0.7" style="pointer-events: none;" /></g>`;
+                        <!-- Monthly bars -->
+                        ${months.map((m, i) => {
+                          const xPos = ML + (i / (months.length - 1 || 1)) * (cW - barW) + barW / 2;
+                          const barH = ((m.ef - padded.min) / pRange) * cH;
+                          const barY = MT + cH - barH;
+                          const monthIdx = parseInt(m.month.split('-')[1]) - 1;
+                          const isLast = i === months.length - 1;
+                          return html`
+                            <g>
+                              <rect x="${xPos - barW / 2}" y="${barY}" width="${barW}" height="${barH}" rx="2" fill="${isLast ? '#4882A8' : '#4882A8'}" opacity="${isLast ? '0.9' : '0.45'}">
+                                <title>${monthNames[monthIdx]} ${m.month.split('-')[0]}: EF ${m.ef} (${m.count} ride${m.count !== 1 ? 's' : ''})</title>
+                              </rect>
+                              ${i % labelStep === 0 ? html`
+                                <text x="${xPos}" y="${H - 2}" text-anchor="middle" style="font-size: 7px; fill: var(--text-tertiary); font-family: var(--font-mono);">${monthNames[monthIdx]}</text>
+                              ` : ''}
+                            </g>
+                          `;
                         })}
                       </svg>
                     `;
@@ -697,36 +715,55 @@ export function Dashboard() {
               `}
             </div>
 
-            <!-- Interpretation -->
-            ${fitnessData.value.interpretation && html`
-              <div class="mt-3 px-3 py-2 rounded-lg" style="background: ${
-                fitnessData.value.interpretation === 'ideal' ? '#E8F2E6' :
-                fitnessData.value.interpretation === 'overreaching' ? '#F4E4E8' :
-                fitnessData.value.interpretation === 'detraining' ? '#F4E4E8' :
-                'var(--bg)'
-              }; border: 1px solid ${
-                fitnessData.value.interpretation === 'ideal' ? '#C0D8B8' :
-                fitnessData.value.interpretation === 'overreaching' ? '#DCC0C8' :
-                fitnessData.value.interpretation === 'detraining' ? '#DCC0C8' :
-                'var(--border)'
-              };">
-                <span style="font-family: var(--font-body); font-size: 0.8125rem; color: ${
-                  fitnessData.value.interpretation === 'ideal' ? '#1E4D28' :
-                  fitnessData.value.interpretation === 'overreaching' ? '#6E2E3C' :
-                  fitnessData.value.interpretation === 'detraining' ? '#6E2E3C' :
-                  'var(--text-secondary)'
-                };">
-                  ${{
-                    ideal: "Getting stronger and more efficient",
-                    pushing: "Pushing harder \u2014 output up, economy steady",
-                    building: "Base building \u2014 economy improving, capacity stable",
-                    overreaching: "Watch out \u2014 output up but costing more",
-                    detraining: "Both capacity and efficiency declining",
-                    maintaining: "Maintaining current fitness level",
-                  }[fitnessData.value.interpretation]}
-                </span>
-              </div>
-            `}
+            <!-- Contextual Interpretation (#189) -->
+            ${fitnessData.value.interpretation && (() => {
+              const interp = fitnessData.value.interpretation;
+              const season = fitnessData.value.season;
+              const capTrend = fitnessData.value.performanceCapacity.trend;
+              const efTrend = fitnessData.value.aerobicEfficiency.ef?.trend;
+
+              // Build contextual, directional descriptions instead of blunt labels
+              const capDir = capTrend > 2 ? "climbing" : capTrend < -2 ? "dipping" : "holding steady";
+              const efDir = efTrend > 2 ? "improving" : efTrend < -2 ? "dipping" : "steady";
+              const efAbs = efTrend != null ? `${Math.abs(efTrend).toFixed(0)}%` : null;
+
+              let message, detail;
+              if (interp === "ideal") {
+                message = `Climb power ${capDir} and efficiency ${efDir}`;
+                detail = "Strong form \u2014 both metrics trending well.";
+              } else if (interp === "pushing") {
+                message = `Climb power ${capDir}; efficiency ${efDir}`;
+                detail = "Pushing harder \u2014 output rising while economy stays stable.";
+              } else if (interp === "building") {
+                message = `Efficiency ${efDir}; climb power ${capDir}`;
+                detail = "Base building \u2014 aerobic economy is improving.";
+              } else if (interp === "overreaching") {
+                message = `Climb power ${capDir} but efficiency ${efDir}${efAbs ? ` (~${efAbs})` : ''}`;
+                detail = "Output is up but costing more \u2014 consider recovery.";
+              } else if (interp === "detraining") {
+                message = `Climb power ${capDir}; efficiency ${efDir}${efAbs ? ` (~${efAbs})` : ''}`;
+                if (season === "off_season" || season === "early_season") {
+                  detail = "Typical for this time of year \u2014 numbers usually rise once consistent riding resumes.";
+                } else {
+                  detail = "Both metrics are dropping \u2014 could indicate insufficient volume or recovery needs.";
+                }
+              } else {
+                message = `Climb power ${capDir}; efficiency ${efDir}`;
+                detail = "Fitness is holding at current levels.";
+              }
+
+              // Muted colors: only ideal gets light green, others are neutral
+              const bgColor = interp === "ideal" ? "#E8F2E6" : "var(--bg)";
+              const borderColor = interp === "ideal" ? "#C0D8B8" : "var(--border)";
+              const textColor = interp === "ideal" ? "#1E4D28" : "var(--text-secondary)";
+
+              return html`
+                <div class="mt-3 px-3 py-2 rounded-lg" style="background: ${bgColor}; border: 1px solid ${borderColor};">
+                  <div style="font-family: var(--font-body); font-size: 0.8125rem; color: ${textColor}; font-weight: 500;">${message}</div>
+                  <div style="font-family: var(--font-body); font-size: 0.75rem; color: ${textColor}; opacity: 0.8; margin-top: 0.125rem;">${detail}</div>
+                </div>
+              `;
+            })()}
           </div>
         `}
 
@@ -1024,9 +1061,9 @@ export function Dashboard() {
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
                 <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
-                  <p><strong>Performance Capacity</strong> (0-100) measures what your body can produce. It tracks your climb segment times, converts them to estimated power-to-weight (VAM/Ferrari formula), and ranks recent efforts (last 90 days) against your all-time history. The horizontal bar chart shows your top climb segments colored by percentile: green (\u226570), blue (\u226540), or red (below 40). Long-press or hover a bar for effort counts. Requires at least 3 climb segments with 3+ efforts each.</p>
-                  <p><strong>Aerobic Efficiency</strong> measures output per heartbeat using the Efficiency Factor (EF = Normalized Power / avg HR), a metric developed by Joe Friel. Higher means more work per heartbeat = fitter. Only includes steady-state rides ≥45 min with a power meter — interval sessions and short rides are excluded because EF is only meaningful for aerobic efforts. The scatter plot shows individual ride EF values over time. A dashed trend line shows the overall direction: green = improving, red = declining. Long-press or hover a dot for the date and exact EF.</p>
-                  <p>Together they tell a training story: rising capacity + rising efficiency = ideal. Rising capacity + falling efficiency = possible overreaching. The colored banner below interprets the combination.</p>
+                  <p><strong>Climb Form</strong> (0\u2013100) shows how your recent climb efforts compare to your personal history. It tracks segment times, converts them to estimated power-to-weight, and ranks recent efforts against your all-time range. The sparkline shows your 4-week rolling average over the last 6 months. Trend arrows compare the last 6 weeks to the prior 6 weeks. Tap "Climb details" to see per-segment breakdowns.</p>
+                  <p><strong>Aerobic Efficiency</strong> measures output per heartbeat (EF = Normalized Power / avg HR, per Friel). Higher = more work per heartbeat = fitter. Only steady-state rides \u226530 min with a power meter are included. The bar chart shows monthly averages over the last 12 months. Trend compares the last 6 weeks to the prior 6 weeks.</p>
+                  <p>The interpretation below describes the current trajectory with seasonal context \u2014 declining numbers in winter or early spring are normal for outdoor cyclists.</p>
                 </div>
               </details>
 
@@ -1101,7 +1138,7 @@ export function Dashboard() {
                 <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
                   <p>Each segment effort in the activity detail view has a <strong>sparkline</strong> — a small inline chart showing your recent effort history (up to 20 efforts). The current effort is highlighted in orange.</p>
                   <p>A <strong>trend line</strong> overlays the chart using linear regression. Green means you're getting faster, red means you're slowing down, gray means stable. Tap the sparkline to expand it and see your best time, effort count, and improvement rate (seconds gained or lost per month).</p>
-                  <p>The dashboard Form Indicators also include charts. <strong>Performance Capacity</strong> shows horizontal bars for your top climb segments, colored by percentile (green \u226570, blue \u226540, red below). <strong>Aerobic Efficiency</strong> shows a scatter plot of EF (Normalized Power / avg HR) for steady-state rides \u226545 min, with a dashed trend line (green = improving, red = declining). Interval sessions are excluded \u2014 EF is only meaningful for aerobic efforts. Long-press or hover any bar or dot for details.</p>
+                  <p>The dashboard Form Indicators also include charts. <strong>Climb Form</strong> shows a sparkline of your 4-week rolling score over 6 months. <strong>Aerobic Efficiency</strong> shows monthly EF averages (Normalized Power / avg HR) as a bar chart over the last 12 months. Tap "Climb details" for per-segment breakdowns. Hover or long-press any bar for details.</p>
                 </div>
               </details>
 
