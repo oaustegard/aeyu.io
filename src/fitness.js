@@ -9,10 +9,10 @@
  *   - Uses climb segment performance (VAM, estimated W/kg) over time
  *   - 0-100 index relative to athlete's own all-time range
  *
- * Indicator 2: Aerobic Efficiency (when HR data available)
+ * Indicator 2: Aerobic Efficiency (when power + HR data available)
  *   - Measures what that output costs you
- *   - Efficiency Factor: power/HR or speed/HR
- *   - Only activates when HR data is present
+ *   - Efficiency Factor: NP/HR per Friel methodology
+ *   - Only steady-state rides ≥45 min with power meter and HR
  */
 
 import { getAllSegments, getAllActivities } from "./db.js";
@@ -24,6 +24,8 @@ const MIN_MOVING_TIME = 120;          // 2 min minimum to avoid approach-speed s
 const MIN_GRADE_PERCENT = 4;          // Minimum gradient for climb identification
 const ROLLING_WINDOW_DAYS = 90;       // Performance index rolling window
 const RECENCY_HALF_LIFE_DAYS = 30;    // Exponential recency weighting half-life
+const MIN_EF_MOVING_TIME = 2700;      // 45 min minimum for whole-ride EF (warmup dominates shorter rides)
+const MAX_VARIABILITY_INDEX = 1.10;   // VI = NP/AP; steady aerobic rides are ≤1.05, allow up to 1.10
 
 // --- Climb Identification ---
 
@@ -204,55 +206,54 @@ export async function computePerformanceCapacity() {
 // --- Aerobic Efficiency Computation ---
 
 /**
- * Compute Aerobic Efficiency metrics from activity data.
+ * Compute Aerobic Efficiency from steady-state power rides with HR data.
  *
- * Efficiency Factor (EF) = power / HR or adjusted speed / HR
- * Higher EF = more output per heartbeat = fitter.
- *
- * Only activates when HR data is present. Returns null metrics gracefully
- * when no HR data exists — no nagging.
+ * Efficiency Factor (EF) = Normalized Power / avg HR (per Friel/TrainingPeaks).
+ * Higher EF = more output per heartbeat = fitter. Only meaningful for:
+ *   - Rides with a power meter (speed/HR is not a valid cycling EF metric)
+ *   - Steady-state aerobic efforts (low Variability Index)
+ *   - Rides long enough that warmup doesn't dominate (≥45 min)
  *
  * Returns: { ef: { current, trend, history }, hasData }
  */
 export async function computeAerobicEfficiency() {
   const allActivities = await getAllActivities();
 
-  // Filter to cycling activities with HR data
-  const withHR = allActivities.filter((a) =>
+  // Filter to cycling activities with power meter + HR data + minimum duration
+  const eligible = allActivities.filter((a) =>
     a.has_heartrate &&
     a.average_heartrate > 0 &&
-    a.has_efforts &&
+    a.device_watts &&
+    a.moving_time >= MIN_EF_MOVING_TIME &&
     (a.sport_type === "Ride" || a.sport_type === "VirtualRide" || a.sport_type === "MountainBikeRide")
   );
 
-  if (withHR.length < 3) {
-    return { ef: null, hasData: false, reason: withHR.length === 0 ? "no_hr_data" : "insufficient_hr_data" };
+  if (eligible.length < 3) {
+    return { ef: null, hasData: false, reason: eligible.length === 0 ? "no_power_hr_data" : "insufficient_data" };
   }
 
-  // Compute EF per activity — power-based and speed-based separately
-  const powerEF = [];
-  const speedEF = [];
+  const efData = [];
+  for (const a of eligible) {
+    const np = a.weighted_average_watts || a.average_watts;
+    if (!np || np <= 0) continue;
 
-  for (const a of withHR) {
-    const date = new Date(a.start_date).getTime();
-    const base = { date, activityId: a.id, activityName: a.name, movingTime: a.moving_time, avgHR: a.average_heartrate };
-
-    if (a.device_watts && a.weighted_average_watts > 0) {
-      powerEF.push({ ...base, ef: a.weighted_average_watts / a.average_heartrate, hasPower: true });
-    } else if (a.device_watts && a.average_watts > 0) {
-      powerEF.push({ ...base, ef: a.average_watts / a.average_heartrate, hasPower: true });
-    } else if (a.average_speed > 0) {
-      // Speed-based EF (less accurate, terrain-dependent) — only used when no power data exists
-      const elevFactor = a.total_elevation_gain > 0
-        ? 1 + (a.total_elevation_gain / (a.distance || 1)) * 10
-        : 1;
-      speedEF.push({ ...base, ef: (a.average_speed * elevFactor) / a.average_heartrate, hasPower: false });
+    // Variability Index: NP / AP. Steady rides ≈ 1.0, interval sessions > 1.10
+    // Skip highly variable rides — EF is only meaningful for steady-state efforts
+    if (a.weighted_average_watts && a.average_watts > 0) {
+      const vi = a.weighted_average_watts / a.average_watts;
+      if (vi > MAX_VARIABILITY_INDEX) continue;
     }
-  }
 
-  // Use power-based EF exclusively if enough data; otherwise fall back to speed-based only.
-  // Never mix — they are different units and scales.
-  const efData = powerEF.length >= 3 ? powerEF : speedEF;
+    efData.push({
+      ef: np / a.average_heartrate,
+      date: new Date(a.start_date).getTime(),
+      activityId: a.id,
+      activityName: a.name,
+      hasPower: true,
+      movingTime: a.moving_time,
+      avgHR: a.average_heartrate,
+    });
+  }
 
   if (efData.length < 3) {
     return { ef: null, hasData: false, reason: "insufficient_ef_data" };
@@ -297,7 +298,7 @@ export async function computeAerobicEfficiency() {
       monthlyHistory: monthlyEF,
       recentCount: recentEF.length,
       totalCount: efData.length,
-      hasPowerData: efData.length > 0 && efData[0].hasPower,
+      hasPowerData: true,
     },
     hasData: true,
   };
