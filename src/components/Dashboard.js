@@ -611,7 +611,7 @@ export function Dashboard() {
                   <div class="flex items-center gap-2 mb-2">
                     <span style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary); display: inline-flex; align-items: center;">Aerobic Efficiency
                       <${ChartHelp} id="aerobic-eff">
-                        <strong>Aerobic Efficiency</strong> measures output per heartbeat (Efficiency Factor = power/HR or speed/HR). Higher = more work per heartbeat = fitter.<br/><br/>Each dot is a ride. The dashed trend line shows overall direction: green = improving, red = declining. Long-press or hover a dot for the date and exact EF.
+                        <strong>Aerobic Efficiency</strong> measures output per heartbeat (EF = Normalized Power / avg HR, per Friel). Higher = more work per heartbeat = fitter. Only includes steady-state rides ≥45 min with a power meter.<br/><br/>Each dot is a ride. The dashed trend line shows overall direction: green = improving, red = declining. Long-press or hover a dot for the date and exact EF.
                       <//>
                     </span>
                     ${fitnessData.value.aerobicEfficiency.ef.trend != null && html`
@@ -624,7 +624,7 @@ export function Dashboard() {
                   <div class="flex items-baseline gap-2">
                     <div style="font-family: var(--font-display); font-size: 2rem; color: var(--text);">${fitnessData.value.aerobicEfficiency.ef.current}</div>
                     <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">
-                      EF ${fitnessData.value.aerobicEfficiency.ef.hasPowerData ? '(W/bpm)' : '(speed/bpm)'}
+                      EF (W/bpm)
                       \u2022 ${fitnessData.value.aerobicEfficiency.ef.recentCount} recent rides
                     </div>
                   </div>
@@ -1025,7 +1025,7 @@ export function Dashboard() {
                 </summary>
                 <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
                   <p><strong>Performance Capacity</strong> (0-100) measures what your body can produce. It tracks your climb segment times, converts them to estimated power-to-weight (VAM/Ferrari formula), and ranks recent efforts (last 90 days) against your all-time history. The horizontal bar chart shows your top climb segments colored by percentile: green (\u226570), blue (\u226540), or red (below 40). Long-press or hover a bar for effort counts. Requires at least 3 climb segments with 3+ efforts each.</p>
-                  <p><strong>Aerobic Efficiency</strong> measures output per heartbeat (Efficiency Factor = power/HR or speed/HR). Higher means more work per heartbeat = fitter. The scatter plot shows individual ride EF values over time. A dashed trend line shows the overall direction: green = improving, red = declining. Long-press or hover a dot for the date and exact EF. Only appears when your activities include heart rate data.</p>
+                  <p><strong>Aerobic Efficiency</strong> measures output per heartbeat using the Efficiency Factor (EF = Normalized Power / avg HR), a metric developed by Joe Friel. Higher means more work per heartbeat = fitter. Only includes steady-state rides ≥45 min with a power meter — interval sessions and short rides are excluded because EF is only meaningful for aerobic efforts. The scatter plot shows individual ride EF values over time. A dashed trend line shows the overall direction: green = improving, red = declining. Long-press or hover a dot for the date and exact EF.</p>
                   <p>Together they tell a training story: rising capacity + rising efficiency = ideal. Rising capacity + falling efficiency = possible overreaching. The colored banner below interprets the combination.</p>
                 </div>
               </details>
@@ -1101,7 +1101,7 @@ export function Dashboard() {
                 <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
                   <p>Each segment effort in the activity detail view has a <strong>sparkline</strong> — a small inline chart showing your recent effort history (up to 20 efforts). The current effort is highlighted in orange.</p>
                   <p>A <strong>trend line</strong> overlays the chart using linear regression. Green means you're getting faster, red means you're slowing down, gray means stable. Tap the sparkline to expand it and see your best time, effort count, and improvement rate (seconds gained or lost per month).</p>
-                  <p>The dashboard Form Indicators also include charts. <strong>Performance Capacity</strong> shows horizontal bars for your top climb segments, colored by percentile (green \u226570, blue \u226540, red below). <strong>Aerobic Efficiency</strong> shows a scatter plot of individual ride EF values over time with a dashed trend line (green = improving, red = declining). Long-press or hover any bar or dot for details.</p>
+                  <p>The dashboard Form Indicators also include charts. <strong>Performance Capacity</strong> shows horizontal bars for your top climb segments, colored by percentile (green \u226570, blue \u226540, red below). <strong>Aerobic Efficiency</strong> shows a scatter plot of EF (Normalized Power / avg HR) for steady-state rides \u226545 min, with a dashed trend line (green = improving, red = declining). Interval sessions are excluded \u2014 EF is only meaningful for aerobic efforts. Long-press or hover any bar or dot for details.</p>
                 </div>
               </details>
 
