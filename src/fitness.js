@@ -22,8 +22,11 @@ import { getAllSegments, getAllActivities } from "./db.js";
 const MIN_EFFORTS_PER_SEGMENT = 3;   // Need at least 3 efforts for meaningful comparison
 const MIN_MOVING_TIME = 120;          // 2 min minimum to avoid approach-speed slingshot
 const MIN_GRADE_PERCENT = 4;          // Minimum gradient for climb identification
-const ROLLING_WINDOW_DAYS = 90;       // Performance index rolling window
+const ROLLING_WINDOW_DAYS = 90;       // Data inclusion window
+const TREND_WINDOW_DAYS = 42;         // 6-week trend comparison window
 const RECENCY_HALF_LIFE_DAYS = 30;    // Exponential recency weighting half-life
+const ROLLING_SCORE_WEEKS = 4;        // Rolling average window for sparkline
+const EF_HISTORY_MONTHS = 12;         // Cap EF history display to 12 months
 const MIN_EF_MOVING_TIME = 1800;      // 30 min minimum for whole-ride EF
 const MAX_VARIABILITY_INDEX = 1.25;   // VI = NP/AP; allow real-world rides with stops and terrain variation
 
@@ -144,24 +147,40 @@ export async function computePerformanceCapacity() {
 
     const segScore = weightSum > 0 ? weightedSum / weightSum : 0;
 
-    // Also compute older window for trend
-    const olderWindowStart = now - windowMs * 2;
-    const olderScored = scored.filter(
-      (s) => s.date >= olderWindowStart && s.date < now - windowMs
+    // Trend: compare last 6 weeks vs prior 6 weeks (not 90 vs 90)
+    const trendMs = TREND_WINDOW_DAYS * 86400000;
+    const recentTrendScored = scored.filter(
+      (s) => now - s.date <= trendMs
+    );
+    const olderTrendScored = scored.filter(
+      (s) => s.date >= now - trendMs * 2 && s.date < now - trendMs
     );
 
     let olderScore = null;
-    if (olderScored.length > 0) {
-      let olderWeightedSum = 0;
-      let olderWeightSum = 0;
-      for (const s of olderScored) {
-        const ageMs = now - windowMs - s.date; // age relative to older window end
+    let recentTrendScore = null;
+
+    if (recentTrendScored.length > 0) {
+      let ws = 0, wt = 0;
+      for (const s of recentTrendScored) {
+        const ageMs = now - s.date;
         const weight = Math.exp(-Math.LN2 * ageMs / halfLifeMs);
         const percentile = ((s.performance - minPerf) / range) * 100;
-        olderWeightedSum += percentile * weight;
-        olderWeightSum += weight;
+        ws += percentile * weight;
+        wt += weight;
       }
-      olderScore = olderWeightSum > 0 ? olderWeightedSum / olderWeightSum : null;
+      recentTrendScore = wt > 0 ? ws / wt : null;
+    }
+
+    if (olderTrendScored.length > 0) {
+      let ws = 0, wt = 0;
+      for (const s of olderTrendScored) {
+        const ageMs = now - trendMs - s.date;
+        const weight = Math.exp(-Math.LN2 * ageMs / halfLifeMs);
+        const percentile = ((s.performance - minPerf) / range) * 100;
+        ws += percentile * weight;
+        wt += weight;
+      }
+      olderScore = wt > 0 ? ws / wt : null;
     }
 
     segmentScores.push({
@@ -169,11 +188,11 @@ export async function computePerformanceCapacity() {
       segmentName: seg.name,
       score: segScore,
       olderScore,
+      recentTrendScore,
       effortCount: validEfforts.length,
       recentCount: recentScored.length,
       averageGrade: seg.average_grade,
       climbCategory: seg.climb_category,
-      // Best and latest effort for display
       bestEffort: scored.reduce((best, s) => s.performance > best.performance ? s : best),
       latestEffort: scored.reduce((latest, s) => s.date > latest.date ? s : latest),
     });
@@ -186,21 +205,92 @@ export async function computePerformanceCapacity() {
   // Composite score: average across qualifying segments (equal weight)
   const compositeScore = segmentScores.reduce((sum, s) => sum + s.score, 0) / segmentScores.length;
 
-  // Trend: compare current composite to older composite
-  const segmentsWithTrend = segmentScores.filter((s) => s.olderScore != null);
+  // Trend: compare recent 6-week composite to older 6-week composite
+  const segmentsWithTrend = segmentScores.filter((s) => s.olderScore != null && s.recentTrendScore != null);
   let trend = null;
   if (segmentsWithTrend.length > 0) {
-    const currentAvg = segmentsWithTrend.reduce((s, seg) => s + seg.score, 0) / segmentsWithTrend.length;
+    const currentAvg = segmentsWithTrend.reduce((s, seg) => s + seg.recentTrendScore, 0) / segmentsWithTrend.length;
     const olderAvg = segmentsWithTrend.reduce((s, seg) => s + seg.olderScore, 0) / segmentsWithTrend.length;
-    trend = currentAvg - olderAvg; // Positive = improving
+    trend = currentAvg - olderAvg;
   }
+
+  // Build rolling history: 4-week rolling score at weekly intervals for sparkline
+  const rollingHistory = buildRollingHistory(climbSegments);
+
+  // Count unique climbs
+  const climbCount = segmentScores.length;
+  const totalEfforts = segmentScores.reduce((sum, s) => sum + s.recentCount, 0);
 
   return {
     score: Math.round(compositeScore),
     trend,
     segments: segmentScores.sort((a, b) => b.effortCount - a.effortCount),
+    rollingHistory,
+    climbCount,
+    totalEfforts,
     hasData: true,
   };
+}
+
+/**
+ * Build 4-week rolling performance score at weekly intervals over last 6 months.
+ * Returns array of { weekEnd, score } for sparkline display.
+ */
+function buildRollingHistory(climbSegments) {
+  const now = Date.now();
+  const sixMonthsMs = 182 * 86400000;
+  const fourWeeksMs = ROLLING_SCORE_WEEKS * 7 * 86400000;
+  const halfLifeMs = RECENCY_HALF_LIFE_DAYS * 86400000;
+  const points = [];
+
+  // Step backwards weekly from now
+  for (let weekEnd = now; weekEnd >= now - sixMonthsMs; weekEnd -= 7 * 86400000) {
+    const windowStart = weekEnd - fourWeeksMs;
+    const segScores = [];
+
+    for (const seg of climbSegments) {
+      if (!isClimbSegment(seg)) continue;
+      const validEfforts = (seg.efforts || []).filter((e) => e.moving_time >= MIN_MOVING_TIME);
+      if (validEfforts.length < MIN_EFFORTS_PER_SEGMENT) continue;
+
+      const scored = validEfforts.map((e) => {
+        let performance;
+        if (e.device_watts && e.average_watts > 0) {
+          performance = e.average_watts;
+        } else {
+          const vam = calcVAM(seg, e);
+          performance = estimateRelativePower(vam, seg.average_grade);
+        }
+        return { performance, date: new Date(e.start_date).getTime() };
+      }).filter((s) => s.performance != null && s.performance > 0);
+
+      if (scored.length < MIN_EFFORTS_PER_SEGMENT) continue;
+
+      const allPerfs = scored.map((s) => s.performance).sort((a, b) => a - b);
+      const range = allPerfs[allPerfs.length - 1] - allPerfs[0];
+      if (range === 0) continue;
+
+      const windowEfforts = scored.filter((s) => s.date >= windowStart && s.date <= weekEnd);
+      if (windowEfforts.length === 0) continue;
+
+      let ws = 0, wt = 0;
+      for (const s of windowEfforts) {
+        const ageMs = weekEnd - s.date;
+        const weight = Math.exp(-Math.LN2 * ageMs / halfLifeMs);
+        const percentile = ((s.performance - allPerfs[0]) / range) * 100;
+        ws += percentile * weight;
+        wt += weight;
+      }
+      if (wt > 0) segScores.push(ws / wt);
+    }
+
+    if (segScores.length > 0) {
+      const avg = segScores.reduce((a, b) => a + b, 0) / segScores.length;
+      points.push({ weekEnd, score: Math.round(avg) });
+    }
+  }
+
+  return points.reverse(); // chronological order
 }
 
 // --- Aerobic Efficiency Computation ---
@@ -265,11 +355,11 @@ export async function computeAerobicEfficiency() {
   efData.sort((a, b) => b.date - a.date);
 
   const now = Date.now();
-  const windowMs = ROLLING_WINDOW_DAYS * 86400000;
+  const trendMs = TREND_WINDOW_DAYS * 86400000;
 
-  // Current window EF (last 90 days) — most recent rides are first
-  const recentEF = efData.filter((d) => now - d.date <= windowMs);
-  const olderEF = efData.filter((d) => d.date >= now - windowMs * 2 && d.date < now - windowMs);
+  // 6-week trend windows instead of 90 days
+  const recentEF = efData.filter((d) => now - d.date <= trendMs);
+  const olderEF = efData.filter((d) => d.date >= now - trendMs * 2 && d.date < now - trendMs);
 
   const currentEF = recentEF.length > 0
     ? recentEF.reduce((sum, d) => sum + d.ef, 0) / recentEF.length
@@ -289,17 +379,17 @@ export async function computeAerobicEfficiency() {
     trend = ((currentEF - olderEFAvg) / olderEFAvg) * 100; // Percentage change
   }
 
-  // Chart history: take the 50 most recent data points, reverse to chronological for display
-  const chartHistory = efData.slice(0, 50).reverse();
+  // Cap data to last 12 months for chart display
+  const twelveMonthsMs = EF_HISTORY_MONTHS * 30 * 86400000;
+  const cappedData = efData.filter((d) => now - d.date <= twelveMonthsMs);
 
-  // Build monthly history for chart
-  const monthlyEF = buildMonthlyHistory(efData);
+  // Build monthly history as primary chart source (not scatter dots)
+  const monthlyEF = buildMonthlyHistory(cappedData);
 
   return {
     ef: {
       current: currentEF ? +currentEF.toFixed(2) : null,
       trend,
-      history: chartHistory,
       monthlyHistory: monthlyEF,
       recentCount: recentEF.length,
       totalCount: efData.length,
@@ -342,7 +432,16 @@ export async function computeFitnessSummary() {
     computeAerobicEfficiency(),
   ]);
 
-  // Interpret the combination
+  // Determine season from current month
+  const currentMonth = new Date().getMonth(); // 0-11
+  // Northern hemisphere cycling seasons (the dominant use case)
+  let season;
+  if (currentMonth >= 2 && currentMonth <= 4) season = "early_season"; // Mar-May
+  else if (currentMonth >= 5 && currentMonth <= 8) season = "peak_season"; // Jun-Sep
+  else if (currentMonth >= 9 && currentMonth <= 10) season = "late_season"; // Oct-Nov
+  else season = "off_season"; // Dec-Feb
+
+  // Build contextual interpretation
   let interpretation = null;
   if (capacity.hasData && efficiency.hasData && capacity.trend != null && efficiency.ef?.trend != null) {
     const capUp = capacity.trend > 2;
@@ -350,11 +449,11 @@ export async function computeFitnessSummary() {
     const efUp = efficiency.ef.trend > 2;
     const efDown = efficiency.ef.trend < -2;
 
-    if (capUp && efUp) interpretation = "ideal";           // Stronger AND more efficient
-    else if (capUp && !efDown) interpretation = "pushing";  // Stronger but not more economical
-    else if (!capDown && efUp) interpretation = "building";  // Base building — economy improving
-    else if (capUp && efDown) interpretation = "overreaching"; // Output up but cost up more
-    else if (capDown && efDown) interpretation = "detraining"; // Both declining
+    if (capUp && efUp) interpretation = "ideal";
+    else if (capUp && !efDown) interpretation = "pushing";
+    else if (!capDown && efUp) interpretation = "building";
+    else if (capUp && efDown) interpretation = "overreaching";
+    else if (capDown && efDown) interpretation = "detraining";
     else interpretation = "maintaining";
   }
 
@@ -362,5 +461,6 @@ export async function computeFitnessSummary() {
     performanceCapacity: capacity,
     aerobicEfficiency: efficiency,
     interpretation,
+    season,
   };
 }
