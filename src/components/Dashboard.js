@@ -688,7 +688,7 @@ export function Dashboard() {
                         ${pts.map((p) => {
                           const d = new Date(p.date);
                           const label = `${d.toLocaleDateString()}: EF ${p.ef.toFixed(2)}`;
-                          return html`<circle cx="${x(p.date)}" cy="${y(p.ef)}" r="2.5" fill="#4882A8" opacity="0.7"><title>${label}</title></circle>`;
+                          return html`<g><circle cx="${x(p.date)}" cy="${y(p.ef)}" r="8" fill="transparent" style="cursor: pointer;"><title>${label}</title></circle><circle cx="${x(p.date)}" cy="${y(p.ef)}" r="2.5" fill="#4882A8" opacity="0.7" style="pointer-events: none;" /></g>`;
                         })}
                       </svg>
                     `;

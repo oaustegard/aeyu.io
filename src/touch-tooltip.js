@@ -13,6 +13,11 @@ let suppressContextMenu = false;
 function findTitled(el) {
   while (el && el !== document.body) {
     if (el.getAttribute && el.getAttribute("title")) return el;
+    // SVG elements use <title> child elements instead of title attributes
+    if (el.namespaceURI === "http://www.w3.org/2000/svg") {
+      const t = el.querySelector && el.querySelector("title");
+      if (t && t.textContent) return el;
+    }
     el = el.parentElement;
   }
   return null;
@@ -76,7 +81,9 @@ export function initTouchTooltips() {
     timer = setTimeout(() => {
       suppressContextMenu = true;
       pressTarget = null;
-      const text = target.getAttribute("title");
+      const text = target.getAttribute("title")
+        || (target.namespaceURI === "http://www.w3.org/2000/svg" && target.querySelector("title")?.textContent)
+        || null;
       if (text) show(text, startX, startY);
     }, 500);
   }, { passive: true });
