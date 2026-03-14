@@ -229,37 +229,30 @@ export async function computeAerobicEfficiency() {
     return { ef: null, hasData: false, reason: withHR.length === 0 ? "no_hr_data" : "insufficient_hr_data" };
   }
 
-  // Compute EF per activity
-  const efData = withHR.map((a) => {
+  // Compute EF per activity — power-based and speed-based separately
+  const powerEF = [];
+  const speedEF = [];
+
+  for (const a of withHR) {
     const date = new Date(a.start_date).getTime();
-    let ef;
+    const base = { date, activityId: a.id, activityName: a.name, movingTime: a.moving_time, avgHR: a.average_heartrate };
 
     if (a.device_watts && a.weighted_average_watts > 0) {
-      // Power-based EF (most accurate)
-      ef = a.weighted_average_watts / a.average_heartrate;
+      powerEF.push({ ...base, ef: a.weighted_average_watts / a.average_heartrate, hasPower: true });
     } else if (a.device_watts && a.average_watts > 0) {
-      ef = a.average_watts / a.average_heartrate;
+      powerEF.push({ ...base, ef: a.average_watts / a.average_heartrate, hasPower: true });
     } else if (a.average_speed > 0) {
-      // Speed-based EF (less accurate but directional)
-      // Normalize by elevation gain to partially account for terrain
+      // Speed-based EF (less accurate, terrain-dependent) — only used when no power data exists
       const elevFactor = a.total_elevation_gain > 0
         ? 1 + (a.total_elevation_gain / (a.distance || 1)) * 10
         : 1;
-      ef = (a.average_speed * elevFactor) / a.average_heartrate;
-    } else {
-      return null;
+      speedEF.push({ ...base, ef: (a.average_speed * elevFactor) / a.average_heartrate, hasPower: false });
     }
+  }
 
-    return {
-      ef,
-      date,
-      activityId: a.id,
-      activityName: a.name,
-      hasPower: !!(a.device_watts && (a.weighted_average_watts || a.average_watts)),
-      movingTime: a.moving_time,
-      avgHR: a.average_heartrate,
-    };
-  }).filter(Boolean);
+  // Use power-based EF exclusively if enough data; otherwise fall back to speed-based only.
+  // Never mix — they are different units and scales.
+  const efData = powerEF.length >= 3 ? powerEF : speedEF;
 
   if (efData.length < 3) {
     return { ef: null, hasData: false, reason: "insufficient_ef_data" };
@@ -304,7 +297,7 @@ export async function computeAerobicEfficiency() {
       monthlyHistory: monthlyEF,
       recentCount: recentEF.length,
       totalCount: efData.length,
-      hasPowerData: efData.some((d) => d.hasPower),
+      hasPowerData: efData.length > 0 && efData[0].hasPower,
     },
     hasData: true,
   };

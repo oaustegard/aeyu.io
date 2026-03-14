@@ -636,7 +636,7 @@ export function Dashboard() {
                     const minEf = Math.min(...efs);
                     const maxEf = Math.max(...efs);
                     const efRange = maxEf - minEf || 0.1;
-                    const padded = { min: minEf - efRange * 0.1, max: maxEf + efRange * 0.1 };
+                    const padded = { min: Math.max(0, minEf - efRange * 0.1), max: maxEf + efRange * 0.1 };
                     const pRange = padded.max - padded.min;
                     const minDate = Math.min(...dates);
                     const maxDate = Math.max(...dates);
