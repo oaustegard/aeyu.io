@@ -1237,7 +1237,8 @@ export function Dashboard() {
                 </summary>
                 <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
                   <p>Yes! Go to Settings and use "Export for AI Coach" to copy a compact summary of your recent training to the clipboard. It includes weekly volume rollups, monthly trends, fitness indicators, consistency streaks, and your last 10 rides — everything an LLM needs to give you coaching advice without overwhelming its context window.</p>
-                  <p>You can choose a time window (30 days to 1 year) and export as Markdown (best for chat) or JSON (best for structured prompts). Paste the result into ChatGPT, Claude, or any LLM and ask for training analysis.</p>
+                  <p>You can also export a single ride from any Activity Detail page. The ride export includes all segment efforts with awards, and optionally your form context leading into the ride (training load from the preceding 7/14/30 days, recent rides, fitness indicators, and streaks).</p>
+                  <p>Choose Markdown (best for chat) or JSON (best for structured prompts). Paste the result into ChatGPT, Claude, or any LLM and ask for training analysis.</p>
                 </div>
               </details>
 
