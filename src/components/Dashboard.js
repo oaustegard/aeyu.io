@@ -1625,19 +1625,16 @@ export function Dashboard() {
                 onClick=${async () => {
                   exportStatus.value = "loading";
                   try {
-                    const ctx = await buildLLMContext({ days: parseInt(exportDays.value) });
-                    const text = exportFormat.value === "markdown" ? contextToMarkdown(ctx) : JSON.stringify(ctx, null, 2);
-                    try {
-                      await navigator.clipboard.writeText(text);
-                    } catch (_clipErr) {
-                      const ta = document.createElement("textarea");
-                      ta.value = text;
-                      ta.style.cssText = "position:fixed;opacity:0";
-                      document.body.appendChild(ta);
-                      ta.select();
-                      document.execCommand("copy");
-                      ta.remove();
-                    }
+                    const days = parseInt(exportDays.value);
+                    const fmt = exportFormat.value;
+                    // Pass a Promise to ClipboardItem so user activation is captured now,
+                    // even though buildLLMContext resolves later
+                    const textPromise = (async () => {
+                      const ctx = await buildLLMContext({ days });
+                      return fmt === "markdown" ? contextToMarkdown(ctx) : JSON.stringify(ctx, null, 2);
+                    })();
+                    const blobPromise = textPromise.then(t => new Blob([t], { type: "text/plain" }));
+                    await navigator.clipboard.write([new ClipboardItem({ "text/plain": blobPromise })]);
                     exportStatus.value = "copied";
                     setTimeout(() => { exportStatus.value = null; }, 3000);
                   } catch (e) {
