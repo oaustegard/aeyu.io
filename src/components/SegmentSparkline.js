@@ -58,6 +58,7 @@ function formatDateShort(iso) {
 export function SegmentSparkline({ segment, currentEffortId }) {
   const svgRef = useRef(null);
   const [activeIdx, setActiveIdx] = useState(null);
+  const [showHelp, setShowHelp] = useState(false);
 
   if (!segment || !segment.efforts || segment.efforts.length < 2) return null;
 
@@ -231,6 +232,27 @@ export function SegmentSparkline({ segment, currentEffortId }) {
         ${rateStr && html`
           <span style="color: ${trendColor}; font-weight: 500;">Trend: ${rateStr}</span>
         `}
+        <span class="relative" style="display: inline-flex; align-items: center; margin-left: auto;">
+          <button
+            onClick=${(e) => { e.stopPropagation(); setShowHelp(!showHelp); }}
+            style="width: 16px; height: 16px; font-size: 10px; font-weight: 600; color: var(--text-tertiary); border: 1.5px solid var(--text-tertiary); background: transparent; cursor: pointer; line-height: 1; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;"
+            aria-label="Help"
+          >?</button>
+          ${showHelp && html`
+            <div
+              onClick=${(e) => e.stopPropagation()}
+              class="absolute z-20 rounded-lg shadow-lg p-3"
+              style="bottom: calc(100% + 8px); right: 0; width: 260px; background: var(--surface, #fff); border: 1px solid var(--border); font-family: var(--font-body); font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.5;"
+            >
+              <button
+                onClick=${() => setShowHelp(false)}
+                style="position: absolute; top: 4px; right: 6px; background: none; border: none; cursor: pointer; color: var(--text-tertiary); font-size: 14px; line-height: 1; padding: 2px;"
+                aria-label="Close"
+              >\u00D7</button>
+              Your recent effort history (up to 20). Current effort in orange. Dashed trend line: green = getting faster, red = slowing down. Tap/hover to see individual effort times.
+            </div>
+          `}
+        </span>
       </div>
     </div>
   `;
