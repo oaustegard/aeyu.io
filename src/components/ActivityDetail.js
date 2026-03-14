@@ -26,6 +26,7 @@ import { renderIconSVG, drawIcon } from "../icons.js";
 import { AWARD_LABELS, AWARD_COLORS } from "../award-config.js";
 import { StickyHeader } from "./StickyHeader.js";
 import { SegmentSparkline } from "./SegmentSparkline.js";
+import { buildRideExport, rideToMarkdown } from "../export-llm.js";
 
 const activity = signal(null);
 const awards = signal([]);
@@ -38,6 +39,9 @@ const resyncing = signal(false);
 const resyncError = signal(null);
 const sortColumn = signal(null); // null = activity order
 const sortDirection = signal("asc"); // "asc" or "desc"
+const llmExportStatus = signal(null); // null | "loading" | "copied" | "error"
+const llmExportFormat = signal("markdown");
+const llmIncludeForm = signal(true);
 
 function formatDateShort(isoString) {
   return new Date(isoString).toLocaleDateString("en-US", {
@@ -1356,9 +1360,62 @@ export function ActivityDetail({ id }) {
                   </button>
                 </div>
               `}
+
             </div>
           </div>
         `}
+
+        <!-- LLM Export — always visible -->
+        <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+          <p class="text-xs font-medium mb-1" style="color: var(--text-secondary); font-family: var(--font-body);">Export for AI Coach</p>
+          <p class="text-xs mb-2" style="color: var(--border);">Copy this ride's data for use with an LLM.</p>
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <select
+              value=${llmExportFormat.value}
+              onChange=${(e) => { llmExportFormat.value = e.target.value; llmExportStatus.value = null; }}
+              class="text-xs rounded px-2 py-1 focus:outline-none"
+              style="border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-family: var(--font-mono);"
+            >
+              <option value="markdown">Markdown</option>
+              <option value="json">JSON</option>
+            </select>
+            <label class="inline-flex items-center gap-1 text-xs cursor-pointer" style="color: var(--text-secondary); font-family: var(--font-body);">
+              <input
+                type="checkbox"
+                checked=${llmIncludeForm.value}
+                onChange=${(e) => { llmIncludeForm.value = e.target.checked; llmExportStatus.value = null; }}
+                class="rounded"
+                style="accent-color: var(--accent);"
+              />
+              Include form context
+            </label>
+          </div>
+          <button
+            onClick=${async () => {
+              llmExportStatus.value = "loading";
+              try {
+                const textPromise = (async () => {
+                  const ctx = await buildRideExport(act.id, { includeForm: llmIncludeForm.value });
+                  if (!ctx) throw new Error("Activity not found");
+                  return llmExportFormat.value === "markdown" ? rideToMarkdown(ctx) : JSON.stringify(ctx, null, 2);
+                })();
+                const blobPromise = textPromise.then(t => new Blob([t], { type: "text/plain" }));
+                await navigator.clipboard.write([new ClipboardItem({ "text/plain": blobPromise })]);
+                llmExportStatus.value = "copied";
+                setTimeout(() => { llmExportStatus.value = null; }, 3000);
+              } catch (e) {
+                console.error("Ride export failed:", e);
+                llmExportStatus.value = "error";
+                setTimeout(() => { llmExportStatus.value = null; }, 3000);
+              }
+            }}
+            disabled=${llmExportStatus.value === "loading"}
+            class="text-xs transition-colors"
+            style="color: var(--accent);"
+          >
+            ${llmExportStatus.value === "loading" ? "Building export..." : llmExportStatus.value === "copied" ? "Copied to clipboard!" : llmExportStatus.value === "error" ? "Export failed" : "Copy ride data to clipboard"}
+          </button>
+        </div>
 
         <!-- Segment efforts — summary cards with expandable detail (#88) -->
         ${act.has_efforts && act.segment_efforts && act.segment_efforts.length > 0 && html`
