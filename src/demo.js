@@ -26,7 +26,7 @@ export async function checkDemo() {
   // Without this, a logged-in user who previously visited /demo would get
   // demo data on every page load because the sessionStorage flag persists.
   const path = window.location.pathname.replace(/\.html$/, "").replace(/^\//, "") || "";
-  if (path !== "demo") {
+  if (path !== "demo" && path !== "activity") {
     sessionStorage.removeItem("aeyu_demo_active");
     return;
   }
