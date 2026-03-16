@@ -151,13 +151,12 @@ export function SegmentSparkline({ segment, currentEffortId }) {
   const finalTooltipY = (overlapAbove && fitsBelow) ? belowY : aboveY;
 
   return html`
-    <div style="margin-top: 6px;">
+    <div style="margin-top: 6px; max-width: 480px;">
       <svg
         ref=${svgRef}
         width="100%"
-        height=${h}
         viewBox="0 0 ${w} ${h}"
-        preserveAspectRatio="none"
+        preserveAspectRatio="xMidYMid meet"
         style="display: block; background: var(--bg, #faf9f7); border: 1px solid var(--border); border-radius: 6px; touch-action: none; cursor: crosshair;"
         onTouchStart=${onTouchStart}
         onTouchMove=${onTouchMove}
