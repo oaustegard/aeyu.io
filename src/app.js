@@ -98,16 +98,21 @@ function App() {
   const auth = authState.value;
   const currentRoute = route.value;
 
-  // If demo is active but user navigated away from /demo, exit demo mode
-  // and let the app re-render with the real auth state.
-  if (currentRoute !== "demo" && isDemo.value) {
+  // Demo mode routing — allow /demo and /activity while demo is active
+  if (isDemo.value) {
+    if (currentRoute === "activity") {
+      return html`<${ActivityDetail} id=${routeParams.value.id} />`;
+    }
+    if (currentRoute === "demo") {
+      return html`<${Dashboard} key="demo" />`;
+    }
+    // Navigated away from demo-compatible routes — exit demo
     exitDemo();
     return null;
   }
 
   // /demo is always accessible — start demo if needed
   if (currentRoute === "demo") {
-    if (isDemo.value) return html`<${Dashboard} key="demo" />`;
     if (demoError.value) {
       return html`<div class="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">
         <p style="color: var(--text-secondary); font-family: var(--font-body);">
