@@ -2035,8 +2035,8 @@ export function computeWeeklyStreaks(allActivities) {
       consecutiveMisses = 0;
     } else {
       consecutiveMisses++;
-      if (consecutiveMisses === 1 && currentStreak > 0) {
-        // First miss — use mulligan
+      if (consecutiveMisses === 1 && currentStreak > 0 && !currentMulligan) {
+        // First miss — use mulligan (one per streak)
         currentStreak++;
         currentMulligan = true;
       } else {
@@ -2218,7 +2218,7 @@ export function detectGroupRides(allActivities) {
             misses = 0;
           } else {
             misses++;
-            if (misses === 1 && attendanceStreak > 0) {
+            if (misses === 1 && attendanceStreak > 0 && !attendanceMulligan) {
               attendanceStreak++;
               attendanceMulligan = true;
             } else {
