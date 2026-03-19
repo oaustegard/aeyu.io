@@ -33,6 +33,8 @@ import {
   clearResetEvent,
   getUserConfig,
   setUserConfig,
+  exportSettings,
+  importSettings,
 } from "../db.js";
 import { navigate } from "../app.js";
 import {
@@ -93,6 +95,7 @@ const exportFormat = signal("markdown");
 const exportStatus = signal(null); // null | "loading" | "copied" | "error"
 const activeChartHelp = signal(null);
 const disabledAwardTypes = signal(new Set());
+const settingsTransferStatus = signal(null); // null | "exported" | "imported" | "error"
 
 function ChartHelp({ id, children }) {
   const isOpen = activeChartHelp.value === id;
@@ -1297,6 +1300,16 @@ export function Dashboard() {
 
               <details class="group py-3">
                 <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  Can I sync my settings across browsers?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  Yes. Go to Settings and use "Sync Settings Across Browsers." Export saves your unit preference, award toggles, reference points, comeback mode, and sync window to a JSON file. Import that file on another browser to apply the same settings. Activity data syncs separately from Strava.
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
                   What does "aeyu" mean?
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
@@ -1780,6 +1793,79 @@ export function Dashboard() {
               >
                 ${exportStatus.value === "loading" ? "Building export..." : exportStatus.value === "copied" ? "Copied to clipboard!" : exportStatus.value === "error" ? "Export failed" : "Copy training data to clipboard"}
               </button>
+            </div>
+
+            <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
+              <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Sync Settings Across Browsers</p>
+              <p class="text-xs mb-2" style="color: var(--border);">Export your settings to a file, then import on another browser. Includes unit preference, award toggles, reference points, comeback mode, and sync window.</p>
+              <div class="flex items-center gap-3">
+                <button
+                  onClick=${async () => {
+                    try {
+                      const data = await exportSettings();
+                      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = "aeyu-settings.json";
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      settingsTransferStatus.value = "exported";
+                      setTimeout(() => { settingsTransferStatus.value = null; }, 3000);
+                    } catch (e) {
+                      console.error("Settings export failed:", e);
+                      settingsTransferStatus.value = "error";
+                      setTimeout(() => { settingsTransferStatus.value = null; }, 3000);
+                    }
+                  }}
+                  class="text-xs transition-colors"
+                  style="color: var(--accent);"
+                >
+                  Export settings
+                </button>
+                <button
+                  onClick=${() => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = ".json";
+                    input.onchange = async (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      try {
+                        const text = await file.text();
+                        const data = JSON.parse(text);
+                        await importSettings(data);
+                        settingsTransferStatus.value = "imported";
+                        setTimeout(() => { settingsTransferStatus.value = null; }, 3000);
+                        await loadUnitPreference();
+                        await loadDashboard();
+                        // Reload settings panel state
+                        const config = await getUserConfig();
+                        referencePoints.value = config.referencePoints || [];
+                        disabledAwardTypes.value = new Set(config.disabledAwards || []);
+                        const event = await getResetEvent();
+                        activeResetEvent.value = event;
+                        const syncState = await getSyncState();
+                        currentSyncAfterEpoch.value = syncState.sync_after_epoch;
+                      } catch (e) {
+                        console.error("Settings import failed:", e);
+                        settingsTransferStatus.value = "error";
+                        setTimeout(() => { settingsTransferStatus.value = null; }, 3000);
+                      }
+                    };
+                    input.click();
+                  }}
+                  class="text-xs transition-colors"
+                  style="color: var(--accent);"
+                >
+                  Import settings
+                </button>
+              </div>
+              ${settingsTransferStatus.value && html`
+                <p class="text-xs mt-1.5" style="color: ${settingsTransferStatus.value === 'error' ? '#A03020' : 'var(--accent)'};">
+                  ${settingsTransferStatus.value === "exported" ? "Settings exported!" : settingsTransferStatus.value === "imported" ? "Settings imported and applied!" : "Failed — check that the file is a valid aeyu settings export."}
+                </p>
+              `}
             </div>
 
             <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
