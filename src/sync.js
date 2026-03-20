@@ -18,6 +18,8 @@ import {
   updateSyncState,
   appendEffort,
   removeEffortsForActivity,
+  putStravaRoutes,
+  getStravaRoutes,
 } from "./db.js";
 import { computePowerCurve } from "./power-curve.js";
 
@@ -461,6 +463,77 @@ async function fetchPowerCurves() {
   }
 }
 
+// --- Strava Routes Sync ---
+
+/**
+ * Fetch saved routes from Strava. These are routes the user has created/starred.
+ * Stores segment lists alongside route metadata so we can match them to detected
+ * ride clusters and use the user's preferred route name.
+ *
+ * Requires `read` scope — gracefully no-ops if the user authorized with an
+ * older scope that didn't include it.
+ */
+async function fetchStravaRoutes() {
+  let page = 1;
+  const allRoutes = [];
+
+  while (true) {
+    if (isRateLimited()) break;
+
+    let routes;
+    try {
+      routes = await stravaFetch(`/athlete/routes?page=${page}&per_page=50`);
+    } catch (err) {
+      // 403 = scope not granted (legacy auth without `read`). Silently skip.
+      if (err.status === 403 || err.status === 401) return [];
+      throw err;
+    }
+
+    if (!routes || routes.length === 0) break;
+
+    for (const r of routes) {
+      // Only cycling routes (type 1 = ride)
+      if (r.type !== 1) continue;
+      // Segments may be objects with .id or plain IDs depending on API version
+      const segs = (r.segments || []).map((s) => typeof s === "object" ? s.id : s).filter(Boolean);
+      allRoutes.push({
+        strava_id: r.id,
+        name: r.name,
+        distance: r.distance || 0,
+        elevation_gain: r.elevation_gain || 0,
+        segments: segs,
+        updated_at: r.updated_at || r.created_at,
+      });
+    }
+
+    if (routes.length < 50) break;
+    page++;
+  }
+
+  if (allRoutes.length > 0) {
+    await putStravaRoutes(allRoutes);
+  }
+  return allRoutes;
+}
+
+/**
+ * Sync Strava routes — called during regular sync and available for manual trigger.
+ * Returns the fetched routes array.
+ */
+export async function syncRoutes() {
+  syncProgress.value = {
+    ...syncProgress.value,
+    message: "Syncing saved routes...",
+  };
+  try {
+    return await fetchStravaRoutes();
+  } catch (err) {
+    if (err instanceof RateLimitError) return [];
+    console.warn("Route sync failed:", err.message);
+    return [];
+  }
+}
+
 // --- Phase 3: Power Fields Migration ---
 
 /**
@@ -617,6 +690,9 @@ export async function startBackfill(onProgress) {
   isSyncing.value = true;
 
   try {
+    // Sync Strava routes first (high priority — names ride clusters)
+    await syncRoutes();
+
     syncProgress.value = {
       phase: "list",
       fetched: 0,
@@ -735,6 +811,9 @@ export async function incrementalSync() {
   isSyncing.value = true;
 
   try {
+    // Sync Strava routes first (high priority — names ride clusters)
+    await syncRoutes();
+
     syncProgress.value = {
       phase: "incremental",
       fetched: 0,
