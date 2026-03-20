@@ -342,14 +342,16 @@ function renderRouteTrendChart(route) {
       `)}
       <path d="${spdPath}" fill="none" stroke="${spdColor}" stroke-width="1.5" stroke-linejoin="round" />
       ${speeds.map((s, i) => html`
-        <circle cx="${xPos(i)}" cy="${ySpd(s)}" r="${i === speeds.length - 1 ? 3 : 1.5}" fill="${spdColor}">
+        <circle cx="${xPos(i)}" cy="${ySpd(s)}" r="${i === speeds.length - 1 ? 3 : 1.5}" fill="${spdColor}"
+          style="cursor: pointer;" onclick=${() => { location.hash = '#/activity/' + rides[i].id; }}>
           <title>${new Date(rides[i].date).toLocaleDateString()}: ${s.toFixed(1)} ${speedUnit}</title>
         </circle>
       `)}
       ${powPathD && html`
         <path d="${powPathD}" fill="none" stroke="${powColor}" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="4,2" />
         ${rides.map((r, i) => r.average_watts ? html`
-          <circle cx="${xPos(i)}" cy="${yPow(powers[i])}" r="${i === rides.length - 1 ? 3 : 1.5}" fill="${powColor}">
+          <circle cx="${xPos(i)}" cy="${yPow(powers[i])}" r="${i === rides.length - 1 ? 3 : 1.5}" fill="${powColor}"
+            style="cursor: pointer;" onclick=${() => { location.hash = '#/activity/' + rides[i].id; }}>
             <title>${new Date(r.date).toLocaleDateString()}: ${Math.round(r.average_watts)}W</title>
           </circle>
         ` : null)}
@@ -426,7 +428,8 @@ function renderGroupRideTrendChart(group) {
       <!-- Speed line -->
       <path d="${spdPath}" fill="none" stroke="#4882A8" stroke-width="1.5" stroke-linejoin="round" />
       ${speeds.map((s, i) => html`
-        <circle cx="${xPos(i)}" cy="${ySpd(s)}" r="${i === speeds.length - 1 ? 3 : 1.5}" fill="#4882A8">
+        <circle cx="${xPos(i)}" cy="${ySpd(s)}" r="${i === speeds.length - 1 ? 3 : 1.5}" fill="#4882A8"
+          style="cursor: pointer;" onclick=${() => { location.hash = '#/activity/' + rides[i].id; }}>
           <title>${new Date(rides[i].date).toLocaleDateString()}: ${s.toFixed(1)} ${speedUnit}</title>
         </circle>
       `)}
@@ -434,7 +437,8 @@ function renderGroupRideTrendChart(group) {
       ${powPathD && html`
         <path d="${powPathD}" fill="none" stroke="#A05060" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="4,2" />
         ${rides.map((r, i) => r.average_watts ? html`
-          <circle cx="${xPos(i)}" cy="${yPow(powers[i])}" r="${i === rides.length - 1 ? 3 : 1.5}" fill="#A05060">
+          <circle cx="${xPos(i)}" cy="${yPow(powers[i])}" r="${i === rides.length - 1 ? 3 : 1.5}" fill="#A05060"
+            style="cursor: pointer;" onclick=${() => { location.hash = '#/activity/' + rides[i].id; }}>
             <title>${new Date(r.date).toLocaleDateString()}: ${Math.round(r.average_watts)}W</title>
           </circle>
         ` : null)}
@@ -471,7 +475,8 @@ function renderSpeedOnlyChart(rides, speeds, speedUnit, padSpd, pSpdRange) {
       `)}
       <path d="${spdPath}" fill="none" stroke="#4882A8" stroke-width="1.5" stroke-linejoin="round" />
       ${speeds.map((s, i) => html`
-        <circle cx="${xPos(i)}" cy="${ySpd(s)}" r="${i === speeds.length - 1 ? 3 : 1.5}" fill="#4882A8">
+        <circle cx="${xPos(i)}" cy="${ySpd(s)}" r="${i === speeds.length - 1 ? 3 : 1.5}" fill="#4882A8"
+          style="cursor: pointer;" onclick=${() => { location.hash = '#/activity/' + rides[i].id; }}>
           <title>${new Date(rides[i].date).toLocaleDateString()}: ${s.toFixed(1)} ${speedUnit}</title>
         </circle>
       `)}
@@ -756,21 +761,32 @@ export function Dashboard() {
                   ${filtered.map(r => {
                     const isActive = groupFilterIds.value && searchQuery.value === r.name;
                     return html`
-                      <button
-                        onClick=${() => {
-                          if (isActive) {
-                            groupFilterIds.value = null;
-                            searchQuery.value = "";
-                          } else {
-                            groupFilterIds.value = new Set(r.activityIds);
-                            searchQuery.value = r.name;
-                          }
-                        }}
-                        class="text-xs px-3 py-1 rounded-full"
-                        style="background: rgba(255,255,255,${isActive ? "0.35" : "0.15"}); color: white; border: 1px solid rgba(255,255,255,${isActive ? "0.4" : "0.2"}); font-family: var(--font-body); cursor: pointer;"
-                      >
-                        ${r.name} <span style="opacity: 0.6;">(${r.frequency})</span>
-                      </button>
+                      <span class="inline-flex items-center rounded-full" style="background: rgba(255,255,255,${isActive ? "0.35" : "0.15"}); border: 1px solid rgba(255,255,255,${isActive ? "0.4" : "0.2"});">
+                        <button
+                          onClick=${() => {
+                            if (isActive) {
+                              groupFilterIds.value = null;
+                              searchQuery.value = "";
+                            } else {
+                              groupFilterIds.value = new Set(r.activityIds);
+                              searchQuery.value = r.name;
+                            }
+                          }}
+                          class="text-xs px-3 py-1"
+                          style="color: white; font-family: var(--font-body); cursor: pointer; background: none; border: none;"
+                        >
+                          ${r.name} <span style="opacity: 0.6;">(${r.frequency})</span>
+                        </button>
+                        ${r.strava_id && html`
+                          <a href="https://www.strava.com/routes/${r.strava_id}" target="_blank" rel="noopener"
+                            onClick=${(e) => e.stopPropagation()}
+                            class="pr-2" style="color: rgba(255,255,255,0.5); display: flex; align-items: center;"
+                            title="View on Strava"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                          </a>
+                        `}
+                      </span>
                     `;
                   })}
                 </div>
@@ -1324,7 +1340,10 @@ export function Dashboard() {
             ? (() => {
                 const withEfforts = displayActivities.filter(a => a.has_efforts);
                 if (withEfforts.length < 4) return [];
-                const clusters = detectRoutes(withEfforts);
+                const stravaForClustering = dashboardRoutes.value
+                  .filter(r => r.strava_id)
+                  .map(r => ({ strava_id: r.strava_id, name: r.name, segments: r.segments }));
+                const clusters = detectRoutes(withEfforts, stravaForClustering);
                 return clusters
                   .filter(c => c.activityIds.length >= 2)
                   .sort((a, b) => b.frequency - a.frequency)

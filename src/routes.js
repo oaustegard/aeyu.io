@@ -1,28 +1,29 @@
 /**
  * Route Detection via Segment Fingerprinting (#59)
  *
- * Groups activities into "routes" by comparing their segment ID sets
- * using Jaccard similarity. Activities sharing ≥70% of their segments
- * are considered the same route.
+ * Two-phase algorithm:
+ * 1. Seed routes from Strava-saved routes (fixed fingerprints)
+ * 2. Assign activities via hybrid similarity (Jaccard OR containment)
  *
- * When Strava-saved routes are available, their names take priority over
- * the most-frequent-activity-name heuristic.
- *
- * Excludes activities with fewer than 2 segments (too few to fingerprint).
+ * Strava-seeded routes keep their segment fingerprint fixed.
+ * Discovered routes grow by union (capped at 2x initial size).
  */
 
 /** Minimum Jaccard similarity to consider two activities the same route */
 const JACCARD_THRESHOLD = 0.7;
 
+/** Minimum containment to match (fraction of route's segments present in activity) */
+const CONTAINMENT_THRESHOLD = 0.8;
+
 /** Minimum segments an activity must have to participate in route detection */
 const MIN_SEGMENTS_FOR_ROUTE = 2;
+
+/** Max growth factor for discovered route segment sets */
+const MAX_GROWTH_FACTOR = 2;
 
 /**
  * Compute Jaccard similarity between two sets.
  * J(A,B) = |A ∩ B| / |A ∪ B|
- * @param {Set} a
- * @param {Set} b
- * @returns {number} 0–1
  */
 function jaccard(a, b) {
   if (a.size === 0 && b.size === 0) return 1;
@@ -35,9 +36,33 @@ function jaccard(a, b) {
 }
 
 /**
+ * Compute containment of route in activity.
+ * What fraction of the route's segments appear in the activity?
+ * containment(activity, route) = |A ∩ R| / |R|
+ */
+function containment(activitySet, routeSet) {
+  if (routeSet.size === 0) return 0;
+  let intersection = 0;
+  for (const item of routeSet) {
+    if (activitySet.has(item)) intersection++;
+  }
+  return intersection / routeSet.size;
+}
+
+/**
+ * Check if activity matches route using hybrid similarity:
+ * match if Jaccard >= threshold OR containment >= threshold.
+ * Returns the better of the two scores for ranking.
+ */
+function hybridSimilarity(activitySet, routeSet) {
+  const j = jaccard(activitySet, routeSet);
+  const c = containment(activitySet, routeSet);
+  const matches = j >= JACCARD_THRESHOLD || c >= CONTAINMENT_THRESHOLD;
+  return { matches, score: Math.max(j, c) };
+}
+
+/**
  * Extract segment ID set from an activity.
- * @param {Object} activity
- * @returns {Set<number>} segment IDs
  */
 function segmentIds(activity) {
   if (!activity.segment_efforts || activity.segment_efforts.length < MIN_SEGMENTS_FOR_ROUTE) {
@@ -47,90 +72,89 @@ function segmentIds(activity) {
 }
 
 /**
- * Try to match a detected cluster's segment set against Strava-saved routes.
- * Returns the Strava route name if any saved route has Jaccard ≥ threshold
- * with the cluster's segments, otherwise null.
- */
-function matchStravaRoute(clusterSegments, stravaRoutes) {
-  if (!stravaRoutes || stravaRoutes.length === 0) return null;
-
-  let best = null;
-  let bestSim = 0;
-
-  for (const sr of stravaRoutes) {
-    if (!sr.segments || sr.segments.length === 0) continue;
-    const srSet = new Set(sr.segments);
-    const sim = jaccard(clusterSegments, srSet);
-    if (sim >= JACCARD_THRESHOLD && sim > bestSim) {
-      bestSim = sim;
-      best = sr;
-    }
-  }
-
-  return best;
-}
-
-/**
- * Detect routes from a list of activities by clustering on segment fingerprints.
+ * Detect routes from activities by clustering on segment fingerprints.
  *
- * Algorithm: greedy single-pass clustering.
- * For each activity, compare its segment set against existing route fingerprints.
- * If Jaccard ≥ threshold with a route, merge into that route (union the fingerprint).
- * Otherwise, create a new route.
+ * Phase 1: Seed from Strava-saved routes (fixed fingerprints)
+ * Phase 2: Assign activities (Strava-seeded first, then discovered)
+ * Phase 3: Finalize names and filter
  *
  * @param {Array} activities — All activities (must have segment_efforts populated)
- * @param {Array} [stravaRoutes=[]] — Strava-saved routes with { name, segments: [id,...] }
- * @returns {Array<{ id: number, segments: number[], activityIds: number[], name: string, frequency: number, strava_route_name: string|null }>}
+ * @param {Array} [stravaRoutes=[]] — Strava-saved routes with { name, segments: [id,...], strava_id }
+ * @returns {Array<{ id: number, segments: number[], activityIds: number[], name: string, strava_route_name: string|null, strava_id: number|null, frequency: number }>}
  */
 export function detectRoutes(activities, stravaRoutes = []) {
-  const routes = []; // { segments: Set, activityIds: [], names: Map<string, count> }
+  // Phase 1: Seed from Strava routes
+  const routes = [];
+  for (const sr of stravaRoutes) {
+    if (!sr.segments || sr.segments.length === 0) continue;
+    routes.push({
+      segments: new Set(sr.segments),
+      initialSize: sr.segments.length,
+      activityIds: [],
+      names: new Map(),
+      isStravaSeeded: true,
+      strava_id: sr.strava_id || sr.id || null,
+      strava_name: sr.name || null,
+    });
+  }
 
-  for (const activity of activities) {
+  // Phase 2: Assign activities (oldest-first for stable cluster formation)
+  const sorted = [...activities].sort((a, b) =>
+    (a.start_date_local || "").localeCompare(b.start_date_local || "")
+  );
+
+  for (const activity of sorted) {
     const ids = segmentIds(activity);
     if (ids.size === 0) continue;
 
     let matched = null;
-    let bestSimilarity = 0;
+    let bestScore = 0;
 
+    // Check Strava-seeded routes first, then discovered
     for (const route of routes) {
-      const sim = jaccard(ids, route.segments);
-      if (sim >= JACCARD_THRESHOLD && sim > bestSimilarity) {
-        bestSimilarity = sim;
+      const { matches, score } = hybridSimilarity(ids, route.segments);
+      if (matches && score > bestScore) {
+        bestScore = score;
         matched = route;
       }
     }
 
     if (matched) {
-      // Merge: add activity, union segments
       matched.activityIds.push(activity.id);
-      for (const id of ids) matched.segments.add(id);
       const name = activity.name || "";
       matched.names.set(name, (matched.names.get(name) || 0) + 1);
+      // Discovered routes grow by union (capped); Strava-seeded stay fixed
+      if (!matched.isStravaSeeded && matched.segments.size < matched.initialSize * MAX_GROWTH_FACTOR) {
+        for (const id of ids) matched.segments.add(id);
+      }
     } else {
-      // New route
+      // New discovered route
       const name = activity.name || "";
       const names = new Map();
       names.set(name, 1);
       routes.push({
         segments: new Set(ids),
+        initialSize: ids.size,
         activityIds: [activity.id],
         names,
+        isStravaSeeded: false,
+        strava_id: null,
+        strava_name: null,
       });
     }
   }
 
-  // Only keep routes with 2+ activities (a single activity isn't really a "route")
-  const meaningful = routes.filter((r) => r.activityIds.length >= 2);
+  // Phase 3: Filter and finalize
+  // Strava-seeded routes: keep with 1+ activities
+  // Discovered routes: keep with 2+ activities
+  const meaningful = routes.filter((r) =>
+    r.isStravaSeeded ? r.activityIds.length >= 1 : r.activityIds.length >= 2
+  );
 
-  // Finalize: pick best name, assign IDs
   return meaningful.map((r, i) => {
-    // Check if a Strava-saved route matches this cluster
-    const stravaMatch = matchStravaRoute(r.segments, stravaRoutes);
-
-    // Strava route name wins; fall back to most-frequent activity name
     let bestName;
-    if (stravaMatch) {
-      bestName = stravaMatch.name;
+    if (r.isStravaSeeded && r.strava_name) {
+      bestName = r.strava_name;
     } else {
       bestName = "";
       let bestCount = 0;
@@ -147,7 +171,8 @@ export function detectRoutes(activities, stravaRoutes = []) {
       segments: [...r.segments],
       activityIds: r.activityIds,
       name: bestName,
-      strava_route_name: stravaMatch ? stravaMatch.name : null,
+      strava_route_name: r.strava_name || null,
+      strava_id: r.strava_id,
       frequency: r.activityIds.length,
     };
   });
@@ -155,22 +180,20 @@ export function detectRoutes(activities, stravaRoutes = []) {
 
 /**
  * Find the route that an activity belongs to.
- * @param {Object} activity — Activity with segment_efforts
- * @param {Array} routes — Routes from detectRoutes()
- * @returns {Object|null} — Matching route, or null
+ * Uses hybrid similarity (Jaccard OR containment).
  */
 export function findRouteForActivity(activity, routes) {
   const ids = segmentIds(activity);
   if (ids.size === 0) return null;
 
   let best = null;
-  let bestSim = 0;
+  let bestScore = 0;
 
   for (const route of routes) {
     const routeSet = new Set(route.segments);
-    const sim = jaccard(ids, routeSet);
-    if (sim >= JACCARD_THRESHOLD && sim > bestSim) {
-      bestSim = sim;
+    const { matches, score } = hybridSimilarity(ids, routeSet);
+    if (matches && score > bestScore) {
+      bestScore = score;
       best = route;
     }
   }
