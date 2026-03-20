@@ -2088,7 +2088,7 @@ export function computeWeeklyStreaks(allActivities) {
 /**
  * Detect recurring group rides by clustering activities by:
  *   - Day of week
- *   - Similar start time (±1hr)
+ *   - Similar start time (±90min)
  *   - Similar start location (within 1km)
  *   - Activity name patterns
  *
@@ -2125,9 +2125,9 @@ export function detectGroupRides(allActivities, routes = []) {
 
       let matched = false;
       for (const cluster of clusters) {
-        // Check time proximity (within 60 min)
+        // Check time proximity (within 90 min to accommodate seasonal start time shifts)
         const timeDiff = Math.abs(cluster.avgMinute - minuteOfDay);
-        if (timeDiff > 60) continue;
+        if (timeDiff > 90) continue;
 
         // Check location proximity (within 1km) if both have coords
         if (cluster.latlng && latlng) {
