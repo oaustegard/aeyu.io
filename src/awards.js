@@ -2258,7 +2258,7 @@ export function detectGroupRides(allActivities, routes = []) {
         attendanceStreak,
         attendanceMulligan,
         lastRideDate: cluster.rides[cluster.rides.length - 1].start_date_local,
-        rides: cluster.rides.map((r) => ({ id: r.id, date: r.start_date_local, name: r.name })),
+        rides: cluster.rides.map((r) => ({ id: r.id, date: r.start_date_local, name: r.name, average_speed: r.average_speed || null, average_watts: r.average_watts || null })),
       });
     }
   }
