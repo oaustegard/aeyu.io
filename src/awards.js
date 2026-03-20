@@ -2169,7 +2169,8 @@ export function detectGroupRides(allActivities, routes = []) {
     for (const cluster of timeClusters) {
       if (cluster.rides.length < 3) continue;
 
-      const subClusters = splitByRoute(cluster.rides, activityRouteMap);
+      const routeClusters = splitByRoute(cluster.rides, activityRouteMap);
+      const subClusters = routeClusters.flatMap(rc => splitByName(rc.rides, rc.route));
 
       for (const sub of subClusters) {
         if (sub.rides.length < 3) continue;
@@ -2289,6 +2290,78 @@ export function detectGroupRides(allActivities, routes = []) {
  * Rides on the same detected route go together.
  * Rides with no detected route go into a catch-all bucket.
  */
+/**
+ * Further split a route sub-cluster by activity name when rides within the
+ * same detected route have distinctly different names (e.g. a short ride that
+ * is a subset of a longer ride — "Tour de Kensington" vs "Cappuccino").
+ */
+function splitByName(rides, route) {
+  if (rides.length < 6) return [{ route, rides }];
+
+  // Normalize names: strip dates, numbers, emojis, lowercase, trim
+  const normalize = (name) =>
+    name
+      .replace(/\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, "")
+      .replace(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/gi, "")
+      .replace(/\b\d{1,4}\b/g, "")
+      .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
+      .trim()
+      .toLowerCase();
+
+  // Count normalized names
+  const nameCounts = {};
+  for (const r of rides) {
+    const n = normalize(r.name);
+    if (n.length > 2) nameCounts[n] = (nameCounts[n] || 0) + 1;
+  }
+
+  // Find names that appear 3+ times (viable group ride patterns)
+  const viableNames = Object.entries(nameCounts)
+    .filter(([, count]) => count >= 3)
+    .sort((a, b) => b[1] - a[1]);
+
+  if (viableNames.length < 2) return [{ route, rides }];
+
+  // Check if any two viable names are sufficiently different (not substrings)
+  const hasDistinctNames = viableNames.some(([nameA], i) =>
+    viableNames.slice(i + 1).some(([nameB]) =>
+      !nameA.includes(nameB) && !nameB.includes(nameA)
+    )
+  );
+  if (!hasDistinctNames) return [{ route, rides }];
+
+  // Split: assign each ride to its closest viable name
+  const groups = new Map(); // viableName -> rides[]
+  const ungrouped = [];
+  for (const r of rides) {
+    const n = normalize(r.name);
+    // Exact match to a viable name
+    const match = viableNames.find(([vn]) => vn === n);
+    if (match) {
+      if (!groups.has(match[0])) groups.set(match[0], []);
+      groups.get(match[0]).push(r);
+    } else {
+      // Check if this name contains or is contained by a viable name
+      const partial = viableNames.find(([vn]) => n.includes(vn) || vn.includes(n));
+      if (partial) {
+        if (!groups.has(partial[0])) groups.set(partial[0], []);
+        groups.get(partial[0]).push(r);
+      } else {
+        ungrouped.push(r);
+      }
+    }
+  }
+
+  const result = [];
+  for (const [, groupRides] of groups) {
+    result.push({ route, rides: groupRides });
+  }
+  if (ungrouped.length > 0) {
+    result.push({ route, rides: ungrouped });
+  }
+  return result;
+}
+
 function splitByRoute(rides, activityRouteMap) {
   const byRouteId = new Map(); // routeId -> { route, rides }
   const noRoute = [];
