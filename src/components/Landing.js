@@ -65,6 +65,7 @@ function AwardPill({ type, label }) {
 }
 
 export function Landing() {
+  if (window.dismissLoadingOverlay) window.dismissLoadingOverlay();
   return html`
     <div class="min-h-screen" style="background: var(--bg);">
       <!-- Hero -->

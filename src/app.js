@@ -114,6 +114,7 @@ function App() {
   // /demo is always accessible — start demo if needed
   if (currentRoute === "demo") {
     if (demoError.value) {
+      if (window.dismissLoadingOverlay) window.dismissLoadingOverlay();
       return html`<div class="min-h-screen flex flex-col items-center justify-center gap-4 px-4 text-center">
         <p style="color: var(--text-secondary); font-family: var(--font-body);">
           Failed to load demo.

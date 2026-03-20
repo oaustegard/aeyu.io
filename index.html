@@ -54,11 +54,16 @@
     <link rel="stylesheet" href="/app.css">
 </head>
 <body style="background: var(--bg); color: var(--text);">
-    <div id="app">
-        <div class="min-h-screen flex items-center justify-center">
-            <p style="color: var(--text-tertiary);">Loading...</p>
+    <div id="loading-overlay" style="position:fixed;inset:0;z-index:9999;background:var(--bg,#F6F3EE);display:flex;align-items:center;justify-content:center;transition:opacity 0.3s ease;">
+      <div style="text-align:center;">
+        <div style="font-family:'Instrument Serif',serif;font-size:1.5rem;color:var(--text,#1A1610);margin-bottom:0.5rem;">aeyu.io</div>
+        <div style="width:48px;height:3px;background:var(--border,#E5DFD4);border-radius:2px;margin:0 auto;overflow:hidden;">
+          <div style="width:40%;height:100%;background:var(--strava,#FC4C02);border-radius:2px;animation:loading-slide 1.2s ease-in-out infinite;"></div>
         </div>
+      </div>
     </div>
+    <style>@keyframes loading-slide{0%{transform:translateX(-100%)}50%{transform:translateX(150%)}100%{transform:translateX(-100%)}}</style>
+    <div id="app"></div>
     <script type="module" src="./src/app.js"></script>
     <script>
       // Register service worker
@@ -70,6 +75,13 @@
       // instead of silently failing with "Loading..." stuck on screen.
       window.__appModuleLoaded = false;
       window.__appRendered = false;
+
+      window.dismissLoadingOverlay = function() {
+        var overlay = document.getElementById("loading-overlay");
+        if (!overlay) return;
+        overlay.style.opacity = "0";
+        setTimeout(function() { overlay.remove(); }, 300);
+      };
 
       window.onerror = function(msg, url, line, col, error) {
         console.error("Global error:", msg, url, line, col, error);
@@ -104,6 +116,8 @@
       function showLoadError(detail) {
         // Don't overwrite if app has successfully rendered
         if (window.__appRendered) return;
+        var overlay = document.getElementById("loading-overlay");
+        if (overlay) overlay.remove();
         var app = document.getElementById("app");
         if (!app) return;
         app.innerHTML =

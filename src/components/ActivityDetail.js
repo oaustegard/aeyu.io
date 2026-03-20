@@ -139,6 +139,7 @@ async function loadActivity(id) {
     }
   } finally {
     loading.value = false;
+    if (window.dismissLoadingOverlay) window.dismissLoadingOverlay();
   }
 }
 

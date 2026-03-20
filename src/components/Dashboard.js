@@ -232,6 +232,7 @@ async function loadDashboard() {
     }
   } finally {
     loading.value = false;
+    if (window.dismissLoadingOverlay) window.dismissLoadingOverlay();
   }
 }
 
