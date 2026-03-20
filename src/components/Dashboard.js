@@ -57,6 +57,129 @@ import { getAllTimeBestCurve, estimateFTP, POWER_CURVE_DURATIONS, DURATION_LABEL
 import { StickyHeader, headerCompact } from "./StickyHeader.js";
 import { buildLLMContext, contextToMarkdown } from "../export-llm.js";
 
+// FAQ entries — searchable data structure. Award items derived from AWARD_GROUPS.
+const FAQ_ENTRIES = [
+  {
+    id: "awards",
+    question: "What do the awards mean?",
+    items: AWARD_GROUPS.flatMap(g => g.types.map(t => ({
+      type: t.type,
+      label: AWARD_LABELS[t.type]?.label || t.type,
+      desc: t.desc,
+    }))),
+  },
+  {
+    id: "form-indicators",
+    question: "What are the Form Indicators?",
+    answer: "Climb Form (0–100) shows how your recent climb efforts compare to your personal history. It tracks segment times, converts them to estimated power-to-weight, and ranks recent efforts against your all-time range. The sparkline shows your 4-week rolling average over the last 6 months. Trend arrows compare the last 6 weeks to the prior 6 weeks. Aerobic Efficiency measures output per heartbeat (EF = Normalized Power / avg HR, per Friel). Higher = more work per heartbeat = fitter. Only steady-state rides ≥30 min with a power meter are included.",
+  },
+  {
+    id: "no-server",
+    question: "How does this work without a server?",
+    answer: "Everything runs in your browser. Your activity data is fetched directly from Strava's API and stored locally. Awards are computed on your device. No server receives or stores your data.",
+  },
+  {
+    id: "privacy",
+    question: "Is my data private?",
+    answer: "Completely. Your Strava data never leaves your browser. No analytics, no tracking, no cookies, no server logs. The only network requests go directly to Strava's API.",
+  },
+  {
+    id: "cross-device",
+    question: "Why don't I see my data on another device?",
+    answer: "Your data lives in your browser's local storage. Each browser/device needs its own Strava connection and sync. No server means no sync between devices — that's the trade-off for complete privacy.",
+  },
+  {
+    id: "missing-awards",
+    question: "Why are some segments missing awards?",
+    answer: "Segments dominated by traffic lights or stops produce wildly varying times. If your times on a segment vary by more than 50% (coefficient of variation), awards are suppressed since those times reflect traffic, not performance. Season First is the exception — it always counts.",
+  },
+  {
+    id: "power",
+    question: "What about power data?",
+    answer: "Power is shown for rides with a power meter (measured watts only — estimated power is excluded). Average watts appear in ride summaries and per-segment details. YTD Power awards compare your power output by date across years.",
+  },
+  {
+    id: "comeback-vs-reference",
+    question: "Comeback Mode vs Reference Points?",
+    answer: "Both track progress from a point in time, but they serve different purposes. Comeback Mode is for injury recovery — it shields you from demoralizing comparisons to your pre-injury self and replaces awards with recovery milestones. Reference Points are lightweight personal markers ('since I got my new bike', 'last 20 efforts') that add 'best since' awards without changing how other awards work. In short: Comeback Mode protects; Reference Points observe.",
+  },
+  {
+    id: "segment-charts",
+    question: "What are the segment charts?",
+    answer: "Each segment effort in the activity detail view has a sparkline — a small inline chart showing your recent effort history (up to 20 efforts). A trend line overlays the chart using linear regression. Green means you're getting faster, red means you're slowing down, gray means stable. Tap the sparkline to expand it and see your best time, effort count, and improvement rate.",
+  },
+  {
+    id: "share-cards",
+    question: "How do share cards work?",
+    answer: "From the activity detail view, you can generate shareable images of your rides or individual segment efforts. These are rendered locally on a canvas — nothing is uploaded. Activity share cards show the ride summary, award highlights, and top awards. Segment share cards include a performance chart of your effort history on that segment.",
+  },
+  {
+    id: "search",
+    question: "How does search work?",
+    answer: "The search bar (magnifying glass icon in the header) filters your activity list by name, date, award type, or segment name. It also searches the FAQ — matching entries appear below your ride results. Press Escape to close the search.",
+  },
+  {
+    id: "ride-streak",
+    question: "What is Ride Streak?",
+    answer: "Ride Streak counts consecutive weeks where you've ridden at least once. One missed week is forgiven (a 'mulligan') — two consecutive missed weeks break the streak. Group Rides are automatically detected by matching recurring rides on the same day of the week, similar time, and similar starting location.",
+  },
+  {
+    id: "power-curve",
+    question: "What is the Power Curve?",
+    answer: "If you ride with a power meter, the app can fetch your per-second power data and compute your power curve — your best average power at standard durations (5s sprint, 30s, 1 min, 5 min VO2max, 20 min FTP proxy, 60 min sustained). Your FTP is estimated as 95% of your best 20-minute power.",
+  },
+  {
+    id: "units",
+    question: "Can I switch between metric and imperial?",
+    answer: "Yes — tap the unit toggle button in the header (km/mi). This switches all distance, elevation, and speed values between metric and imperial. Your preference is saved locally and persists between sessions.",
+  },
+  {
+    id: "syncing",
+    question: "How does syncing work?",
+    answer: "After connecting Strava, the app fetches your cycling activities only and detail-fetches each for segment efforts. Sync uses a two-phase approach: your last 13 months are fetched first, then the app backfills to your full sync window. This is resumable — if you close the browser or hit a rate limit, sync picks up where it left off. Strava enforces API rate limits and the app pauses automatically when limits are approached.",
+  },
+  {
+    id: "demo",
+    question: "What is Demo Mode?",
+    answer: "Demo Mode lets you explore the app without connecting Strava. It loads sample data (~60 activities, 10 segments) into a separate database so you can see how awards, charts, and the dashboard work. Your real data is never touched.",
+  },
+  {
+    id: "routes",
+    question: "What are routes?",
+    answer: "The app automatically detects recurring routes by comparing which segments appear on each ride. If two activities share 70%+ of their segments, they're considered the same route. This powers the Route Season First award.",
+  },
+  {
+    id: "touch-tooltips",
+    question: "How do I see award descriptions on my phone?",
+    answer: "Long-press any award pill to see its description. On desktop you can hover, but touch screens don't have hover — so a half-second press triggers the tooltip instead.",
+  },
+  {
+    id: "stuck-version",
+    question: "The app seems stuck on an old version",
+    answer: "The app uses a service worker to work offline, which can sometimes serve cached files after an update. Go to Settings and tap 'Clear cached code and reload' to force a fresh download. This only clears app code — your activity data is not affected.",
+  },
+  {
+    id: "bugs",
+    question: "How do I report a bug or request a feature?",
+    answer: "File an issue on the GitHub issue tracker at github.com/oaustegard/aeyu.io/issues. Bug reports, feature requests, and general feedback are all welcome.",
+  },
+  {
+    id: "export",
+    question: "Can I export my data for an AI coach?",
+    answer: "Yes! Go to Settings and use 'Export for AI Coach' to copy a compact summary of your recent training to the clipboard. You can also export a single ride from any Activity Detail page. Choose Markdown (best for chat) or JSON (best for structured prompts). Paste the result into ChatGPT, Claude, or any LLM.",
+  },
+  {
+    id: "toggle-awards",
+    question: "Can I hide certain award types?",
+    answer: "Yes. Go to Settings and scroll to 'Award Toggles.' Each award type has a checkbox — uncheck it to stop that type from appearing on your dashboard and activity detail pages. You can toggle entire groups at once or individual types.",
+  },
+  {
+    id: "aeyu",
+    question: 'What does "aeyu" mean?',
+    answer: "It's the sound you make at the top of the climb. Really though, it was a URL that was short and available. The letters are the vowels from left to right on the keyboard.",
+  },
+];
+
 const recentActivities = signal([]);
 const activityAwards = signal(new Map());
 const stats = signal({ segments: 0, awards: 0 });
@@ -875,7 +998,7 @@ export function Dashboard() {
           <div class="space-y-3">
             <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text);">
               ${isSearching
-                ? `${displayActivities.length} result${displayActivities.length !== 1 ? "s" : ""} for "${searchQuery.value.trim()}"`
+                ? `${displayActivities.length} ride${displayActivities.length !== 1 ? "s" : ""} for "${searchQuery.value.trim()}"`
                 : "Recent Activities"}
             </h2>
             ${displayActivities.length === 0 && html`
@@ -953,6 +1076,66 @@ export function Dashboard() {
             })}
           </div>
         `;
+        })()}
+
+        <!-- FAQ search results -->
+        ${!loading.value && (() => {
+          const query = searchQuery.value.trim().toLowerCase();
+          if (query.length < 3) return null;
+          const matchingEntries = FAQ_ENTRIES.map(entry => {
+            const qMatch = entry.question.toLowerCase().includes(query);
+            const aMatch = entry.answer?.toLowerCase().includes(query);
+            if (entry.items) {
+              const matchedItems = entry.items.filter(item =>
+                item.label.toLowerCase().includes(query) ||
+                item.desc.toLowerCase().includes(query) ||
+                item.type.replace(/_/g, " ").includes(query)
+              );
+              if (qMatch || matchedItems.length > 0) return { ...entry, items: matchedItems.length > 0 ? matchedItems : entry.items.slice(0, 5) };
+            }
+            if (qMatch || aMatch) return entry;
+            return null;
+          }).filter(Boolean);
+          if (matchingEntries.length === 0) return null;
+          return html`
+          <div class="space-y-3 mt-6">
+            <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text);">
+              FAQ
+            </h2>
+            ${matchingEntries.map(entry => html`
+              <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
+                <button
+                  class="w-full text-left cursor-pointer flex items-center justify-between"
+                  style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);"
+                  onClick=${() => { showFaq.value = true; }}
+                >
+                  ${entry.question}
+                  <svg class="w-3.5 h-3.5 flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </button>
+                ${entry.items ? html`
+                  <div class="pt-2 space-y-1.5" style="font-family: var(--font-body); font-size: 0.8125rem; color: var(--text-secondary);">
+                    ${entry.items.map(item => {
+                      const al = AWARD_LABELS[item.type];
+                      return html`
+                        <div class="flex items-start gap-2">
+                          <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full whitespace-nowrap mt-0.5" style="background: ${al?.bg || '#ECEAE6'}; color: ${al?.text || '#3E3A36'}; border: 1px solid ${al?.border || '#D4D0C8'};">
+                            ${al ? renderIconSVG(item.type, { size: 12, color: al.dot }) : null}
+                            ${item.label}
+                          </span>
+                          <span>${item.desc}</span>
+                        </div>
+                      `;
+                    })}
+                  </div>
+                ` : html`
+                  <p class="pt-2" style="font-family: var(--font-body); font-size: 0.8125rem; color: var(--text-secondary);">
+                    ${entry.answer}
+                  </p>
+                `}
+              </div>
+            `)}
+          </div>
+          `;
         })()}
 
       </main>
@@ -1192,7 +1375,7 @@ export function Dashboard() {
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
                 <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
-                  The search bar (magnifying glass icon in the header) filters your activity list by name, date, award type, or segment name. It searches across all loaded activities in real time. Press Escape to close the search.
+                  The search bar (magnifying glass icon in the header) filters your activity list by name, date, award type, or segment name. It also searches the FAQ — matching entries appear below your ride results. Press Escape to close the search.
                 </div>
               </details>
 
