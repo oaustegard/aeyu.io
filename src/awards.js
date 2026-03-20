@@ -2257,9 +2257,30 @@ export function detectGroupRides(allActivities, routes = []) {
     }
   }
 
+  // Merge groups with the same name (e.g., route variants that share a name)
+  const merged = [];
+  const nameIndex = new Map(); // name -> index in merged[]
+  for (const g of groups) {
+    const key = g.name;
+    if (nameIndex.has(key)) {
+      const existing = merged[nameIndex.get(key)];
+      existing.rides.push(...g.rides);
+      existing.totalRides += g.totalRides;
+      existing.attendanceStreak = Math.max(existing.attendanceStreak, g.attendanceStreak);
+      existing.attendanceMulligan = existing.attendanceMulligan || g.attendanceMulligan;
+      if (g.lastRideDate > existing.lastRideDate) {
+        existing.lastRideDate = g.lastRideDate;
+      }
+      existing.isGroupRide = existing.isGroupRide || g.isGroupRide;
+    } else {
+      nameIndex.set(key, merged.length);
+      merged.push({ ...g, rides: [...g.rides] });
+    }
+  }
+
   // Sort by total rides descending
-  groups.sort((a, b) => b.totalRides - a.totalRides);
-  return groups;
+  merged.sort((a, b) => b.totalRides - a.totalRides);
+  return merged;
 }
 
 /**
