@@ -2257,14 +2257,15 @@ export function detectGroupRides(allActivities, routes = []) {
     }
   }
 
-  // Merge groups with the same name (e.g., route variants that share a name)
+  // Merge groups that share the same name AND day-of-week (route variants)
   const merged = [];
-  const nameIndex = new Map(); // name -> index in merged[]
+  const mergeIndex = new Map(); // "name|dow" -> index in merged[]
   for (const g of groups) {
-    const key = g.name;
-    if (nameIndex.has(key)) {
-      const existing = merged[nameIndex.get(key)];
+    const key = `${g.name}|${g.dow}`;
+    if (mergeIndex.has(key)) {
+      const existing = merged[mergeIndex.get(key)];
       existing.rides.push(...g.rides);
+      existing.rides.sort((a, b) => a.date.localeCompare(b.date));
       existing.totalRides += g.totalRides;
       existing.attendanceStreak = Math.max(existing.attendanceStreak, g.attendanceStreak);
       existing.attendanceMulligan = existing.attendanceMulligan || g.attendanceMulligan;
@@ -2273,7 +2274,7 @@ export function detectGroupRides(allActivities, routes = []) {
       }
       existing.isGroupRide = existing.isGroupRide || g.isGroupRide;
     } else {
-      nameIndex.set(key, merged.length);
+      mergeIndex.set(key, merged.length);
       merged.push({ ...g, rides: [...g.rides] });
     }
   }

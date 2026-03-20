@@ -10,10 +10,10 @@
  */
 
 /** Minimum Jaccard similarity to consider two activities the same route */
-const JACCARD_THRESHOLD = 0.55;
+const JACCARD_THRESHOLD = 0.65;
 
 /** Minimum containment to match (fraction of route's segments present in activity) */
-const CONTAINMENT_THRESHOLD = 0.6;
+const CONTAINMENT_THRESHOLD = 0.7;
 
 /** Minimum segments an activity must have to participate in route detection */
 const MIN_SEGMENTS_FOR_ROUTE = 2;
