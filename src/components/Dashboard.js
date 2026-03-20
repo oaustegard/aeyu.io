@@ -33,6 +33,7 @@ import {
   clearResetEvent,
   getUserConfig,
   setUserConfig,
+  getAllRoutes,
 } from "../db.js";
 import { navigate } from "../app.js";
 import {
@@ -63,6 +64,7 @@ const showFaq = signal(false);
 const showSettings = signal(false);
 const searchQuery = signal("");
 const showSearch = signal(false);
+const groupFilterIds = signal(null);
 const allActivities = signal([]);
 const deleteConfirmText = signal("");
 const showDeleteConfirm = signal(false);
@@ -160,7 +162,8 @@ async function loadDashboard() {
 
     // Compute streak data (#58) — uses all activities, not just recent 20
     if (activities.length > 0) {
-      streakData.value = computeStreakData(activities);
+      const routes = await getAllRoutes();
+      streakData.value = computeStreakData(activities, routes);
     }
 
     // Check sync completion state
@@ -291,7 +294,7 @@ export function Dashboard() {
       <!-- Header -->
       <${StickyHeader}
         onHelp=${() => { showFaq.value = !showFaq.value; }}
-        onSearch=${() => { showSearch.value = !showSearch.value; if (!showSearch.value) searchQuery.value = ""; }}
+        onSearch=${() => { showSearch.value = !showSearch.value; if (!showSearch.value) { searchQuery.value = ""; groupFilterIds.value = null; } }}
         searchActive=${showSearch.value}
         syncing=${syncing}
         unitSystem=${units}
@@ -339,15 +342,15 @@ export function Dashboard() {
                 type="text"
                 placeholder="Search activities by name, date, or award..."
                 value=${searchQuery.value}
-                onInput=${(e) => { searchQuery.value = e.target.value; }}
-                onKeyDown=${(e) => { if (e.key === "Escape") { searchQuery.value = ""; showSearch.value = false; } }}
+                onInput=${(e) => { searchQuery.value = e.target.value; groupFilterIds.value = null; }}
+                onKeyDown=${(e) => { if (e.key === "Escape") { searchQuery.value = ""; showSearch.value = false; groupFilterIds.value = null; } }}
                 class="search-input w-full rounded-lg py-2 pl-9 pr-8 text-sm"
                 style="background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.2); font-family: var(--font-body); outline: none;"
                 ref=${(el) => { if (el) setTimeout(() => el.focus(), 0); }}
               />
               ${searchQuery.value && html`
                 <button
-                  onClick=${() => { searchQuery.value = ""; }}
+                  onClick=${() => { searchQuery.value = ""; groupFilterIds.value = null; }}
                   class="absolute right-2 top-1/2 -translate-y-1/2"
                   style="color: rgba(255,255,255,0.6);"
                 >
@@ -477,73 +480,89 @@ export function Dashboard() {
           </div>
         `}
 
-        <!-- Streak Cards (#58) -->
-        ${streakData.value?.weeklyStreak?.current >= 4 && html`
-          <div class="grid gap-4 mb-6" style="grid-template-columns: ${streakData.value.groupRides?.length > 0 ? '1fr 1fr' : '1fr'};">
-            <!-- Weekly Ride Streak -->
-            <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
-              <div class="flex items-center gap-2 mb-2">
-                ${renderIconSVG("weekly_streak", { size: 18, color: "#3D7A4A" })}
-                <span style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">Ride Streak</span>
-                ${streakData.value.weeklyStreak.mulliganUsed && html`
-                  <span class="text-xs px-1.5 py-0.5 rounded-full" style="background: #FBF0D8; color: #6E5010; font-family: var(--font-mono);">mulligan</span>
-                `}
-              </div>
-              <div style="font-family: var(--font-display); font-size: 2rem; color: #3D7A4A;">${streakData.value.weeklyStreak.current}</div>
-              <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-secondary);">
-                consecutive weeks${streakData.value.weeklyStreak.streakStart ? ` since ${streakData.value.weeklyStreak.streakStart.replace("-W", " W")}` : ""}
-              </div>
-              ${streakData.value.weeklyStreak.longest > streakData.value.weeklyStreak.current && html`
-                <div class="mt-1" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-tertiary);">
-                  Best: ${streakData.value.weeklyStreak.longest} weeks
-                </div>
-              `}
-            </div>
+        <!-- Streaks & Group Rides (#58, #207) -->
+        ${streakData.value && (() => {
+          const ws = streakData.value.weeklyStreak;
+          const groups = streakData.value.groupRides || [];
+          const hasStreak = ws?.current >= 4;
+          const hasGroups = groups.length > 0;
+          if (!hasStreak && !hasGroups) return null;
 
-            <!-- Top Group Ride -->
-            ${streakData.value.groupRides?.length > 0 && (() => {
-              const topGroup = streakData.value.groupRides[0];
-              return html`
+          // Show full cards only when streak hits a new milestone tier
+          const MILESTONE_TIERS = [4, 8, 12, 26, 52];
+          const isNewMilestone = hasStreak && MILESTONE_TIERS.includes(ws.current);
+
+          if (isNewMilestone) {
+            return html`
+              <div class="grid gap-4 mb-6" style="grid-template-columns: ${hasGroups ? '1fr 1fr' : '1fr'};">
                 <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
                   <div class="flex items-center gap-2 mb-2">
-                    ${renderIconSVG("group_consistency", { size: 18, color: "#5B6CA0" })}
-                    <span style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">Group Ride</span>
+                    ${renderIconSVG("weekly_streak", { size: 18, color: "#3D7A4A" })}
+                    <span style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">Ride Streak</span>
+                    ${ws.mulliganUsed && html`
+                      <span class="text-xs px-1.5 py-0.5 rounded-full" style="background: #FBF0D8; color: #6E5010; font-family: var(--font-mono);">mulligan</span>
+                    `}
                   </div>
-                  <div style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: #34406A;">${topGroup.name}</div>
-                  <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary);">
-                    ${topGroup.totalRides} rides total${topGroup.attendanceStreak >= 3 ? ` · ${topGroup.attendanceStreak}-week streak` : ""}
+                  <div style="font-family: var(--font-display); font-size: 2rem; color: #3D7A4A;">${ws.current}</div>
+                  <div style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-secondary);">
+                    consecutive weeks${ws.streakStart ? ` since ${ws.streakStart.replace("-W", " W")}` : ""}
                   </div>
-                  ${topGroup.attendanceMulligan && topGroup.attendanceStreak >= 3 && html`
-                    <span class="text-xs px-1.5 py-0.5 rounded-full mt-1 inline-block" style="background: #FBF0D8; color: #6E5010; font-family: var(--font-mono);">mulligan used</span>
+                  ${ws.longest > ws.current && html`
+                    <div class="mt-1" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-tertiary);">
+                      Best: ${ws.longest} weeks
+                    </div>
                   `}
                 </div>
-              `;
-            })()}
-          </div>
-        `}
+                ${hasGroups && (() => {
+                  const topGroup = groups[0];
+                  return html`
+                    <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border); cursor: pointer;"
+                      onClick=${() => {
+                        groupFilterIds.value = new Set(topGroup.rides.map((r) => r.id));
+                        searchQuery.value = topGroup.name;
+                        showSearch.value = true;
+                      }}>
+                      <div class="flex items-center gap-2 mb-2">
+                        ${renderIconSVG("group_consistency", { size: 18, color: "#5B6CA0" })}
+                        <span style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">Group Ride</span>
+                      </div>
+                      <div style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: #34406A;">${topGroup.name}</div>
+                      <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary);">
+                        ${topGroup.totalRides} rides total${topGroup.attendanceStreak >= 3 ? ` · ${topGroup.attendanceStreak}-week streak` : ""}
+                      </div>
+                      ${topGroup.attendanceMulligan && topGroup.attendanceStreak >= 3 && html`
+                        <span class="text-xs px-1.5 py-0.5 rounded-full mt-1 inline-block" style="background: #FBF0D8; color: #6E5010; font-family: var(--font-mono);">mulligan used</span>
+                      `}
+                    </div>
+                  `;
+                })()}
+              </div>
+            `;
+          }
 
-        <!-- Additional Group Rides (if streak < 4 but groups exist) -->
-        ${streakData.value && !(streakData.value.weeklyStreak?.current >= 4) && streakData.value.groupRides?.length > 0 && html`
-          <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
-            <div class="flex items-center gap-2 mb-2">
-              ${renderIconSVG("group_consistency", { size: 18, color: "#5B6CA0" })}
-              <span style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">Recurring Rides</span>
-            </div>
-            <div class="space-y-2">
-              ${streakData.value.groupRides.slice(0, 3).map((g) => html`
-                <div class="flex items-center justify-between">
-                  <div>
-                    <span style="font-family: var(--font-body); font-size: 0.875rem; color: #34406A;">${g.name}</span>
-                    <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-tertiary);"> · ${g.totalRides} rides</span>
-                  </div>
-                  ${g.attendanceStreak >= 3 && html`
-                    <span class="text-xs px-2 py-0.5 rounded-full" style="background: #E4E8F2; color: #34406A; border: 1px solid #BCC4DC;">${g.attendanceStreak}w streak</span>
-                  `}
-                </div>
+          // Compact bar: single line for streak + group rides
+          return html`
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mb-6 px-3 py-2 rounded-lg" style="background: var(--surface); border: 1px solid var(--border);">
+              ${hasStreak && html`
+                <span class="flex items-center gap-1.5" style="font-family: var(--font-body); font-size: 0.8125rem; color: #3D7A4A;">
+                  ${renderIconSVG("weekly_streak", { size: 14, color: "#3D7A4A" })}
+                  <span style="font-weight: 600;">${ws.current}-week</span> ride streak${ws.mulliganUsed ? html`<span class="text-xs px-1 py-0.5 rounded-full" style="background: #FBF0D8; color: #6E5010; font-family: var(--font-mono); font-size: 0.625rem;">m</span>` : ""}
+                </span>
+              `}
+              ${groups.slice(0, 3).map((g) => html`
+                <span class="flex items-center gap-1.5" style="font-family: var(--font-body); font-size: 0.8125rem; color: #5B6CA0; cursor: pointer;"
+                  onClick=${() => {
+                    groupFilterIds.value = new Set(g.rides.map((r) => r.id));
+                    searchQuery.value = g.name;
+                    showSearch.value = true;
+                  }}>
+                  ${renderIconSVG("group_consistency", { size: 14, color: "#5B6CA0" })}
+                  <span style="font-weight: 500;">${g.name}</span>${g.attendanceStreak >= 3 ? ` — ${g.attendanceStreak}w streak` : ""} <span style="color: var(--text-tertiary);">(${g.totalRides})</span>
+                </span>
               `)}
             </div>
-          </div>
-        `}
+          `;
+        })()}
 
         <!-- Stats -->
         <div class="grid grid-cols-2 gap-4 mb-6">
@@ -823,10 +842,12 @@ export function Dashboard() {
         <!-- Activity list -->
         ${!loading.value && (() => {
           const query = searchQuery.value.trim().toLowerCase();
-          const isSearching = query.length > 0;
+          const isSearching = query.length > 0 || groupFilterIds.value;
           const sourceActivities = isSearching ? allActivities.value : recentActivities.value;
           const displayActivities = isSearching
-            ? sourceActivities.filter((activity) => {
+            ? groupFilterIds.value
+              ? sourceActivities.filter((activity) => groupFilterIds.value.has(activity.id))
+              : sourceActivities.filter((activity) => {
                 // Search by activity name
                 if (activity.name && activity.name.toLowerCase().includes(query)) return true;
                 // Search by date
