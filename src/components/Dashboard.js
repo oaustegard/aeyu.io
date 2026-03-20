@@ -156,7 +156,7 @@ const FAQ_ENTRIES = [
   {
     id: "stuck-version",
     question: "The app seems stuck on an old version",
-    answer: "The app uses a service worker to work offline, which can sometimes serve cached files after an update. Go to Settings and tap 'Clear cached code and reload' to force a fresh download. This only clears app code — your activity data is not affected.",
+    answer: "The app uses a service worker to work offline, which can sometimes serve cached files after an update. Open Account & Data settings and tap 'Clear cached code and reload' to force a fresh download. This only clears app code — your activity data is not affected.",
   },
   {
     id: "bugs",
@@ -166,12 +166,12 @@ const FAQ_ENTRIES = [
   {
     id: "export",
     question: "Can I export my data for an AI coach?",
-    answer: "Yes! Go to Settings and use 'Export for AI Coach' to copy a compact summary of your recent training to the clipboard. You can also export a single ride from any Activity Detail page. Choose Markdown (best for chat) or JSON (best for structured prompts). Paste the result into ChatGPT, Claude, or any LLM.",
+    answer: "Yes! Open Account & Data settings and use 'Export for AI Coach' to copy a compact summary of your recent training to the clipboard. You can also export a single ride from any Activity Detail page. Choose Markdown (best for chat) or JSON (best for structured prompts). Paste the result into ChatGPT, Claude, or any LLM.",
   },
   {
     id: "toggle-awards",
     question: "Can I hide certain award types?",
-    answer: "Yes. Go to Settings and scroll to 'Award Toggles.' Each award type has a checkbox — uncheck it to stop that type from appearing on your dashboard and activity detail pages. You can toggle entire groups at once or individual types.",
+    answer: "Yes. Open Rides & Awards settings and scroll to 'Award Toggles.' Each award type has a checkbox — uncheck it to stop that type from appearing on your dashboard and activity detail pages. You can toggle entire groups at once or individual types.",
   },
   {
     id: "aeyu",
@@ -187,6 +187,7 @@ const loading = signal(true);
 const backfillComplete = signal(false);
 const showFaq = signal(false);
 const showSettings = signal(false);
+const settingsTab = signal("rides"); // "rides" | "account"
 const searchQuery = signal("");
 const showSearch = signal(false);
 const groupFilterIds = signal(null);
@@ -591,21 +592,16 @@ export function Dashboard() {
             hidden: syncing,
           }]),
           {
-            label: "Settings",
-            onClick: () => { showSettings.value = true; },
+            label: "Rides & Awards",
+            onClick: () => { settingsTab.value = "rides"; showSettings.value = true; },
+          },
+          {
+            label: "Account & Data",
+            onClick: () => { settingsTab.value = "account"; showSettings.value = true; },
           },
           ...(!isDemo.value ? [{
             label: "Try Demo",
             onClick: async () => { await startDemo(); navigate("/demo"); },
-          }] : []),
-          ...(!isDemo.value ? [{
-            label: "Disconnect Strava",
-            onClick: handleDisconnect,
-          }] : []),
-          ...(!isDemo.value ? [{
-            label: "Delete all data",
-            onClick: () => { showSettings.value = true; showDeleteConfirm.value = true; deleteConfirmText.value = ""; },
-            danger: true,
           }] : []),
         ]}
       />
@@ -1677,7 +1673,7 @@ export function Dashboard() {
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
                 <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
-                  The app uses a service worker to work offline, which can sometimes serve cached files after an update. Go to Settings and tap "Clear cached code and reload" to force a fresh download. This only clears app code — your activity data is not affected.
+                  The app uses a service worker to work offline, which can sometimes serve cached files after an update. Open Account & Data settings and tap "Clear cached code and reload" to force a fresh download. This only clears app code — your activity data is not affected.
                 </div>
               </details>
 
@@ -1697,7 +1693,7 @@ export function Dashboard() {
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
                 <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
-                  <p>Yes! Go to Settings and use "Export for AI Coach" to copy a compact summary of your recent training to the clipboard. It includes weekly volume rollups, monthly trends, fitness indicators, consistency streaks, and your last 25 rides — everything an LLM needs to give you coaching advice.</p>
+                  <p>Yes! Open Account & Data settings and use "Export for AI Coach" to copy a compact summary of your recent training to the clipboard. It includes weekly volume rollups, monthly trends, fitness indicators, consistency streaks, and your last 25 rides — everything an LLM needs to give you coaching advice.</p>
                   <p>You can also export a single ride from any Activity Detail page. The ride export includes all segment efforts with awards, and optionally your form context leading into the ride (training load from the preceding 7/14/30 days, recent rides, fitness indicators, and streaks).</p>
                   <p>Choose Markdown (best for chat) or JSON (best for structured prompts). Paste the result into ChatGPT, Claude, or any LLM and ask for training analysis.</p>
                 </div>
@@ -1709,7 +1705,7 @@ export function Dashboard() {
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
                 <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
-                  Yes. Go to Settings and scroll to "Award Toggles." Each award type has a checkbox — uncheck it to stop that type from appearing on your dashboard and activity detail pages. You can toggle entire groups at once (e.g. all Power Awards) or individual types. Your preference is saved locally and persists across sessions.
+                  Yes. Open Rides & Awards settings and scroll to "Award Toggles." Each award type has a checkbox — uncheck it to stop that type from appearing on your dashboard and activity detail pages. You can toggle entire groups at once (e.g. all Power Awards) or individual types. Your preference is saved locally and persists across sessions.
                 </div>
               </details>
 
@@ -1719,7 +1715,7 @@ export function Dashboard() {
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
                 <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
-                  Yes. Go to Settings and use "Sync Settings Across Browsers." Export saves your unit preference, award toggles, reference points, comeback mode, and sync window to a JSON file. Import that file on another browser to apply the same settings. Activity data syncs separately from Strava.
+                  Yes. Open Account & Data settings and use "Sync Settings Across Browsers." Export saves your unit preference, award toggles, reference points, comeback mode, and sync window to a JSON file. Import that file on another browser to apply the same settings. Activity data syncs separately from Strava.
                 </div>
               </details>
 
@@ -1745,16 +1741,39 @@ export function Dashboard() {
           class="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm overflow-y-auto p-4 pt-16 sm:pt-24"
           onClick=${(e) => { if (e.target === e.currentTarget) { showSettings.value = false; showDeleteConfirm.value = false; deleteConfirmText.value = ""; } }}
         >
-          <div class="rounded-xl shadow-xl w-full max-w-lg p-6 my-4" style="background: var(--surface); border: 1px solid var(--border);">
-            <div class="flex items-center justify-between mb-4">
-              <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text);">Settings</h2>
+          <div class="rounded-xl shadow-xl w-full max-w-lg my-4" style="background: var(--surface); border: 1px solid var(--border);">
+            <div class="flex items-center justify-between" style="padding: 1.25rem 1.5rem 0 1.5rem;">
+              <div class="flex">
+                <button
+                  onClick=${() => { settingsTab.value = "rides"; }}
+                  class="text-sm px-3 py-2 font-medium transition-colors"
+                  style=${settingsTab.value === "rides"
+                    ? "color: var(--text); border-bottom: 2px solid var(--accent); font-family: var(--font-display);"
+                    : "color: var(--text-tertiary); border-bottom: 2px solid transparent; font-family: var(--font-display);"}
+                >
+                  Rides & Awards
+                </button>
+                <button
+                  onClick=${() => { settingsTab.value = "account"; }}
+                  class="text-sm px-3 py-2 font-medium transition-colors"
+                  style=${settingsTab.value === "account"
+                    ? "color: var(--text); border-bottom: 2px solid var(--accent); font-family: var(--font-display);"
+                    : "color: var(--text-tertiary); border-bottom: 2px solid transparent; font-family: var(--font-display);"}
+                >
+                  Account & Data
+                </button>
+              </div>
               <button
                 onClick=${() => { showSettings.value = false; showDeleteConfirm.value = false; deleteConfirmText.value = ""; }}
                 class="text-sm transition-colors"
                 style="color: var(--text-tertiary);"
               >Close</button>
             </div>
+            <div style="border-bottom: 1px solid var(--border-light);"></div>
 
+            <div class="p-6">
+
+            ${settingsTab.value === "account" && html`
             ${!isDemo.value && html`
             <div class="space-y-3">
               <!-- Sync Window Settings (#111) -->
@@ -1834,7 +1853,220 @@ export function Dashboard() {
             </div>
             `}
 
-            <div class="${!isDemo.value ? 'mt-4 pt-4' : ''} space-y-3" style="${!isDemo.value ? 'border-top: 1px solid var(--border-light);' : ''}">
+            <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
+              <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Export for AI Coach</p>
+              <p class="text-xs mb-2" style="color: var(--border);">Copy a compact summary of your recent training data for use with ChatGPT, Claude, or other LLMs.</p>
+              <div class="flex items-center gap-2 mb-2">
+                <select
+                  value=${exportDays.value}
+                  onChange=${(e) => { exportDays.value = e.target.value; exportStatus.value = null; }}
+                  class="text-xs rounded px-2 py-1 focus:outline-none"
+                  style="border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-family: var(--font-mono);"
+                >
+                  <option value="30">Last 30 days</option>
+                  <option value="90">Last 90 days</option>
+                  <option value="180">Last 6 months</option>
+                  <option value="365">Last year</option>
+                </select>
+                <select
+                  value=${exportFormat.value}
+                  onChange=${(e) => { exportFormat.value = e.target.value; exportStatus.value = null; }}
+                  class="text-xs rounded px-2 py-1 focus:outline-none"
+                  style="border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-family: var(--font-mono);"
+                >
+                  <option value="markdown">Markdown</option>
+                  <option value="json">JSON</option>
+                </select>
+              </div>
+              <button
+                onClick=${async () => {
+                  exportStatus.value = "loading";
+                  try {
+                    const days = parseInt(exportDays.value);
+                    const fmt = exportFormat.value;
+                    const textPromise = (async () => {
+                      const ctx = await buildLLMContext({ days });
+                      return fmt === "markdown" ? contextToMarkdown(ctx) : JSON.stringify(ctx, null, 2);
+                    })();
+                    const blobPromise = textPromise.then(t => new Blob([t], { type: "text/plain" }));
+                    await navigator.clipboard.write([new ClipboardItem({ "text/plain": blobPromise })]);
+                    exportStatus.value = "copied";
+                    setTimeout(() => { exportStatus.value = null; }, 3000);
+                  } catch (e) {
+                    console.error("Export failed:", e);
+                    exportStatus.value = "error";
+                    setTimeout(() => { exportStatus.value = null; }, 3000);
+                  }
+                }}
+                disabled=${exportStatus.value === "loading"}
+                class="text-xs transition-colors"
+                style="color: var(--accent);"
+              >
+                ${exportStatus.value === "loading" ? "Building export..." : exportStatus.value === "copied" ? "Copied to clipboard!" : exportStatus.value === "error" ? "Export failed" : "Copy training data to clipboard"}
+              </button>
+            </div>
+
+            <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
+              <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Sync Settings Across Browsers</p>
+              <p class="text-xs mb-2" style="color: var(--border);">Export your settings to a file, then import on another browser. Includes unit preference, award toggles, reference points, comeback mode, and sync window.</p>
+              <div class="flex items-center gap-3">
+                <button
+                  onClick=${async () => {
+                    try {
+                      const data = await exportSettings();
+                      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = "aeyu-settings.json";
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      settingsTransferStatus.value = "exported";
+                      setTimeout(() => { settingsTransferStatus.value = null; }, 3000);
+                    } catch (e) {
+                      console.error("Settings export failed:", e);
+                      settingsTransferStatus.value = "error";
+                      setTimeout(() => { settingsTransferStatus.value = null; }, 3000);
+                    }
+                  }}
+                  class="text-xs transition-colors"
+                  style="color: var(--accent);"
+                >
+                  Export settings
+                </button>
+                <button
+                  onClick=${() => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = ".json";
+                    input.onchange = async (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      try {
+                        const text = await file.text();
+                        const data = JSON.parse(text);
+                        await importSettings(data);
+                        settingsTransferStatus.value = "imported";
+                        setTimeout(() => { settingsTransferStatus.value = null; }, 3000);
+                        await loadUnitPreference();
+                        await loadDashboard();
+                        const config = await getUserConfig();
+                        referencePoints.value = config.referencePoints || [];
+                        disabledAwardTypes.value = new Set(config.disabledAwards || []);
+                        const event = await getResetEvent();
+                        activeResetEvent.value = event;
+                        const syncState = await getSyncState();
+                        currentSyncAfterEpoch.value = syncState.sync_after_epoch;
+                      } catch (e) {
+                        console.error("Settings import failed:", e);
+                        settingsTransferStatus.value = "error";
+                        setTimeout(() => { settingsTransferStatus.value = null; }, 3000);
+                      }
+                    };
+                    input.click();
+                  }}
+                  class="text-xs transition-colors"
+                  style="color: var(--accent);"
+                >
+                  Import settings
+                </button>
+              </div>
+              ${settingsTransferStatus.value && html`
+                <p class="text-xs mt-1.5" style="color: ${settingsTransferStatus.value === 'error' ? '#A03020' : 'var(--accent)'};">
+                  ${settingsTransferStatus.value === "exported" ? "Settings exported!" : settingsTransferStatus.value === "imported" ? "Settings imported and applied!" : "Failed — check that the file is a valid aeyu settings export."}
+                </p>
+              `}
+            </div>
+
+            ${!isDemo.value && html`
+            <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
+              <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Disconnect Strava</p>
+              <button
+                onClick=${() => { showSettings.value = false; handleDisconnect(); }}
+                class="text-xs transition-colors"
+                style="color: #A03020;"
+              >
+                Disconnect your Strava account
+              </button>
+              <p class="text-xs mt-1" style="color: var(--border);">Removes your Strava connection from this browser. Your activity data stays until you delete it.</p>
+            </div>
+            `}
+
+            <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
+              <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Hard Reload</p>
+              <button
+                onClick=${async () => {
+                  try {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(registrations.map(r => r.unregister()));
+                  } catch (e) { /* SW/cache API may not be available */ }
+                  window.location.reload(true);
+                }}
+                class="text-xs transition-colors"
+                style="color: var(--accent);"
+              >
+                Clear cached code and reload
+              </button>
+              <p class="text-xs mt-1" style="color: var(--border);">Forces a fresh download of all app files. Your activity data is not affected.</p>
+            </div>
+
+            ${!isDemo.value && html`
+            <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
+              <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Delete Data</p>
+              ${!showDeleteConfirm.value ? html`
+                <button
+                  onClick=${() => { showDeleteConfirm.value = true; deleteConfirmText.value = ""; }}
+                  class="text-xs transition-colors"
+                  style="color: #A03020;"
+                >
+                  Delete all data from this browser
+                </button>
+              ` : html`
+                <div class="p-3 rounded-lg" style="background: #F6DED4; border: 1px solid #E4B8A4;">
+                  <p class="text-xs mb-2" style="color: #7A2E18;">
+                    This will delete all your data from this browser. To confirm, type <span style="font-family: var(--font-mono); font-weight: 700;">delete my data</span> below.
+                  </p>
+                  <input
+                    type="text"
+                    value=${deleteConfirmText.value}
+                    onInput=${(e) => { deleteConfirmText.value = e.target.value; }}
+                    placeholder="delete my data"
+                    class="w-full text-xs rounded px-2 py-1.5 mb-2 focus:outline-none focus:ring-1"
+                    style="border: 1px solid #E4B8A4; font-family: var(--font-mono);"
+                  />
+                  <div class="flex gap-2">
+                    <button
+                      onClick=${async () => {
+                        await clearAllData();
+                        navigate("/");
+                        window.location.reload();
+                      }}
+                      disabled=${deleteConfirmText.value !== "delete my data"}
+                      class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
+                      style=${deleteConfirmText.value === "delete my data"
+                        ? "background: #A03020; color: white;"
+                        : "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"}
+                    >
+                      Delete everything
+                    </button>
+                    <button
+                      onClick=${() => { showDeleteConfirm.value = false; deleteConfirmText.value = ""; }}
+                      class="text-xs px-3 py-1.5 rounded transition-colors"
+                      style="color: var(--text-secondary);"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              `}
+            </div>
+            `}
+            `}
+
+            ${settingsTab.value === "rides" && html`
+            <div class="space-y-3">
               <!-- Reference Points Settings -->
               <div>
                 <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Reference Points</p>
@@ -2154,206 +2386,9 @@ export function Dashboard() {
                 })}
               </div>
             </div>
-
-            <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
-              <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Export for AI Coach</p>
-              <p class="text-xs mb-2" style="color: var(--border);">Copy a compact summary of your recent training data for use with ChatGPT, Claude, or other LLMs.</p>
-              <div class="flex items-center gap-2 mb-2">
-                <select
-                  value=${exportDays.value}
-                  onChange=${(e) => { exportDays.value = e.target.value; exportStatus.value = null; }}
-                  class="text-xs rounded px-2 py-1 focus:outline-none"
-                  style="border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-family: var(--font-mono);"
-                >
-                  <option value="30">Last 30 days</option>
-                  <option value="90">Last 90 days</option>
-                  <option value="180">Last 6 months</option>
-                  <option value="365">Last year</option>
-                </select>
-                <select
-                  value=${exportFormat.value}
-                  onChange=${(e) => { exportFormat.value = e.target.value; exportStatus.value = null; }}
-                  class="text-xs rounded px-2 py-1 focus:outline-none"
-                  style="border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-family: var(--font-mono);"
-                >
-                  <option value="markdown">Markdown</option>
-                  <option value="json">JSON</option>
-                </select>
-              </div>
-              <button
-                onClick=${async () => {
-                  exportStatus.value = "loading";
-                  try {
-                    const days = parseInt(exportDays.value);
-                    const fmt = exportFormat.value;
-                    // Pass a Promise to ClipboardItem so user activation is captured now,
-                    // even though buildLLMContext resolves later
-                    const textPromise = (async () => {
-                      const ctx = await buildLLMContext({ days });
-                      return fmt === "markdown" ? contextToMarkdown(ctx) : JSON.stringify(ctx, null, 2);
-                    })();
-                    const blobPromise = textPromise.then(t => new Blob([t], { type: "text/plain" }));
-                    await navigator.clipboard.write([new ClipboardItem({ "text/plain": blobPromise })]);
-                    exportStatus.value = "copied";
-                    setTimeout(() => { exportStatus.value = null; }, 3000);
-                  } catch (e) {
-                    console.error("Export failed:", e);
-                    exportStatus.value = "error";
-                    setTimeout(() => { exportStatus.value = null; }, 3000);
-                  }
-                }}
-                disabled=${exportStatus.value === "loading"}
-                class="text-xs transition-colors"
-                style="color: var(--accent);"
-              >
-                ${exportStatus.value === "loading" ? "Building export..." : exportStatus.value === "copied" ? "Copied to clipboard!" : exportStatus.value === "error" ? "Export failed" : "Copy training data to clipboard"}
-              </button>
-            </div>
-
-            <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
-              <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Sync Settings Across Browsers</p>
-              <p class="text-xs mb-2" style="color: var(--border);">Export your settings to a file, then import on another browser. Includes unit preference, award toggles, reference points, comeback mode, and sync window.</p>
-              <div class="flex items-center gap-3">
-                <button
-                  onClick=${async () => {
-                    try {
-                      const data = await exportSettings();
-                      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = "aeyu-settings.json";
-                      a.click();
-                      URL.revokeObjectURL(url);
-                      settingsTransferStatus.value = "exported";
-                      setTimeout(() => { settingsTransferStatus.value = null; }, 3000);
-                    } catch (e) {
-                      console.error("Settings export failed:", e);
-                      settingsTransferStatus.value = "error";
-                      setTimeout(() => { settingsTransferStatus.value = null; }, 3000);
-                    }
-                  }}
-                  class="text-xs transition-colors"
-                  style="color: var(--accent);"
-                >
-                  Export settings
-                </button>
-                <button
-                  onClick=${() => {
-                    const input = document.createElement("input");
-                    input.type = "file";
-                    input.accept = ".json";
-                    input.onchange = async (e) => {
-                      const file = e.target.files[0];
-                      if (!file) return;
-                      try {
-                        const text = await file.text();
-                        const data = JSON.parse(text);
-                        await importSettings(data);
-                        settingsTransferStatus.value = "imported";
-                        setTimeout(() => { settingsTransferStatus.value = null; }, 3000);
-                        await loadUnitPreference();
-                        await loadDashboard();
-                        // Reload settings panel state
-                        const config = await getUserConfig();
-                        referencePoints.value = config.referencePoints || [];
-                        disabledAwardTypes.value = new Set(config.disabledAwards || []);
-                        const event = await getResetEvent();
-                        activeResetEvent.value = event;
-                        const syncState = await getSyncState();
-                        currentSyncAfterEpoch.value = syncState.sync_after_epoch;
-                      } catch (e) {
-                        console.error("Settings import failed:", e);
-                        settingsTransferStatus.value = "error";
-                        setTimeout(() => { settingsTransferStatus.value = null; }, 3000);
-                      }
-                    };
-                    input.click();
-                  }}
-                  class="text-xs transition-colors"
-                  style="color: var(--accent);"
-                >
-                  Import settings
-                </button>
-              </div>
-              ${settingsTransferStatus.value && html`
-                <p class="text-xs mt-1.5" style="color: ${settingsTransferStatus.value === 'error' ? '#A03020' : 'var(--accent)'};">
-                  ${settingsTransferStatus.value === "exported" ? "Settings exported!" : settingsTransferStatus.value === "imported" ? "Settings imported and applied!" : "Failed — check that the file is a valid aeyu settings export."}
-                </p>
-              `}
-            </div>
-
-            <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
-              <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Hard Reload</p>
-              <button
-                onClick=${async () => {
-                  try {
-                    const cacheNames = await caches.keys();
-                    await Promise.all(cacheNames.map(name => caches.delete(name)));
-                    const registrations = await navigator.serviceWorker.getRegistrations();
-                    await Promise.all(registrations.map(r => r.unregister()));
-                  } catch (e) { /* SW/cache API may not be available */ }
-                  window.location.reload(true);
-                }}
-                class="text-xs transition-colors"
-                style="color: var(--accent);"
-              >
-                Clear cached code and reload
-              </button>
-              <p class="text-xs mt-1" style="color: var(--border);">Forces a fresh download of all app files. Your activity data is not affected.</p>
-            </div>
-
-            ${!isDemo.value && html`
-            <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
-              <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Delete Data</p>
-              ${!showDeleteConfirm.value ? html`
-                <button
-                  onClick=${() => { showDeleteConfirm.value = true; deleteConfirmText.value = ""; }}
-                  class="text-xs transition-colors"
-                  style="color: #A03020;"
-                >
-                  Delete all data from this browser
-                </button>
-              ` : html`
-                <div class="p-3 rounded-lg" style="background: #F6DED4; border: 1px solid #E4B8A4;">
-                  <p class="text-xs mb-2" style="color: #7A2E18;">
-                    This will delete all your data from this browser. To confirm, type <span style="font-family: var(--font-mono); font-weight: 700;">delete my data</span> below.
-                  </p>
-                  <input
-                    type="text"
-                    value=${deleteConfirmText.value}
-                    onInput=${(e) => { deleteConfirmText.value = e.target.value; }}
-                    placeholder="delete my data"
-                    class="w-full text-xs rounded px-2 py-1.5 mb-2 focus:outline-none focus:ring-1"
-                    style="border: 1px solid #E4B8A4; font-family: var(--font-mono);"
-                  />
-                  <div class="flex gap-2">
-                    <button
-                      onClick=${async () => {
-                        await clearAllData();
-                        navigate("/");
-                        window.location.reload();
-                      }}
-                      disabled=${deleteConfirmText.value !== "delete my data"}
-                      class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
-                      style=${deleteConfirmText.value === "delete my data"
-                        ? "background: #A03020; color: white;"
-                        : "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"}
-                    >
-                      Delete everything
-                    </button>
-                    <button
-                      onClick=${() => { showDeleteConfirm.value = false; deleteConfirmText.value = ""; }}
-                      class="text-xs px-3 py-1.5 rounded transition-colors"
-                      style="color: var(--text-secondary);"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              `}
-            </div>
             `}
+
+            </div>
           </div>
         </div>
       `}
