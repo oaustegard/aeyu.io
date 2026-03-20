@@ -10,12 +10,13 @@
 import { html } from "htm/preact";
 import { signal, effect } from "@preact/signals";
 import { useEffect } from "preact/hooks";
-import { authState, disconnect } from "../auth.js";
+import { authState, disconnect, startOAuth } from "../auth.js";
 import {
   startAutoSync,
   stopAutoSync,
   manualSync,
   updateSyncWindow,
+  syncRoutes,
   syncProgress,
   rateLimitStatus,
   isSyncing,
@@ -36,6 +37,7 @@ import {
   exportSettings,
   importSettings,
   getAllRoutes,
+  getStravaRoutes,
 } from "../db.js";
 import { navigate } from "../app.js";
 import {
@@ -56,6 +58,7 @@ import { computeFitnessSummary } from "../fitness.js";
 import { getAllTimeBestCurve, estimateFTP, POWER_CURVE_DURATIONS, DURATION_LABELS } from "../power-curve.js";
 import { StickyHeader, headerCompact } from "./StickyHeader.js";
 import { buildLLMContext, contextToMarkdown } from "../export-llm.js";
+import { detectRoutes } from "../routes.js";
 
 // FAQ entries — searchable data structure. Award items derived from AWARD_GROUPS.
 const FAQ_ENTRIES = [
@@ -145,8 +148,8 @@ const FAQ_ENTRIES = [
   },
   {
     id: "routes",
-    question: "What are routes?",
-    answer: "The app automatically detects recurring routes by comparing which segments appear on each ride. If two activities share 70%+ of their segments, they're considered the same route. This powers the Route Season First award.",
+    question: "What are routes and ride clusters?",
+    answer: "The app automatically detects recurring routes (ride clusters) by comparing which segments appear on each ride. If two activities share 70%+ of their segments, they're considered the same route. This powers the Route Season First award, and each route shows trend charts for average speed and power over time. By default, routes are named after the most common activity name in the cluster. To set a custom name, save any ride from the cluster as a Route in Strava and give it the name you want — the app syncs your saved Strava routes and uses those names. You can also manually sync routes from Settings. Route chips appear below the search bar; tap one to see its trend chart and filter to those rides. When searching, the app also clusters matching results to surface repeated routes in your search results.",
   },
   {
     id: "touch-tooltips",
@@ -223,6 +226,8 @@ const activeChartHelp = signal(null);
 const disabledAwardTypes = signal(new Set());
 const dashboardRoutes = signal([]);
 const settingsTransferStatus = signal(null); // null | "exported" | "imported" | "error"
+const routeSyncStatus = signal(null); // null | "syncing" | "Synced N routes" | "error"
+const showReauthPrompt = signal(false);
 let searchAwardsTimer = null;
 effect(() => {
   const query = searchQuery.value.trim().toLowerCase();
@@ -278,6 +283,87 @@ function ChartHelp({ id, children }) {
         </div>
       `}
     </span>
+  `;
+}
+
+function renderRouteTrendChart(route) {
+  const rides = (route.rides || []).filter((r) => r.average_speed);
+  if (rides.length < 2) return null;
+
+  const hasPower = rides.some((r) => r.average_watts);
+  const speeds = rides.map((r) => unitSystem.value === "imperial" ? r.average_speed * 2.23694 : r.average_speed * 3.6);
+  const powers = hasPower ? rides.map((r) => r.average_watts || 0) : [];
+  const speedUnit = unitSystem.value === "imperial" ? "mph" : "km/h";
+  const spdColor = "#6BB8E0", powColor = "#E08080";
+
+  const minSpd = Math.min(...speeds), maxSpd = Math.max(...speeds);
+  const spdRange = maxSpd - minSpd || 1;
+  const padSpd = { min: minSpd - spdRange * 0.1, max: maxSpd + spdRange * 0.1 };
+  const pSpdRange = padSpd.max - padSpd.min;
+
+  let padPow, pPowRange;
+  if (hasPower) {
+    const validPowers = powers.filter((p) => p > 0);
+    if (validPowers.length >= 2) {
+      const minPow = Math.min(...validPowers), maxPow = Math.max(...validPowers);
+      const powRange = maxPow - minPow || 1;
+      padPow = { min: minPow - powRange * 0.1, max: maxPow + powRange * 0.1 };
+      pPowRange = padPow.max - padPow.min;
+    }
+  }
+  const showPow = hasPower && padPow;
+
+  const W = 280, H = showPow ? 80 : 60, ML = 32, MR = showPow ? 32 : 4, MT = 4, MB = 18;
+  const cW = W - ML - MR, cH = H - MT - MB;
+  const xPos = (i) => ML + (i / (rides.length - 1)) * cW;
+  const ySpd = (s) => MT + cH - ((s - padSpd.min) / pSpdRange) * cH;
+  const yPow = showPow ? (p) => MT + cH - ((p - padPow.min) / pPowRange) * cH : null;
+
+  const spdPath = speeds.map((s, i) => `${i === 0 ? 'M' : 'L'}${xPos(i).toFixed(1)},${ySpd(s).toFixed(1)}`).join(' ');
+  let powPathD = null;
+  if (showPow) {
+    const pts = powers.map((p, i) => p > 0 ? `${xPos(i).toFixed(1)},${yPow(p).toFixed(1)}` : null).filter(Boolean);
+    if (pts.length > 1) powPathD = pts.map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt}`).join(' ');
+  }
+
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const labelStep = Math.max(1, Math.ceil(rides.length / 6));
+  const spdTicks = [padSpd.min, padSpd.min + pSpdRange / 2, padSpd.max].map((v) => +v.toFixed(1));
+  const powTicks = showPow ? [padPow.min, padPow.min + pPowRange / 2, padPow.max].map((v) => Math.round(v)) : [];
+
+  return html`
+    <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; margin-top: 0.25rem; overflow: visible;">
+      ${spdTicks.map((v) => html`
+        <text x="${ML - 3}" y="${ySpd(v) + 1}" text-anchor="end" style="font-size: 6px; fill: ${spdColor}; font-family: var(--font-mono);">${v}</text>
+        <line x1="${ML}" y1="${ySpd(v)}" x2="${W - MR}" y2="${ySpd(v)}" stroke="rgba(255,255,255,0.1)" stroke-width="0.5" stroke-dasharray="2,2" />
+      `)}
+      ${showPow && powTicks.map((v) => html`
+        <text x="${W - MR + 3}" y="${yPow(v) + 1}" text-anchor="start" style="font-size: 6px; fill: ${powColor}; font-family: var(--font-mono);">${v}</text>
+      `)}
+      <path d="${spdPath}" fill="none" stroke="${spdColor}" stroke-width="1.5" stroke-linejoin="round" />
+      ${speeds.map((s, i) => html`
+        <circle cx="${xPos(i)}" cy="${ySpd(s)}" r="${i === speeds.length - 1 ? 3 : 1.5}" fill="${spdColor}">
+          <title>${new Date(rides[i].date).toLocaleDateString()}: ${s.toFixed(1)} ${speedUnit}</title>
+        </circle>
+      `)}
+      ${powPathD && html`
+        <path d="${powPathD}" fill="none" stroke="${powColor}" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="4,2" />
+        ${rides.map((r, i) => r.average_watts ? html`
+          <circle cx="${xPos(i)}" cy="${yPow(powers[i])}" r="${i === rides.length - 1 ? 3 : 1.5}" fill="${powColor}">
+            <title>${new Date(r.date).toLocaleDateString()}: ${Math.round(r.average_watts)}W</title>
+          </circle>
+        ` : null)}
+      `}
+      ${rides.map((r, i) => {
+        if (i % labelStep !== 0 && i !== rides.length - 1) return null;
+        const d = new Date(r.date);
+        return html`<text x="${xPos(i)}" y="${H - 2}" text-anchor="middle" style="font-size: 6px; fill: rgba(255,255,255,0.4); font-family: var(--font-mono);">${monthNames[d.getMonth()]} '${String(d.getFullYear()).slice(2)}</text>`;
+      })}
+    </svg>
+    <div class="flex items-center gap-3 mt-1" style="font-family: var(--font-mono); font-size: 0.5625rem; color: rgba(255,255,255,0.5);">
+      <span class="flex items-center gap-1"><span style="display:inline-block;width:12px;height:2px;background:${spdColor};"></span>Speed (${speedUnit})</span>
+      ${showPow && html`<span class="flex items-center gap-1"><span style="display:inline-block;width:12px;height:2px;background:${powColor};border-top:1px dashed ${powColor};"></span>Power (W)</span>`}
+    </div>
   `;
 }
 
@@ -439,7 +525,23 @@ async function loadDashboard() {
     // Compute streak data (#58) — uses all activities, not just recent 20
     if (activities.length > 0) {
       const routes = await getAllRoutes();
-      dashboardRoutes.value = routes;
+      // Enrich routes with ride data for trend charts
+      const activityMap = new Map(activities.map(a => [a.id, a]));
+      const enrichedRoutes = routes.map(r => ({
+        ...r,
+        rides: r.activityIds
+          .map(id => activityMap.get(id))
+          .filter(Boolean)
+          .sort((a, b) => a.start_date_local.localeCompare(b.start_date_local))
+          .map(a => ({
+            id: a.id,
+            date: a.start_date_local,
+            name: a.name,
+            average_speed: a.average_speed || null,
+            average_watts: (a.device_watts || a.sport_type === "VirtualRide") ? (a.average_watts || null) : null,
+          })),
+      }));
+      dashboardRoutes.value = enrichedRoutes;
       streakData.value = computeStreakData(activities, routes);
     }
 
@@ -525,7 +627,12 @@ export function Dashboard() {
 
     // Check if this is a first-time sync — prompt user for data window
     if (!isDemo.value) {
-      getSyncState().then((state) => {
+      getSyncState().then(async (state) => {
+        // One-time prompt for existing users to re-authorize with routes scope
+        if (state.last_sync && !state.routes_scope_prompted) {
+          showReauthPrompt.value = true;
+        }
+
         if (!state.last_sync && !state.backfill_complete && !state.initial_backfill_complete && state.sync_after_epoch === null) {
           showFirstSyncPrompt.value = true;
         } else {
@@ -642,6 +749,7 @@ export function Dashboard() {
                 .sort((a, b) => b.frequency - a.frequency)
                 .slice(0, 8);
               if (filtered.length === 0) return null;
+              const activeRoute = filtered.find(r => groupFilterIds.value && searchQuery.value === r.name);
               return html`
                 <div class="flex flex-wrap gap-2 mt-2">
                   <span style="font-family: var(--font-body); font-size: 0.6875rem; color: rgba(255,255,255,0.5); align-self: center;">Routes</span>
@@ -650,8 +758,13 @@ export function Dashboard() {
                     return html`
                       <button
                         onClick=${() => {
-                          groupFilterIds.value = new Set(r.activityIds);
-                          searchQuery.value = r.name;
+                          if (isActive) {
+                            groupFilterIds.value = null;
+                            searchQuery.value = "";
+                          } else {
+                            groupFilterIds.value = new Set(r.activityIds);
+                            searchQuery.value = r.name;
+                          }
                         }}
                         class="text-xs px-3 py-1 rounded-full"
                         style="background: rgba(255,255,255,${isActive ? "0.35" : "0.15"}); color: white; border: 1px solid rgba(255,255,255,${isActive ? "0.4" : "0.2"}); font-family: var(--font-body); cursor: pointer;"
@@ -661,6 +774,12 @@ export function Dashboard() {
                     `;
                   })}
                 </div>
+                ${activeRoute && activeRoute.rides && activeRoute.rides.length >= 2 && html`
+                  <div class="mt-2 rounded-lg p-3" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);">
+                    <p style="font-family: var(--font-body); font-size: 0.6875rem; color: rgba(255,255,255,0.7); margin-bottom: 0.25rem;">${activeRoute.name} — ${activeRoute.rides.length} rides</p>
+                    ${renderRouteTrendChart(activeRoute)}
+                  </div>
+                `}
               `;
             })()}
           </div>
@@ -1200,6 +1319,33 @@ export function Dashboard() {
                 return false;
               })
             : sourceActivities;
+          // Detect clusters in search results for trend charts
+          const searchClusters = isSearching && !groupFilterIds.value && displayActivities.length >= 4
+            ? (() => {
+                const withEfforts = displayActivities.filter(a => a.has_efforts);
+                if (withEfforts.length < 4) return [];
+                const clusters = detectRoutes(withEfforts);
+                return clusters
+                  .filter(c => c.activityIds.length >= 2)
+                  .sort((a, b) => b.frequency - a.frequency)
+                  .slice(0, 5)
+                  .map(c => ({
+                    ...c,
+                    rides: c.activityIds
+                      .map(id => displayActivities.find(a => a.id === id))
+                      .filter(Boolean)
+                      .sort((a, b) => a.start_date_local.localeCompare(b.start_date_local))
+                      .map(a => ({
+                        id: a.id,
+                        date: a.start_date_local,
+                        name: a.name,
+                        average_speed: a.average_speed || null,
+                        average_watts: (a.device_watts || a.sport_type === "VirtualRide") ? (a.average_watts || null) : null,
+                      })),
+                  }));
+              })()
+            : [];
+
           return html`
           <div class="space-y-3">
             <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text);">
@@ -1207,6 +1353,25 @@ export function Dashboard() {
                 ? `${displayActivities.length} ride${displayActivities.length !== 1 ? "s" : ""} for "${searchQuery.value.trim()}"`
                 : "Recent Activities"}
             </h2>
+            ${searchClusters.length > 0 && html`
+              <div class="space-y-2">
+                ${searchClusters.map(cluster => html`
+                  <details class="rounded-lg" style="background: var(--surface); border: 1px solid var(--border);">
+                    <summary class="px-3 py-2" style="font-family: var(--font-body); font-size: 0.8125rem; color: var(--text-secondary); cursor: pointer; user-select: none; list-style: none;">
+                      <span class="flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" style="color: #5B6CA0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+                        <span style="font-weight: 500;">${cluster.name}</span>
+                        <span style="color: var(--text-tertiary);">(${cluster.frequency} rides)</span>
+                        <svg class="w-3 h-3" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                      </span>
+                    </summary>
+                    <div class="px-3 pb-3">
+                      ${renderGroupRideTrendChart(cluster)}
+                    </div>
+                  </details>
+                `)}
+              </div>
+            `}
             ${displayActivities.length === 0 && html`
               <p class="text-center py-8" style="color: var(--text-tertiary);">
                 ${isSearching
@@ -1352,6 +1517,58 @@ export function Dashboard() {
       </footer>
 
       <!-- First Sync Data Window Prompt -->
+      ${showReauthPrompt.value && html`
+        <div
+          class="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm overflow-y-auto p-4 pt-16 sm:pt-24"
+        >
+          <div class="rounded-xl shadow-xl w-full max-w-md p-6 my-4" style="background: var(--surface); border: 1px solid var(--border);">
+            <div class="flex items-center gap-2.5 mb-3">
+              <svg class="w-6 h-6 flex-shrink-0" style="color: #5B6CA0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+              </svg>
+              <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin: 0;">New Feature: Routes</h2>
+            </div>
+            <p class="text-sm mb-3" style="color: var(--text-secondary); font-family: var(--font-body); line-height: 1.5;">
+              Routes are now a first-class feature! The app can sync your <strong>saved Strava routes</strong> to automatically name your ride clusters and show speed and power trend charts for each route.
+            </p>
+            <p class="text-sm mb-3" style="color: var(--text-secondary); font-family: var(--font-body); line-height: 1.5;">
+              To enable this, we need to update your Strava permissions to include route access. This requires a quick re-authorization with Strava.
+            </p>
+            <div class="rounded-lg px-3 py-2 mb-4" style="background: #E8F2E6; border: 1px solid #C0D8B8;">
+              <p class="text-xs" style="color: #1E4D28; font-family: var(--font-body); line-height: 1.4;">
+                <strong>Your data is safe.</strong> All your synced activities, segments, awards, settings, and preferences are stored locally in your browser and will not be affected. Only the Strava connection is refreshed.
+              </p>
+            </div>
+            <div class="flex gap-2">
+              <button
+                onClick=${async () => {
+                  await updateSyncState({ routes_scope_prompted: true });
+                  showReauthPrompt.value = false;
+                  startOAuth();
+                }}
+                class="flex-1 text-sm px-4 py-2.5 rounded-lg font-medium transition-colors"
+                style="background: var(--strava); color: white;"
+              >
+                Re-authorize with Strava
+              </button>
+              <button
+                onClick=${async () => {
+                  await updateSyncState({ routes_scope_prompted: true });
+                  showReauthPrompt.value = false;
+                }}
+                class="text-sm px-4 py-2.5 rounded-lg font-medium transition-colors"
+                style="border: 1px solid var(--border); color: var(--text-secondary);"
+              >
+                Later
+              </button>
+            </div>
+            <p class="text-xs mt-2" style="color: var(--text-tertiary); font-family: var(--font-body);">
+              You can always re-authorize later from Settings. Route detection still works without this — it just can't use your saved Strava route names.
+            </p>
+          </div>
+        </div>
+      `}
+
       ${showFirstSyncPrompt.value && html`
         <div
           class="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm overflow-y-auto p-4 pt-16 sm:pt-24"
@@ -1649,11 +1866,14 @@ export function Dashboard() {
 
               <details class="group py-3">
                 <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
-                  What are routes?
+                  What are routes and ride clusters?
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
                 <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
-                  The app automatically detects recurring routes by comparing which segments appear on each ride. If two activities share 70%+ of their segments, they're considered the same route. This powers the Route Season First award — rather than listing a Season First for every segment on a familiar ride, it collapses them into a single route-level award. You can also find all rides for a route by opening search — detected routes appear as clickable chips below the search bar.
+                  <p>The app automatically detects recurring routes (ride clusters) by comparing which segments appear on each ride. If two activities share 70%+ of their segments, they're considered the same route. This powers the Route Season First award — rather than listing a Season First for every segment on a familiar ride, it collapses them into a single route-level award.</p>
+                  <p class="mt-2">Each route shows trend charts for <strong>average speed</strong> and <strong>power</strong> over time so you can track how your performance evolves on familiar roads.</p>
+                  <p class="mt-2"><strong>Naming routes:</strong> By default, route names come from the most common activity name in the cluster. To choose a custom name, save any ride from the cluster as a <strong>Route in Strava</strong> and give it the name you want. The app syncs your saved Strava routes automatically (or manually from Settings → Sync Routes) and uses those names for matching clusters.</p>
+                  <p class="mt-2">Route chips appear below the search bar — tap one to see its trend chart and filter to those rides. When searching, the app also clusters matching results to surface repeated routes in your search results.</p>
                 </div>
               </details>
 
@@ -1905,6 +2125,38 @@ export function Dashboard() {
                 ${exportStatus.value === "loading" ? "Building export..." : exportStatus.value === "copied" ? "Copied to clipboard!" : exportStatus.value === "error" ? "Export failed" : "Copy training data to clipboard"}
               </button>
             </div>
+
+            ${!isDemo.value && html`
+            <div class="mt-3">
+              <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Routes</p>
+              <p class="text-xs mb-2" style="color: var(--text-tertiary);">Sync your saved Strava routes so ride clusters use your preferred route names. Routes also sync automatically during regular sync.</p>
+              <button
+                onClick=${async () => {
+                  routeSyncStatus.value = "syncing";
+                  try {
+                    const routes = await syncRoutes();
+                    routeSyncStatus.value = routes.length > 0 ? `Synced ${routes.length} route${routes.length !== 1 ? "s" : ""}` : "No saved routes found (save a route in Strava to name your clusters)";
+                    await loadDashboard();
+                  } catch (e) {
+                    routeSyncStatus.value = "error";
+                    console.error("Route sync error:", e);
+                  }
+                }}
+                disabled=${isSyncing.value || routeSyncStatus.value === "syncing"}
+                class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
+                style=${isSyncing.value || routeSyncStatus.value === "syncing"
+                  ? "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"
+                  : "background: var(--strava); color: white;"}
+              >
+                ${routeSyncStatus.value === "syncing" ? "Syncing..." : "Sync Routes"}
+              </button>
+              ${routeSyncStatus.value && routeSyncStatus.value !== "syncing" && html`
+                <p class="text-xs mt-1.5" style="color: ${routeSyncStatus.value === 'error' ? 'var(--accent)' : 'var(--text-tertiary)'}; font-family: var(--font-mono);">
+                  ${routeSyncStatus.value === "error" ? "Route sync failed — may need to re-authorize with updated permissions" : routeSyncStatus.value}
+                </p>
+              `}
+            </div>
+            `}
 
             <div class="mt-4 pt-4" style="border-top: 1px solid var(--border-light);">
               <p class="text-xs font-medium mb-1.5" style="color: var(--text-secondary); font-family: var(--font-body);">Sync Settings Across Browsers</p>

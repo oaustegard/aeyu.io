@@ -8,5 +8,5 @@ export const WORKER_URL = "https://participation-awards-worker.austegard.workers
 export const STRAVA_AUTH_URL = "https://www.strava.com/oauth/authorize";
 export const STRAVA_API_BASE = "https://www.strava.com/api/v3";
 export const OAUTH_REDIRECT_URI = "https://aeyu.io/callback.html";
-export const OAUTH_SCOPE = "activity:read_all";
+export const OAUTH_SCOPE = "read,activity:read_all";
 

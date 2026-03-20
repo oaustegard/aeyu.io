@@ -270,6 +270,21 @@ export function Landing() {
             </p>
           <//>
 
+          <${FaqItem} q="What about routes and ride clusters?">
+            <p class="mb-2">
+              The app automatically detects recurring routes by comparing which
+              segments appear on each ride. Rides sharing 70%+ of the same
+              segments are grouped into a cluster. Each route shows trend charts
+              for speed and power over time, so you can track how your
+              performance evolves on familiar roads.
+            </p>
+            <p>
+              To name a route, save any ride from the cluster as a Route in
+              Strava and give it the name you want. The app syncs your saved
+              Strava routes and uses those names for matching clusters.
+            </p>
+          <//>
+
           <${FaqItem} q="Why 'Participation Awards'?">
             <p>
               Because not every ride is a PR. Most aren't. But you still showed
