@@ -8,7 +8,7 @@
  */
 
 import { html } from "htm/preact";
-import { signal } from "@preact/signals";
+import { signal, effect } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { authState, disconnect } from "../auth.js";
 import {
@@ -220,7 +220,36 @@ const exportFormat = signal("markdown");
 const exportStatus = signal(null); // null | "loading" | "copied" | "error"
 const activeChartHelp = signal(null);
 const disabledAwardTypes = signal(new Set());
+const dashboardRoutes = signal([]);
 const settingsTransferStatus = signal(null); // null | "exported" | "imported" | "error"
+let searchAwardsTimer = null;
+effect(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query && !groupFilterIds.value) return;
+  clearTimeout(searchAwardsTimer);
+  searchAwardsTimer = setTimeout(async () => {
+    const all = allActivities.value;
+    if (!all.length) return;
+    const matched = groupFilterIds.value
+      ? all.filter((a) => groupFilterIds.value.has(a.id))
+      : all.filter((a) => {
+          if (a.name && a.name.toLowerCase().includes(query)) return true;
+          if (a.start_date_local && a.start_date_local.toLowerCase().includes(query)) return true;
+          try {
+            if (formatDateWeekday(a.start_date_local).toLowerCase().includes(query)) return true;
+          } catch (e) {}
+          return false;
+        });
+    const missing = matched.filter((a) => a.has_efforts && !activityAwards.value.has(a.id));
+    if (missing.length === 0) return;
+    const newAwards = await computeAwardsForActivities(missing, disabledAwardTypes.value);
+    const merged = new Map(activityAwards.value);
+    for (const [id, awards] of newAwards) {
+      merged.set(id, awards);
+    }
+    activityAwards.value = merged;
+  }, 300);
+});
 
 function ChartHelp({ id, children }) {
   const isOpen = activeChartHelp.value === id;
@@ -409,6 +438,7 @@ async function loadDashboard() {
     // Compute streak data (#58) — uses all activities, not just recent 20
     if (activities.length > 0) {
       const routes = await getAllRoutes();
+      dashboardRoutes.value = routes;
       streakData.value = computeStreakData(activities, routes);
     }
 
@@ -514,10 +544,12 @@ export function Dashboard() {
   async function handleUnitToggle() {
     const next = units === "metric" ? "imperial" : "metric";
     await setUnitPreference(next);
-    // Recompute awards to update formatted messages
-    const withEfforts = recentActivities.value.filter((a) => a.has_efforts);
-    if (withEfforts.length > 0) {
-      const awards = await computeAwardsForActivities(withEfforts, disabledAwardTypes.value);
+    // Recompute awards to update formatted messages for all computed activities
+    const computedIds = [...activityAwards.value.keys()];
+    const allActs = allActivities.value;
+    const toRecompute = allActs.filter((a) => a.has_efforts && computedIds.includes(a.id));
+    if (toRecompute.length > 0) {
+      const awards = await computeAwardsForActivities(toRecompute, disabledAwardTypes.value);
       activityAwards.value = awards;
     }
   }
@@ -607,6 +639,34 @@ export function Dashboard() {
                 </button>
               `}
             </div>
+            ${dashboardRoutes.value.length > 0 && (() => {
+              const q = searchQuery.value.trim().toLowerCase();
+              const filtered = dashboardRoutes.value
+                .filter(r => !q || r.name.toLowerCase().includes(q))
+                .sort((a, b) => b.frequency - a.frequency)
+                .slice(0, 8);
+              if (filtered.length === 0) return null;
+              return html`
+                <div class="flex flex-wrap gap-2 mt-2">
+                  <span style="font-family: var(--font-body); font-size: 0.6875rem; color: rgba(255,255,255,0.5); align-self: center;">Routes</span>
+                  ${filtered.map(r => {
+                    const isActive = groupFilterIds.value && searchQuery.value === r.name;
+                    return html`
+                      <button
+                        onClick=${() => {
+                          groupFilterIds.value = new Set(r.activityIds);
+                          searchQuery.value = r.name;
+                        }}
+                        class="text-xs px-3 py-1 rounded-full"
+                        style="background: rgba(255,255,255,${isActive ? "0.35" : "0.15"}); color: white; border: 1px solid rgba(255,255,255,${isActive ? "0.4" : "0.2"}); font-family: var(--font-body); cursor: pointer;"
+                      >
+                        ${r.name} <span style="opacity: 0.6;">(${r.frequency})</span>
+                      </button>
+                    `;
+                  })}
+                </div>
+              `;
+            })()}
           </div>
         </div>
       `}
@@ -1137,6 +1197,10 @@ export function Dashboard() {
                   if (al && al.label.toLowerCase().includes(query)) return true;
                   if (award.segment_name && award.segment_name.toLowerCase().includes(query)) return true;
                 }
+                // Search by route name
+                for (const route of dashboardRoutes.value) {
+                  if (route.name.toLowerCase().includes(query) && route.activityIds.includes(activity.id)) return true;
+                }
                 return false;
               })
             : sourceActivities;
@@ -1593,7 +1657,7 @@ export function Dashboard() {
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
                 <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
-                  The app automatically detects recurring routes by comparing which segments appear on each ride. If two activities share 70%+ of their segments, they're considered the same route. This powers the Route Season First award — rather than listing a Season First for every segment on a familiar ride, it collapses them into a single route-level award.
+                  The app automatically detects recurring routes by comparing which segments appear on each ride. If two activities share 70%+ of their segments, they're considered the same route. This powers the Route Season First award — rather than listing a Season First for every segment on a familiar ride, it collapses them into a single route-level award. You can also find all rides for a route by opening search — detected routes appear as clickable chips below the search bar.
                 </div>
               </details>
 
