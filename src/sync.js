@@ -526,7 +526,11 @@ export async function syncRoutes() {
     message: "Syncing saved routes...",
   };
   try {
-    return await fetchStravaRoutes();
+    const routes = await fetchStravaRoutes();
+    // If routes sync succeeded (even with 0 results), the scope is granted —
+    // mark it so the re-auth prompt is never shown
+    await updateSyncState({ routes_scope_prompted: true });
+    return routes;
   } catch (err) {
     if (err instanceof RateLimitError) return [];
     console.warn("Route sync failed:", err.message);

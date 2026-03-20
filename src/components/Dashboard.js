@@ -10,7 +10,7 @@
 import { html } from "htm/preact";
 import { signal, effect } from "@preact/signals";
 import { useEffect } from "preact/hooks";
-import { authState, disconnect } from "../auth.js";
+import { authState, disconnect, startOAuth } from "../auth.js";
 import {
   startAutoSync,
   stopAutoSync,
@@ -226,6 +226,7 @@ const disabledAwardTypes = signal(new Set());
 const dashboardRoutes = signal([]);
 const settingsTransferStatus = signal(null); // null | "exported" | "imported" | "error"
 const routeSyncStatus = signal(null); // null | "syncing" | "Synced N routes" | "error"
+const showReauthPrompt = signal(false);
 let searchAwardsTimer = null;
 effect(() => {
   const query = searchQuery.value.trim().toLowerCase();
@@ -625,7 +626,12 @@ export function Dashboard() {
 
     // Check if this is a first-time sync — prompt user for data window
     if (!isDemo.value) {
-      getSyncState().then((state) => {
+      getSyncState().then(async (state) => {
+        // One-time prompt for existing users to re-authorize with routes scope
+        if (state.last_sync && !state.routes_scope_prompted) {
+          showReauthPrompt.value = true;
+        }
+
         if (!state.last_sync && !state.backfill_complete && !state.initial_backfill_complete && state.sync_after_epoch === null) {
           showFirstSyncPrompt.value = true;
         } else {
@@ -1515,6 +1521,58 @@ export function Dashboard() {
       </footer>
 
       <!-- First Sync Data Window Prompt -->
+      ${showReauthPrompt.value && html`
+        <div
+          class="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm overflow-y-auto p-4 pt-16 sm:pt-24"
+        >
+          <div class="rounded-xl shadow-xl w-full max-w-md p-6 my-4" style="background: var(--surface); border: 1px solid var(--border);">
+            <div class="flex items-center gap-2.5 mb-3">
+              <svg class="w-6 h-6 flex-shrink-0" style="color: #5B6CA0;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+              </svg>
+              <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin: 0;">New Feature: Routes</h2>
+            </div>
+            <p class="text-sm mb-3" style="color: var(--text-secondary); font-family: var(--font-body); line-height: 1.5;">
+              Routes are now a first-class feature! The app can sync your <strong>saved Strava routes</strong> to automatically name your ride clusters and show speed and power trend charts for each route.
+            </p>
+            <p class="text-sm mb-3" style="color: var(--text-secondary); font-family: var(--font-body); line-height: 1.5;">
+              To enable this, we need to update your Strava permissions to include route access. This requires a quick re-authorization with Strava.
+            </p>
+            <div class="rounded-lg px-3 py-2 mb-4" style="background: #E8F2E6; border: 1px solid #C0D8B8;">
+              <p class="text-xs" style="color: #1E4D28; font-family: var(--font-body); line-height: 1.4;">
+                <strong>Your data is safe.</strong> All your synced activities, segments, awards, settings, and preferences are stored locally in your browser and will not be affected. Only the Strava connection is refreshed.
+              </p>
+            </div>
+            <div class="flex gap-2">
+              <button
+                onClick=${async () => {
+                  await updateSyncState({ routes_scope_prompted: true });
+                  showReauthPrompt.value = false;
+                  startOAuth();
+                }}
+                class="flex-1 text-sm px-4 py-2.5 rounded-lg font-medium transition-colors"
+                style="background: var(--strava); color: white;"
+              >
+                Re-authorize with Strava
+              </button>
+              <button
+                onClick=${async () => {
+                  await updateSyncState({ routes_scope_prompted: true });
+                  showReauthPrompt.value = false;
+                }}
+                class="text-sm px-4 py-2.5 rounded-lg font-medium transition-colors"
+                style="border: 1px solid var(--border); color: var(--text-secondary);"
+              >
+                Later
+              </button>
+            </div>
+            <p class="text-xs mt-2" style="color: var(--text-tertiary); font-family: var(--font-body);">
+              You can always re-authorize later from Settings. Route detection still works without this — it just can't use your saved Strava route names.
+            </p>
+          </div>
+        </div>
+      `}
+
       ${showFirstSyncPrompt.value && html`
         <div
           class="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm overflow-y-auto p-4 pt-16 sm:pt-24"
