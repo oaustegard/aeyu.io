@@ -248,7 +248,7 @@ async function renderShareCard(canvas, act, awardsList) {
   const highlightAwards = buildShareCardHighlights(awardsList);
 
   const counts = {};
-  const pillOrder = ["route_season_first", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record", "season_first_power", "np_year_best", "np_recent_best", "work_year_best", "work_recent_best", "peak_power", "peak_power_recent", "indoor_np_year_best", "indoor_work_year_best", "trainer_streak", "indoor_vs_outdoor"];
+  const pillOrder = ["route_season_first", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record", "season_first_power", "np_year_best", "np_recent_best", "work_year_best", "work_recent_best", "peak_power", "peak_power_recent", "watt_milestone", "kj_milestone", "power_progression", "power_consistency", "ftp_milestone", "curve_year_best", "curve_all_time", "indoor_np_year_best", "indoor_work_year_best", "trainer_streak", "indoor_vs_outdoor", "weekly_streak", "group_consistency", "reference_best", "comeback_pb", "recovery_milestone", "comeback_full", "comeback_distance", "comeback_elevation", "comeback_endurance"];
   for (const a of awardsList) counts[a.type] = (counts[a.type] || 0) + 1;
   tmpCtx.font = '600 30px "DM Sans", sans-serif';
   const allPillRows = layoutPillRows(tmpCtx, counts, pillOrder, left, maxTextW);
@@ -878,8 +878,11 @@ function buildShareCardHighlights(awardsList) {
     work_recent_best: 8, peak_power_recent: 8, beat_median: 7, season_first: 6,
     consistency: 5, milestone: 4, anniversary: 3, distance_record: 15,
     elevation_record: 14, segment_count: 3, endurance_record: 13,
-    season_first_power: 12, indoor_np_year_best: 14, indoor_work_year_best: 13,
-    trainer_streak: 10, indoor_vs_outdoor: 8, comeback_pb: 12, recovery_milestone: 11,
+    season_first_power: 12, watt_milestone: 11, kj_milestone: 10, power_progression: 9,
+    power_consistency: 5, ftp_milestone: 14, curve_year_best: 16, curve_all_time: 18,
+    indoor_np_year_best: 14, indoor_work_year_best: 13,
+    trainer_streak: 10, indoor_vs_outdoor: 8, weekly_streak: 10, group_consistency: 5,
+    comeback_pb: 12, recovery_milestone: 11,
     comeback_full: 15, comeback_distance: 10, comeback_elevation: 10, comeback_endurance: 10,
     reference_best: 6,
   };
