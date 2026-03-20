@@ -5,6 +5,9 @@
  * using Jaccard similarity. Activities sharing ≥70% of their segments
  * are considered the same route.
  *
+ * When Strava-saved routes are available, their names take priority over
+ * the most-frequent-activity-name heuristic.
+ *
  * Excludes activities with fewer than 2 segments (too few to fingerprint).
  */
 
@@ -44,6 +47,30 @@ function segmentIds(activity) {
 }
 
 /**
+ * Try to match a detected cluster's segment set against Strava-saved routes.
+ * Returns the Strava route name if any saved route has Jaccard ≥ threshold
+ * with the cluster's segments, otherwise null.
+ */
+function matchStravaRoute(clusterSegments, stravaRoutes) {
+  if (!stravaRoutes || stravaRoutes.length === 0) return null;
+
+  let best = null;
+  let bestSim = 0;
+
+  for (const sr of stravaRoutes) {
+    if (!sr.segments || sr.segments.length === 0) continue;
+    const srSet = new Set(sr.segments);
+    const sim = jaccard(clusterSegments, srSet);
+    if (sim >= JACCARD_THRESHOLD && sim > bestSim) {
+      bestSim = sim;
+      best = sr;
+    }
+  }
+
+  return best;
+}
+
+/**
  * Detect routes from a list of activities by clustering on segment fingerprints.
  *
  * Algorithm: greedy single-pass clustering.
@@ -52,9 +79,10 @@ function segmentIds(activity) {
  * Otherwise, create a new route.
  *
  * @param {Array} activities — All activities (must have segment_efforts populated)
- * @returns {Array<{ id: number, segments: number[], activityIds: number[], name: string, frequency: number }>}
+ * @param {Array} [stravaRoutes=[]] — Strava-saved routes with { name, segments: [id,...] }
+ * @returns {Array<{ id: number, segments: number[], activityIds: number[], name: string, frequency: number, strava_route_name: string|null }>}
  */
-export function detectRoutes(activities) {
+export function detectRoutes(activities, stravaRoutes = []) {
   const routes = []; // { segments: Set, activityIds: [], names: Map<string, count> }
 
   for (const activity of activities) {
@@ -96,13 +124,21 @@ export function detectRoutes(activities) {
 
   // Finalize: pick best name, assign IDs
   return meaningful.map((r, i) => {
-    // Most frequent activity name becomes route name
-    let bestName = "";
-    let bestCount = 0;
-    for (const [name, count] of r.names) {
-      if (count > bestCount) {
-        bestCount = count;
-        bestName = name;
+    // Check if a Strava-saved route matches this cluster
+    const stravaMatch = matchStravaRoute(r.segments, stravaRoutes);
+
+    // Strava route name wins; fall back to most-frequent activity name
+    let bestName;
+    if (stravaMatch) {
+      bestName = stravaMatch.name;
+    } else {
+      bestName = "";
+      let bestCount = 0;
+      for (const [name, count] of r.names) {
+        if (count > bestCount) {
+          bestCount = count;
+          bestName = name;
+        }
       }
     }
 
@@ -111,6 +147,7 @@ export function detectRoutes(activities) {
       segments: [...r.segments],
       activityIds: r.activityIds,
       name: bestName,
+      strava_route_name: stravaMatch ? stravaMatch.name : null,
       frequency: r.activityIds.length,
     };
   });

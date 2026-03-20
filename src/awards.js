@@ -82,7 +82,7 @@
  *   - Recovered (at or better than pre-injury): normal awards + "You're Back!"
  */
 
-import { getSegment, getResetEvent, recordRecoveryMilestone, getUserConfig, getAllActivities, putRoutes } from "./db.js";
+import { getSegment, getResetEvent, recordRecoveryMilestone, getUserConfig, getAllActivities, putRoutes, getStravaRoutes } from "./db.js";
 import { formatTime, formatDistance } from "./units.js";
 import { detectRoutes, findRouteForActivity } from "./routes.js";
 
@@ -1855,7 +1855,8 @@ export async function computeAwardsForActivities(activities, disabledAwardTypes 
   // Detect routes from ALL activities (not just the recent subset)
   const allActivitiesForRoutes = await getAllActivities();
   const withEfforts = allActivitiesForRoutes.filter((a) => a.has_efforts);
-  const routes = detectRoutes(withEfforts);
+  const stravaRoutes = await getStravaRoutes();
+  const routes = detectRoutes(withEfforts, stravaRoutes);
 
   // Persist detected routes for future use
   if (routes.length > 0) {

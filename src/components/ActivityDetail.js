@@ -7,7 +7,7 @@
 import { html } from "htm/preact";
 import { signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
-import { getActivity, getSegment, getAllActivities, getResetEvent, getUserConfig, getAllRoutes } from "../db.js";
+import { getActivity, getSegment, getAllActivities, getResetEvent, getUserConfig, getAllRoutes, getStravaRoutes } from "../db.js";
 import { computeAwards, computeRideLevelAwards } from "../awards.js";
 import { detectRoutes, findRouteForActivity } from "../routes.js";
 import { resyncActivity } from "../sync.js";
@@ -95,7 +95,8 @@ async function loadActivity(id) {
         let routes = await getAllRoutes();
         if (!routes || routes.length === 0) {
           const withEfforts = allActivities.filter(a => a.has_efforts);
-          routes = detectRoutes(withEfforts);
+          const stravaRoutes = await getStravaRoutes();
+          routes = detectRoutes(withEfforts, stravaRoutes);
         }
         if (routes.length > 0) {
           const route = findRouteForActivity(act, routes);

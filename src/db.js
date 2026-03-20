@@ -478,6 +478,28 @@ export async function getAllRoutes() {
   });
 }
 
+// --- Strava Routes (user-saved routes from Strava API) ---
+
+export async function putStravaRoutes(routes) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("sync_state", "readwrite");
+    tx.objectStore("sync_state").put(routes, "strava_routes");
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function getStravaRoutes() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("sync_state", "readonly");
+    const req = tx.objectStore("sync_state").get("strava_routes");
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
 // --- Settings Export/Import ---
 
 export async function exportSettings() {
