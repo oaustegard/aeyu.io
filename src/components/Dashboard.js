@@ -8,7 +8,7 @@
  */
 
 import { html } from "htm/preact";
-import { signal } from "@preact/signals";
+import { signal, effect } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { authState, disconnect } from "../auth.js";
 import {
@@ -222,6 +222,34 @@ const activeChartHelp = signal(null);
 const disabledAwardTypes = signal(new Set());
 const dashboardRoutes = signal([]);
 const settingsTransferStatus = signal(null); // null | "exported" | "imported" | "error"
+let searchAwardsTimer = null;
+effect(() => {
+  const query = searchQuery.value.trim().toLowerCase();
+  if (!query && !groupFilterIds.value) return;
+  clearTimeout(searchAwardsTimer);
+  searchAwardsTimer = setTimeout(async () => {
+    const all = allActivities.value;
+    if (!all.length) return;
+    const matched = groupFilterIds.value
+      ? all.filter((a) => groupFilterIds.value.has(a.id))
+      : all.filter((a) => {
+          if (a.name && a.name.toLowerCase().includes(query)) return true;
+          if (a.start_date_local && a.start_date_local.toLowerCase().includes(query)) return true;
+          try {
+            if (formatDateWeekday(a.start_date_local).toLowerCase().includes(query)) return true;
+          } catch (e) {}
+          return false;
+        });
+    const missing = matched.filter((a) => a.has_efforts && !activityAwards.value.has(a.id));
+    if (missing.length === 0) return;
+    const newAwards = await computeAwardsForActivities(missing, disabledAwardTypes.value);
+    const merged = new Map(activityAwards.value);
+    for (const [id, awards] of newAwards) {
+      merged.set(id, awards);
+    }
+    activityAwards.value = merged;
+  }, 300);
+});
 
 function ChartHelp({ id, children }) {
   const isOpen = activeChartHelp.value === id;
@@ -396,10 +424,12 @@ export function Dashboard() {
   async function handleUnitToggle() {
     const next = units === "metric" ? "imperial" : "metric";
     await setUnitPreference(next);
-    // Recompute awards to update formatted messages
-    const withEfforts = recentActivities.value.filter((a) => a.has_efforts);
-    if (withEfforts.length > 0) {
-      const awards = await computeAwardsForActivities(withEfforts, disabledAwardTypes.value);
+    // Recompute awards to update formatted messages for all computed activities
+    const computedIds = [...activityAwards.value.keys()];
+    const allActs = allActivities.value;
+    const toRecompute = allActs.filter((a) => a.has_efforts && computedIds.includes(a.id));
+    if (toRecompute.length > 0) {
+      const awards = await computeAwardsForActivities(toRecompute, disabledAwardTypes.value);
       activityAwards.value = awards;
     }
   }
