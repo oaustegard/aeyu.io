@@ -121,7 +121,7 @@ const FAQ_ENTRIES = [
   {
     id: "ride-streak",
     question: "What is Ride Streak?",
-    answer: "Ride Streak counts consecutive weeks where you've ridden at least once. One missed week is forgiven (a 'mulligan') — two consecutive missed weeks break the streak. Group Rides are automatically detected by matching recurring rides on the same day of the week, similar time, and similar starting location.",
+    answer: "Ride Streak counts consecutive weeks where you've ridden at least once. One missed week is forgiven (a 'mulligan') — two consecutive missed weeks break the streak. Group Rides are automatically detected by matching recurring rides on the same day of the week, similar time, and similar starting location. Each group ride includes a trend chart showing average speed and power over time so you can spot trends.",
   },
   {
     id: "power-curve",
@@ -277,6 +277,126 @@ function ChartHelp({ id, children }) {
         </div>
       `}
     </span>
+  `;
+}
+
+function renderGroupRideTrendChart(group) {
+  const rides = group.rides.filter((r) => r.average_speed);
+  if (rides.length < 2) return null;
+
+  const hasPower = rides.some((r) => r.average_watts);
+  const speeds = rides.map((r) => unitSystem.value === "imperial" ? r.average_speed * 2.23694 : r.average_speed * 3.6);
+  const powers = hasPower ? rides.map((r) => r.average_watts || 0) : [];
+  const speedUnit = unitSystem.value === "imperial" ? "mph" : "km/h";
+
+  const minSpd = Math.min(...speeds), maxSpd = Math.max(...speeds);
+  const spdRange = maxSpd - minSpd || 1;
+  const padSpd = { min: minSpd - spdRange * 0.1, max: maxSpd + spdRange * 0.1 };
+  const pSpdRange = padSpd.max - padSpd.min;
+
+  let padPow, pPowRange;
+  if (hasPower) {
+    const validPowers = powers.filter((p) => p > 0);
+    if (validPowers.length < 2) return renderSpeedOnlyChart(rides, speeds, speedUnit, padSpd, pSpdRange);
+    const minPow = Math.min(...validPowers), maxPow = Math.max(...validPowers);
+    const powRange = maxPow - minPow || 1;
+    padPow = { min: minPow - powRange * 0.1, max: maxPow + powRange * 0.1 };
+    pPowRange = padPow.max - padPow.min;
+  }
+
+  const W = 280, H = 80, ML = 32, MR = hasPower ? 32 : 4, MT = 4, MB = 18;
+  const cW = W - ML - MR, cH = H - MT - MB;
+  const xPos = (i) => ML + (i / (rides.length - 1)) * cW;
+  const ySpd = (s) => MT + cH - ((s - padSpd.min) / pSpdRange) * cH;
+  const yPow = hasPower ? (p) => MT + cH - ((p - padPow.min) / pPowRange) * cH : null;
+
+  const spdPath = speeds.map((s, i) => `${i === 0 ? 'M' : 'L'}${xPos(i).toFixed(1)},${ySpd(s).toFixed(1)}`).join(' ');
+  const powPath = hasPower ? powers.map((p, i) => {
+    if (p === 0) return null;
+    return `${xPos(i).toFixed(1)},${yPow(p).toFixed(1)}`;
+  }).filter(Boolean) : [];
+  const powPathD = hasPower && powPath.length > 1 ? powPath.map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt}`).join(' ') : null;
+
+  // X-axis date labels
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const labelStep = Math.max(1, Math.ceil(rides.length / 6));
+
+  // Y-axis ticks
+  const spdTicks = [padSpd.min, padSpd.min + pSpdRange / 2, padSpd.max].map((v) => +v.toFixed(1));
+  const powTicks = hasPower ? [padPow.min, padPow.min + pPowRange / 2, padPow.max].map((v) => Math.round(v)) : [];
+
+  return html`
+    <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; margin-top: 0.5rem; overflow: visible;">
+      <!-- Speed Y-axis (left) -->
+      ${spdTicks.map((v) => html`
+        <text x="${ML - 3}" y="${ySpd(v) + 1}" text-anchor="end" style="font-size: 6px; fill: #4882A8; font-family: var(--font-mono);">${v}</text>
+        <line x1="${ML}" y1="${ySpd(v)}" x2="${W - MR}" y2="${ySpd(v)}" stroke="var(--border)" stroke-width="0.5" stroke-dasharray="2,2" />
+      `)}
+      <!-- Power Y-axis (right) -->
+      ${hasPower && powTicks.map((v) => html`
+        <text x="${W - MR + 3}" y="${yPow(v) + 1}" text-anchor="start" style="font-size: 6px; fill: #A05060; font-family: var(--font-mono);">${v}</text>
+      `)}
+      <!-- Speed line -->
+      <path d="${spdPath}" fill="none" stroke="#4882A8" stroke-width="1.5" stroke-linejoin="round" />
+      ${speeds.map((s, i) => html`
+        <circle cx="${xPos(i)}" cy="${ySpd(s)}" r="${i === speeds.length - 1 ? 3 : 1.5}" fill="#4882A8">
+          <title>${new Date(rides[i].date).toLocaleDateString()}: ${s.toFixed(1)} ${speedUnit}</title>
+        </circle>
+      `)}
+      <!-- Power line -->
+      ${powPathD && html`
+        <path d="${powPathD}" fill="none" stroke="#A05060" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="4,2" />
+        ${rides.map((r, i) => r.average_watts ? html`
+          <circle cx="${xPos(i)}" cy="${yPow(powers[i])}" r="${i === rides.length - 1 ? 3 : 1.5}" fill="#A05060">
+            <title>${new Date(r.date).toLocaleDateString()}: ${Math.round(r.average_watts)}W</title>
+          </circle>
+        ` : null)}
+      `}
+      <!-- Date labels -->
+      ${rides.map((r, i) => {
+        if (i % labelStep !== 0 && i !== rides.length - 1) return null;
+        const d = new Date(r.date);
+        return html`<text x="${xPos(i)}" y="${H - 2}" text-anchor="middle" style="font-size: 6px; fill: var(--text-tertiary); font-family: var(--font-mono);">${monthNames[d.getMonth()]} '${String(d.getFullYear()).slice(2)}</text>`;
+      })}
+    </svg>
+    <div class="flex items-center gap-3 mt-1" style="font-family: var(--font-mono); font-size: 0.5625rem; color: var(--text-tertiary);">
+      <span class="flex items-center gap-1"><span style="display:inline-block;width:12px;height:2px;background:#4882A8;"></span>Speed (${speedUnit})</span>
+      ${hasPower && html`<span class="flex items-center gap-1"><span style="display:inline-block;width:12px;height:2px;background:#A05060;border-top:1px dashed #A05060;"></span>Power (W)</span>`}
+    </div>
+  `;
+}
+
+function renderSpeedOnlyChart(rides, speeds, speedUnit, padSpd, pSpdRange) {
+  const W = 280, H = 60, ML = 32, MR = 4, MT = 4, MB = 18;
+  const cW = W - ML - MR, cH = H - MT - MB;
+  const xPos = (i) => ML + (i / (rides.length - 1)) * cW;
+  const ySpd = (s) => MT + cH - ((s - padSpd.min) / pSpdRange) * cH;
+  const spdPath = speeds.map((s, i) => `${i === 0 ? 'M' : 'L'}${xPos(i).toFixed(1)},${ySpd(s).toFixed(1)}`).join(' ');
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const labelStep = Math.max(1, Math.ceil(rides.length / 6));
+  const spdTicks = [padSpd.min, padSpd.min + pSpdRange / 2, padSpd.max].map((v) => +v.toFixed(1));
+
+  return html`
+    <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; margin-top: 0.5rem; overflow: visible;">
+      ${spdTicks.map((v) => html`
+        <text x="${ML - 3}" y="${ySpd(v) + 1}" text-anchor="end" style="font-size: 6px; fill: #4882A8; font-family: var(--font-mono);">${v}</text>
+        <line x1="${ML}" y1="${ySpd(v)}" x2="${W - MR}" y2="${ySpd(v)}" stroke="var(--border)" stroke-width="0.5" stroke-dasharray="2,2" />
+      `)}
+      <path d="${spdPath}" fill="none" stroke="#4882A8" stroke-width="1.5" stroke-linejoin="round" />
+      ${speeds.map((s, i) => html`
+        <circle cx="${xPos(i)}" cy="${ySpd(s)}" r="${i === speeds.length - 1 ? 3 : 1.5}" fill="#4882A8">
+          <title>${new Date(rides[i].date).toLocaleDateString()}: ${s.toFixed(1)} ${speedUnit}</title>
+        </circle>
+      `)}
+      ${rides.map((r, i) => {
+        if (i % labelStep !== 0 && i !== rides.length - 1) return null;
+        const d = new Date(r.date);
+        return html`<text x="${xPos(i)}" y="${H - 2}" text-anchor="middle" style="font-size: 6px; fill: var(--text-tertiary); font-family: var(--font-mono);">${monthNames[d.getMonth()]} '${String(d.getFullYear()).slice(2)}</text>`;
+      })}
+    </svg>
+    <div class="flex items-center gap-3 mt-1" style="font-family: var(--font-mono); font-size: 0.5625rem; color: var(--text-tertiary);">
+      <span class="flex items-center gap-1"><span style="display:inline-block;width:12px;height:2px;background:#4882A8;"></span>Speed (${speedUnit})</span>
+    </div>
   `;
 }
 
@@ -703,23 +823,29 @@ export function Dashboard() {
                 ${hasGroups && (() => {
                   const topGroup = groups[0];
                   return html`
-                    <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border); cursor: pointer;"
-                      onClick=${() => {
-                        groupFilterIds.value = new Set(topGroup.rides.map((r) => r.id));
-                        searchQuery.value = topGroup.name;
-                        showSearch.value = true;
-                      }}>
-                      <div class="flex items-center gap-2 mb-2">
+                    <div class="rounded-xl p-4" style="background: var(--surface); border: 1px solid var(--border);">
+                      <div class="flex items-center gap-2 mb-2" style="cursor: pointer;"
+                        onClick=${() => {
+                          groupFilterIds.value = new Set(topGroup.rides.map((r) => r.id));
+                          searchQuery.value = topGroup.name;
+                          showSearch.value = true;
+                        }}>
                         ${renderIconSVG("group_consistency", { size: 18, color: "#5B6CA0" })}
                         <span style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">Group Ride</span>
                       </div>
-                      <div style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: #34406A;">${topGroup.name}</div>
+                      <div style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: #34406A; cursor: pointer;"
+                        onClick=${() => {
+                          groupFilterIds.value = new Set(topGroup.rides.map((r) => r.id));
+                          searchQuery.value = topGroup.name;
+                          showSearch.value = true;
+                        }}>${topGroup.name}</div>
                       <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary);">
                         ${topGroup.totalRides} rides total${topGroup.attendanceStreak >= 3 ? ` · ${topGroup.attendanceStreak}-week streak` : ""}
                       </div>
                       ${topGroup.attendanceMulligan && topGroup.attendanceStreak >= 3 && html`
                         <span class="text-xs px-1.5 py-0.5 rounded-full mt-1 inline-block" style="background: #FBF0D8; color: #6E5010; font-family: var(--font-mono);">mulligan used</span>
                       `}
+                      ${renderGroupRideTrendChart(topGroup)}
                     </div>
                   `;
                 })()}
@@ -727,26 +853,46 @@ export function Dashboard() {
             `;
           }
 
-          // Compact bar: single line for streak + group rides
+          // Compact bar: single line for streak + group rides with expandable charts
           return html`
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mb-6 px-3 py-2 rounded-lg" style="background: var(--surface); border: 1px solid var(--border);">
-              ${hasStreak && html`
-                <span class="flex items-center gap-1.5" style="font-family: var(--font-body); font-size: 0.8125rem; color: #3D7A4A;">
-                  ${renderIconSVG("weekly_streak", { size: 14, color: "#3D7A4A" })}
-                  <span style="font-weight: 600;">${ws.current}-week</span> ride streak${ws.mulliganUsed ? html`<span class="text-xs px-1 py-0.5 rounded-full" style="background: #FBF0D8; color: #6E5010; font-family: var(--font-mono); font-size: 0.625rem;">m</span>` : ""}
-                </span>
-              `}
-              ${groups.slice(0, 3).map((g) => html`
-                <span class="flex items-center gap-1.5" style="font-family: var(--font-body); font-size: 0.8125rem; color: #5B6CA0; cursor: pointer;"
-                  onClick=${() => {
-                    groupFilterIds.value = new Set(g.rides.map((r) => r.id));
-                    searchQuery.value = g.name;
-                    showSearch.value = true;
-                  }}>
-                  ${renderIconSVG("group_consistency", { size: 14, color: "#5B6CA0" })}
-                  <span style="font-weight: 500;">${g.name}</span>${g.attendanceStreak >= 3 ? ` — ${g.attendanceStreak}w streak` : ""} <span style="color: var(--text-tertiary);">(${g.totalRides})</span>
-                </span>
-              `)}
+            <div class="mb-6 rounded-lg" style="background: var(--surface); border: 1px solid var(--border);">
+              <div class="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2">
+                ${hasStreak && html`
+                  <span class="flex items-center gap-1.5" style="font-family: var(--font-body); font-size: 0.8125rem; color: #3D7A4A;">
+                    ${renderIconSVG("weekly_streak", { size: 14, color: "#3D7A4A" })}
+                    <span style="font-weight: 600;">${ws.current}-week</span> ride streak${ws.mulliganUsed ? html`<span class="text-xs px-1 py-0.5 rounded-full" style="background: #FBF0D8; color: #6E5010; font-family: var(--font-mono); font-size: 0.625rem;">m</span>` : ""}
+                  </span>
+                `}
+                ${groups.slice(0, 3).map((g) => html`
+                  <span class="flex items-center gap-1.5" style="font-family: var(--font-body); font-size: 0.8125rem; color: #5B6CA0; cursor: pointer;"
+                    onClick=${() => {
+                      groupFilterIds.value = new Set(g.rides.map((r) => r.id));
+                      searchQuery.value = g.name;
+                      showSearch.value = true;
+                    }}>
+                    ${renderIconSVG("group_consistency", { size: 14, color: "#5B6CA0" })}
+                    <span style="font-weight: 500;">${g.name}</span>${g.attendanceStreak >= 3 ? ` — ${g.attendanceStreak}w streak` : ""} <span style="color: var(--text-tertiary);">(${g.totalRides})</span>
+                  </span>
+                `)}
+              </div>
+              ${groups.slice(0, 3).map((g) => {
+                const hasChartData = g.rides.some((r) => r.average_speed);
+                if (!hasChartData) return null;
+                return html`
+                  <details style="border-top: 1px solid var(--border);">
+                    <summary class="px-3 py-1.5" style="font-family: var(--font-body); font-size: 0.6875rem; color: var(--text-tertiary); cursor: pointer; user-select: none; list-style: none;">
+                      <span class="flex items-center gap-1">
+                        ${renderIconSVG("group_consistency", { size: 12, color: "#5B6CA0" })}
+                        ${g.name} trend
+                        <svg class="w-3 h-3" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                      </span>
+                    </summary>
+                    <div class="px-3 pb-3">
+                      ${renderGroupRideTrendChart(g)}
+                    </div>
+                  </details>
+                `;
+              })}
             </div>
           `;
         })()}
@@ -1450,7 +1596,7 @@ export function Dashboard() {
                 </summary>
                 <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
                   <p>Ride Streak counts consecutive weeks where you've ridden at least once. One missed week is forgiven (a "mulligan") — two consecutive missed weeks break the streak. When your streak is at risk, you'll see a warning banner.</p>
-                  <p><strong>Group Rides</strong> are automatically detected by matching recurring rides on the same day of the week, similar time, and similar starting location. Your attendance streak is tracked for each group ride, also with mulligan forgiveness.</p>
+                  <p><strong>Group Rides</strong> are automatically detected by matching recurring rides on the same day of the week, similar time, and similar starting location. Your attendance streak is tracked for each group ride, also with mulligan forgiveness. Each group ride has an expandable trend chart showing average speed and power over time.</p>
                 </div>
               </details>
 
