@@ -478,6 +478,64 @@ export async function getAllRoutes() {
   });
 }
 
+// --- Settings Export/Import ---
+
+export async function exportSettings() {
+  const db = await openDB();
+  const tx = db.transaction("sync_state", "readonly");
+  const store = tx.objectStore("sync_state");
+  const [prefs, config, resetEvent, state] = await Promise.all([
+    new Promise(r => { const req = store.get("preferences"); req.onsuccess = () => r(req.result || null); req.onerror = () => r(null); }),
+    new Promise(r => { const req = store.get("user_config"); req.onsuccess = () => r(req.result || null); req.onerror = () => r(null); }),
+    new Promise(r => { const req = store.get("reset_event"); req.onsuccess = () => r(req.result || null); req.onerror = () => r(null); }),
+    new Promise(r => { const req = store.get("state"); req.onsuccess = () => r(req.result || null); req.onerror = () => r(null); }),
+  ]);
+  return {
+    _format: "aeyu-settings-v1",
+    _exported: new Date().toISOString(),
+    preferences: prefs,
+    userConfig: config,
+    resetEvent: resetEvent,
+    syncAfterEpoch: state?.sync_after_epoch ?? null,
+  };
+}
+
+export async function importSettings(data) {
+  if (!data || data._format !== "aeyu-settings-v1") {
+    throw new Error("Invalid settings file");
+  }
+  const db = await openDB();
+  // Apply preferences
+  if (data.preferences) {
+    const tx = db.transaction("sync_state", "readwrite");
+    tx.objectStore("sync_state").put(data.preferences, "preferences");
+    await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+  }
+  // Apply user config (reference points, disabled awards)
+  if (data.userConfig) {
+    const tx = db.transaction("sync_state", "readwrite");
+    tx.objectStore("sync_state").put(data.userConfig, "user_config");
+    await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+  }
+  // Apply reset event (comeback mode)
+  if (data.resetEvent !== undefined) {
+    const tx = db.transaction("sync_state", "readwrite");
+    if (data.resetEvent) {
+      tx.objectStore("sync_state").put(data.resetEvent, "reset_event");
+    } else {
+      tx.objectStore("sync_state").delete("reset_event");
+    }
+    await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+  }
+  // Apply sync window epoch
+  if (data.syncAfterEpoch !== undefined) {
+    const current = await getSyncState();
+    const tx = db.transaction("sync_state", "readwrite");
+    tx.objectStore("sync_state").put({ ...current, sync_after_epoch: data.syncAfterEpoch }, "state");
+    await new Promise((resolve, reject) => { tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+  }
+}
+
 export async function clearAllData() {
   const db = await openDB();
   return new Promise((resolve, reject) => {
