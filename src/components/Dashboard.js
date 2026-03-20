@@ -294,7 +294,7 @@ function renderRouteTrendChart(route) {
   const speeds = rides.map((r) => unitSystem.value === "imperial" ? r.average_speed * 2.23694 : r.average_speed * 3.6);
   const powers = hasPower ? rides.map((r) => r.average_watts || 0) : [];
   const speedUnit = unitSystem.value === "imperial" ? "mph" : "km/h";
-  const spdColor = "#6BB8E0", powColor = "#E08080";
+  const spdColor = "#4882A8", powColor = "#A05060";
 
   const minSpd = Math.min(...speeds), maxSpd = Math.max(...speeds);
   const spdRange = maxSpd - minSpd || 1;
@@ -335,7 +335,7 @@ function renderRouteTrendChart(route) {
     <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; margin-top: 0.25rem; overflow: visible;">
       ${spdTicks.map((v) => html`
         <text x="${ML - 3}" y="${ySpd(v) + 1}" text-anchor="end" style="font-size: 6px; fill: ${spdColor}; font-family: var(--font-mono);">${v}</text>
-        <line x1="${ML}" y1="${ySpd(v)}" x2="${W - MR}" y2="${ySpd(v)}" stroke="rgba(255,255,255,0.1)" stroke-width="0.5" stroke-dasharray="2,2" />
+        <line x1="${ML}" y1="${ySpd(v)}" x2="${W - MR}" y2="${ySpd(v)}" stroke="var(--border)" stroke-width="0.5" stroke-dasharray="2,2" />
       `)}
       ${showPow && powTicks.map((v) => html`
         <text x="${W - MR + 3}" y="${yPow(v) + 1}" text-anchor="start" style="font-size: 6px; fill: ${powColor}; font-family: var(--font-mono);">${v}</text>
@@ -359,10 +359,10 @@ function renderRouteTrendChart(route) {
       ${rides.map((r, i) => {
         if (i % labelStep !== 0 && i !== rides.length - 1) return null;
         const d = new Date(r.date);
-        return html`<text x="${xPos(i)}" y="${H - 2}" text-anchor="middle" style="font-size: 6px; fill: rgba(255,255,255,0.4); font-family: var(--font-mono);">${monthNames[d.getMonth()]} '${String(d.getFullYear()).slice(2)}</text>`;
+        return html`<text x="${xPos(i)}" y="${H - 2}" text-anchor="middle" style="font-size: 6px; fill: var(--text-tertiary); font-family: var(--font-mono);">${monthNames[d.getMonth()]} '${String(d.getFullYear()).slice(2)}</text>`;
       })}
     </svg>
-    <div class="flex items-center gap-3 mt-1" style="font-family: var(--font-mono); font-size: 0.5625rem; color: rgba(255,255,255,0.5);">
+    <div class="flex items-center gap-3 mt-1" style="font-family: var(--font-mono); font-size: 0.5625rem; color: var(--text-tertiary);">
       <span class="flex items-center gap-1"><span style="display:inline-block;width:12px;height:2px;background:${spdColor};"></span>Speed (${speedUnit})</span>
       ${showPow && html`<span class="flex items-center gap-1"><span style="display:inline-block;width:12px;height:2px;background:${powColor};border-top:1px dashed ${powColor};"></span>Power (W)</span>`}
     </div>
@@ -791,8 +791,8 @@ export function Dashboard() {
                   })}
                 </div>
                 ${activeRoute && activeRoute.rides && activeRoute.rides.length >= 2 && html`
-                  <div class="mt-2 rounded-lg p-3" style="background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12);">
-                    <p style="font-family: var(--font-body); font-size: 0.6875rem; color: rgba(255,255,255,0.7); margin-bottom: 0.25rem;">${activeRoute.name} — ${activeRoute.rides.length} rides</p>
+                  <div class="mt-2 rounded-lg p-3" style="background: var(--surface); border: 1px solid var(--border);">
+                    <p style="font-family: var(--font-body); font-size: 0.6875rem; color: var(--text-secondary); margin-bottom: 0.25rem;">${activeRoute.name} — ${activeRoute.rides.length} rides</p>
                     ${renderRouteTrendChart(activeRoute)}
                   </div>
                 `}
