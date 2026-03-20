@@ -2095,7 +2095,7 @@ export function computeWeeklyStreaks(allActivities) {
  * @param {Array} allActivities — All activities
  * @returns {Array} Detected group rides with attendance data
  */
-export function detectGroupRides(allActivities) {
+export function detectGroupRides(allActivities, routes = []) {
   const rides = allActivities
     .filter((a) => (a.sport_type === "Ride" || a.sport_type === "VirtualRide") && a.has_efforts)
     .sort((a, b) => a.start_date_local.localeCompare(b.start_date_local));
@@ -2161,30 +2161,50 @@ export function detectGroupRides(allActivities) {
     for (const cluster of clusters) {
       if (cluster.rides.length < 3) continue;
 
-      // Determine group name from most common activity name pattern
-      const nameCounts = {};
-      for (const r of cluster.rides) {
-        // Normalize name: remove dates, numbers, trim
-        const normalized = r.name
-          .replace(/\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, "")
-          .replace(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/gi, "")
-          .replace(/\d+/g, "")
-          .trim();
-        if (normalized.length > 2) {
-          nameCounts[normalized] = (nameCounts[normalized] || 0) + 1;
+      // Name from route cross-reference: find the detected route with most overlap
+      const clusterIds = new Set(cluster.rides.map((r) => r.id));
+      let routeName = null;
+      if (routes.length > 0) {
+        let bestOverlap = 0;
+        for (const route of routes) {
+          const routeIds = new Set(route.activityIds);
+          let overlap = 0;
+          for (const id of clusterIds) {
+            if (routeIds.has(id)) overlap++;
+          }
+          const ratio = overlap / clusterIds.size;
+          if (ratio > bestOverlap) {
+            bestOverlap = ratio;
+            routeName = ratio > 0.5 ? route.name : null;
+          }
         }
       }
 
-      // Use the most common name, or fall back to day-of-week
+      // Fallback: normalize activity names (only strip standalone numbers, not digits in words)
       const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
       let groupName;
-      const topName = Object.entries(nameCounts).sort((a, b) => b[1] - a[1])[0];
-      if (topName && topName[1] >= 2) {
-        groupName = topName[0];
+      if (routeName) {
+        groupName = routeName;
       } else {
-        const h = Math.floor(cluster.avgMinute / 60);
-        const period = h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening";
-        groupName = `${dayNames[cluster.dow]} ${period} Ride`;
+        const nameCounts = {};
+        for (const r of cluster.rides) {
+          const normalized = r.name
+            .replace(/\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, "")
+            .replace(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/gi, "")
+            .replace(/\b\d{1,4}\b/g, "")
+            .trim();
+          if (normalized.length > 2) {
+            nameCounts[normalized] = (nameCounts[normalized] || 0) + 1;
+          }
+        }
+        const topName = Object.entries(nameCounts).sort((a, b) => b[1] - a[1])[0];
+        if (topName && topName[1] >= 2) {
+          groupName = topName[0];
+        } else {
+          const h = Math.floor(cluster.avgMinute / 60);
+          const period = h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening";
+          groupName = `${dayNames[cluster.dow]} ${period} Ride`;
+        }
       }
 
       // Check if most rides have athlete_count > 1 (group indication)
@@ -2255,8 +2275,8 @@ export function detectGroupRides(allActivities) {
  * @param {Array} allActivities — All activities from IndexedDB
  * @returns {Object} { weeklyStreak, groupRides }
  */
-export function computeStreakData(allActivities) {
+export function computeStreakData(allActivities, routes = []) {
   const weeklyStreak = computeWeeklyStreaks(allActivities);
-  const groupRides = detectGroupRides(allActivities);
+  const groupRides = detectGroupRides(allActivities, routes);
   return { weeklyStreak, groupRides };
 }
