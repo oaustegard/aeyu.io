@@ -14,6 +14,8 @@ import { resyncActivity } from "../sync.js";
 import { isDemo } from "../demo.js";
 import { navigate } from "../app.js";
 import {
+  unitSystem,
+  setUnitPreference,
   formatDistance,
   formatTime,
   formatDate,
@@ -1212,6 +1214,23 @@ export function ActivityDetail({ id }) {
         onBack=${() => navigate(isDemo.value ? "/demo" : "/dashboard")}
         backLabel="Dashboard"
         contextLabel=${act.name}
+        unitSystem=${unitSystem.value}
+        onUnitToggle=${async () => {
+          const next = unitSystem.value === "metric" ? "imperial" : "metric";
+          await setUnitPreference(next);
+          await loadActivity(id);
+        }}
+        menuItems=${[
+          ...(!isDemo.value ? [{
+            label: resyncing.value ? "Resyncing…" : "Resync activity",
+            onClick: handleResync,
+            hidden: resyncing.value,
+          }] : []),
+          {
+            label: "View on Strava",
+            onClick: () => window.open(`https://www.strava.com/activities/${act.id}`, "_blank"),
+          },
+        ]}
         rightSlot=${!isDemo.value && html`
           <button
             onClick=${handleResync}
