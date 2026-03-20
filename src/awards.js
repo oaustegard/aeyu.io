@@ -2087,12 +2087,13 @@ export function computeWeeklyStreaks(allActivities) {
 
 /**
  * Detect recurring group rides by clustering activities by:
- *   - Day of week
- *   - Similar start time (±90min)
- *   - Similar start location (within 1km)
- *   - Activity name patterns
+ *   1. Day of week
+ *   2. Similar start time (±90min)
+ *   3. Similar start location (within 1km)
+ *   4. Route similarity (segment fingerprint via detected routes)
  *
  * @param {Array} allActivities — All activities
+ * @param {Array} routes — Detected routes from detectRoutes()
  * @returns {Array} Detected group rides with attendance data
  */
 export function detectGroupRides(allActivities, routes = []) {
@@ -2101,6 +2102,15 @@ export function detectGroupRides(allActivities, routes = []) {
     .sort((a, b) => a.start_date_local.localeCompare(b.start_date_local));
 
   if (rides.length < 4) return [];
+
+  // Pre-compute route membership for each activity
+  const activityRouteMap = new Map(); // activityId -> route
+  if (routes.length > 0) {
+    for (const ride of rides) {
+      const route = findRouteForActivity(ride, routes);
+      if (route) activityRouteMap.set(ride.id, route);
+    }
+  }
 
   // Group rides by day-of-week
   const byDow = {};
@@ -2116,26 +2126,23 @@ export function detectGroupRides(allActivities, routes = []) {
   for (const [dow, dowRides] of Object.entries(byDow)) {
     if (dowRides.length < 3) continue;
 
-    // Cluster by start time and location
-    const clusters = [];
+    // Phase 1: Cluster by start time and location
+    const timeClusters = [];
     for (const ride of dowRides) {
       const rideTime = new Date(ride.start_date_local);
       const minuteOfDay = rideTime.getHours() * 60 + rideTime.getMinutes();
       const latlng = ride.start_latlng || null;
 
       let matched = false;
-      for (const cluster of clusters) {
-        // Check time proximity (within 90 min to accommodate seasonal start time shifts)
+      for (const cluster of timeClusters) {
         const timeDiff = Math.abs(cluster.avgMinute - minuteOfDay);
         if (timeDiff > 90) continue;
 
-        // Check location proximity (within 1km) if both have coords
         if (cluster.latlng && latlng) {
           const dist = haversineKm(cluster.latlng, latlng);
           if (dist > 1) continue;
         }
 
-        // Match — add to cluster
         cluster.rides.push(ride);
         cluster.avgMinute = Math.round(
           cluster.rides.reduce((sum, r) => {
@@ -2148,7 +2155,7 @@ export function detectGroupRides(allActivities, routes = []) {
       }
 
       if (!matched) {
-        clusters.push({
+        timeClusters.push({
           rides: [ride],
           avgMinute: minuteOfDay,
           latlng,
@@ -2157,115 +2164,133 @@ export function detectGroupRides(allActivities, routes = []) {
       }
     }
 
-    // Only keep clusters with 3+ rides
-    for (const cluster of clusters) {
+    // Phase 2: Sub-cluster each time/location cluster by route
+    for (const cluster of timeClusters) {
       if (cluster.rides.length < 3) continue;
 
-      // Name from route cross-reference: find the detected route with most overlap
-      const clusterIds = new Set(cluster.rides.map((r) => r.id));
-      let routeName = null;
-      if (routes.length > 0) {
-        let bestOverlap = 0;
-        for (const route of routes) {
-          const routeIds = new Set(route.activityIds);
-          let overlap = 0;
-          for (const id of clusterIds) {
-            if (routeIds.has(id)) overlap++;
-          }
-          const ratio = overlap / clusterIds.size;
-          if (ratio > bestOverlap) {
-            bestOverlap = ratio;
-            routeName = ratio > 0.5 ? route.name : null;
-          }
-        }
-      }
+      const subClusters = splitByRoute(cluster.rides, activityRouteMap);
 
-      // Fallback: normalize activity names (only strip standalone numbers, not digits in words)
-      const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-      let groupName;
-      if (routeName) {
-        groupName = routeName;
-      } else {
-        const nameCounts = {};
-        for (const r of cluster.rides) {
-          const normalized = r.name
-            .replace(/\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, "")
-            .replace(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/gi, "")
-            .replace(/\b\d{1,4}\b/g, "")
-            .trim();
-          if (normalized.length > 2) {
-            nameCounts[normalized] = (nameCounts[normalized] || 0) + 1;
-          }
-        }
-        const topName = Object.entries(nameCounts).sort((a, b) => b[1] - a[1])[0];
-        if (topName && topName[1] >= 2) {
-          groupName = topName[0];
+      for (const sub of subClusters) {
+        if (sub.rides.length < 3) continue;
+
+        const subAvgMinute = Math.round(
+          sub.rides.reduce((sum, r) => {
+            const t = new Date(r.start_date_local);
+            return sum + t.getHours() * 60 + t.getMinutes();
+          }, 0) / sub.rides.length
+        );
+
+        // Name: use route name if this sub-cluster has one, else fall back to activity names
+        const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        let groupName;
+        if (sub.route) {
+          groupName = sub.route.name;
         } else {
-          const h = Math.floor(cluster.avgMinute / 60);
-          const period = h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening";
-          groupName = `${dayNames[cluster.dow]} ${period} Ride`;
-        }
-      }
-
-      // Check if most rides have athlete_count > 1 (group indication)
-      const groupCount = cluster.rides.filter((r) => (r.athlete_count || 1) > 1).length;
-      const isGroupRide = groupCount > cluster.rides.length * 0.5;
-
-      // Compute attendance streaks
-      const rideWeeks = cluster.rides.map((r) => isoWeekKey(r.start_date_local));
-      const uniqueWeeks = [...new Set(rideWeeks)].sort();
-
-      // Find current consecutive attendance
-      let attendanceStreak = 0;
-      let attendanceMulligan = false;
-      if (uniqueWeeks.length >= 2) {
-        // Check from most recent backwards
-        const now = new Date();
-        const currentWeek = isoWeekKey(now.toISOString());
-        let weekPtr = currentWeek;
-        let misses = 0;
-
-        // Walk backwards from current week
-        const weekSet = new Set(uniqueWeeks);
-        const checkDate = new Date(now);
-        // Go to Monday of current week
-        checkDate.setDate(checkDate.getDate() - ((checkDate.getDay() + 6) % 7));
-
-        for (let i = 0; i < 52; i++) {
-          const wk = isoWeekKey(checkDate.toISOString());
-          if (weekSet.has(wk)) {
-            attendanceStreak++;
-            misses = 0;
-          } else {
-            misses++;
-            if (misses === 1 && attendanceStreak > 0 && !attendanceMulligan) {
-              attendanceStreak++;
-              attendanceMulligan = true;
-            } else {
-              break;
+          const nameCounts = {};
+          for (const r of sub.rides) {
+            const normalized = r.name
+              .replace(/\d{1,2}\/\d{1,2}(\/\d{2,4})?/g, "")
+              .replace(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\b/gi, "")
+              .replace(/\b\d{1,4}\b/g, "")
+              .trim();
+            if (normalized.length > 2) {
+              nameCounts[normalized] = (nameCounts[normalized] || 0) + 1;
             }
           }
-          checkDate.setDate(checkDate.getDate() - 7);
+          const topName = Object.entries(nameCounts).sort((a, b) => b[1] - a[1])[0];
+          if (topName && topName[1] >= 2) {
+            groupName = topName[0];
+          } else {
+            const h = Math.floor(subAvgMinute / 60);
+            const period = h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening";
+            groupName = `${dayNames[cluster.dow]} ${period} Ride`;
+          }
         }
-      }
 
-      groups.push({
-        name: groupName,
-        dow: cluster.dow,
-        avgMinute: cluster.avgMinute,
-        totalRides: cluster.rides.length,
-        isGroupRide,
-        attendanceStreak,
-        attendanceMulligan,
-        lastRideDate: cluster.rides[cluster.rides.length - 1].start_date_local,
-        rides: cluster.rides.map((r) => ({ id: r.id, date: r.start_date_local, name: r.name })),
-      });
+        const groupCount = sub.rides.filter((r) => (r.athlete_count || 1) > 1).length;
+        const isGroupRide = groupCount > sub.rides.length * 0.5;
+
+        const rideWeeks = sub.rides.map((r) => isoWeekKey(r.start_date_local));
+        const uniqueWeeks = [...new Set(rideWeeks)].sort();
+
+        let attendanceStreak = 0;
+        let attendanceMulligan = false;
+        if (uniqueWeeks.length >= 2) {
+          const now = new Date();
+          let misses = 0;
+
+          const weekSet = new Set(uniqueWeeks);
+          const checkDate = new Date(now);
+          checkDate.setDate(checkDate.getDate() - ((checkDate.getDay() + 6) % 7));
+
+          for (let i = 0; i < 52; i++) {
+            const wk = isoWeekKey(checkDate.toISOString());
+            if (weekSet.has(wk)) {
+              attendanceStreak++;
+              misses = 0;
+            } else {
+              misses++;
+              if (misses === 1 && attendanceStreak > 0 && !attendanceMulligan) {
+                attendanceStreak++;
+                attendanceMulligan = true;
+              } else {
+                break;
+              }
+            }
+            checkDate.setDate(checkDate.getDate() - 7);
+          }
+        }
+
+        groups.push({
+          name: groupName,
+          dow: cluster.dow,
+          avgMinute: subAvgMinute,
+          totalRides: sub.rides.length,
+          isGroupRide,
+          attendanceStreak,
+          attendanceMulligan,
+          lastRideDate: sub.rides[sub.rides.length - 1].start_date_local,
+          rides: sub.rides.map((r) => ({ id: r.id, date: r.start_date_local, name: r.name })),
+        });
+      }
     }
   }
 
   // Sort by total rides descending
   groups.sort((a, b) => b.totalRides - a.totalRides);
   return groups;
+}
+
+/**
+ * Split a set of rides into sub-clusters by route.
+ * Rides on the same detected route go together.
+ * Rides with no detected route go into a catch-all bucket.
+ */
+function splitByRoute(rides, activityRouteMap) {
+  const byRouteId = new Map(); // routeId -> { route, rides }
+  const noRoute = [];
+
+  for (const ride of rides) {
+    const route = activityRouteMap.get(ride.id);
+    if (route) {
+      if (!byRouteId.has(route.id)) {
+        byRouteId.set(route.id, { route, rides: [] });
+      }
+      byRouteId.get(route.id).rides.push(ride);
+    } else {
+      noRoute.push(ride);
+    }
+  }
+
+  const result = [];
+  for (const { route, rides: routeRides } of byRouteId.values()) {
+    result.push({ route, rides: routeRides });
+  }
+  // No-route rides still form a group if there are enough of them
+  if (noRoute.length > 0) {
+    result.push({ route: null, rides: noRoute });
+  }
+  return result;
 }
 
 /**
