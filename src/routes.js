@@ -34,7 +34,10 @@ function medianDistance(distances) {
 }
 
 function distanceMatch(activityDistance, routeDistance) {
-  if (!routeDistance || !activityDistance) return true;
+  if (!routeDistance || !activityDistance) {
+    console.warn('[routes] missing distance data — skipping match', { activityDistance, routeDistance });
+    return false;
+  }
   const ratio = activityDistance / routeDistance;
   return ratio >= (1 - DISTANCE_TOLERANCE) && ratio <= (1 + DISTANCE_TOLERANCE);
 }
@@ -78,6 +81,7 @@ export function detectRoutes(activities, stravaRoutes = []) {
   );
 
   for (const activity of sorted) {
+    if (activity.sport_type === 'VirtualRide') continue;
     const ids = segmentIds(activity);
     if (ids.size === 0) continue;
 
@@ -157,6 +161,7 @@ export function detectRoutes(activities, stravaRoutes = []) {
  * Uses distance gate + Jaccard similarity.
  */
 export function findRouteForActivity(activity, routes) {
+  if (activity.sport_type === 'VirtualRide') return null;
   const ids = segmentIds(activity);
   if (ids.size === 0) return null;
 
