@@ -231,38 +231,43 @@ export function SegmentSparkline({ segment, currentEffortId, stravaSegmentId, on
         ${rateStr && html`
           <span style="color: ${trendColor}; font-weight: 500;">Trend: ${rateStr}</span>
         `}
-        <span class="relative" style="display: inline-flex; align-items: center; gap: 6px; margin-left: auto;">
+        <span class="relative" style="display: inline-flex; align-items: center; gap: 10px; margin-left: auto;">
           ${stravaSegmentId && html`
             <a
               href=${`https://www.strava.com/segments/${stravaSegmentId}`}
               target="_blank"
               rel="noopener noreferrer"
-              style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; color: var(--strava, #fc4c02); opacity: 0.6; transition: opacity 0.15s;"
+              style="display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; color: var(--strava, #fc4c02); opacity: 0.6; transition: opacity 0.15s; -webkit-tap-highlight-color: transparent;"
               onMouseOver=${e => e.currentTarget.style.opacity = '1'}
               onMouseOut=${e => e.currentTarget.style.opacity = '0.6'}
               onClick=${e => e.stopPropagation()}
               aria-label="View on Strava"
               title="View on Strava"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             </a>
           `}
           ${onExportLLM && html`
             <button
-              onClick=${(e) => { e.stopPropagation(); onExportLLM(); }}
+              onClick=${(e) => { e.stopPropagation(); if (exportLlmStatus !== "loading" && exportLlmStatus !== "copied") onExportLLM(); }}
               disabled=${exportLlmStatus === "loading"}
-              style="display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; color: var(--accent); background: transparent; border: none; cursor: pointer; padding: 0; opacity: 0.6; transition: opacity 0.15s;"
-              onMouseOver=${e => e.currentTarget.style.opacity = '1'}
-              onMouseOut=${e => e.currentTarget.style.opacity = '0.6'}
-              aria-label=${exportLlmStatus === "copied" ? "Copied!" : exportLlmStatus === "error" ? "Export failed" : "Export for AI"}
-              title=${exportLlmStatus === "copied" ? "Copied!" : exportLlmStatus === "error" ? "Export failed" : "Export for AI"}
+              style=${`display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: transparent; border: none; cursor: pointer; padding: 0; transition: opacity 0.15s, color 0.2s; -webkit-tap-highlight-color: transparent; color: ${exportLlmStatus === "copied" ? "#22c55e" : exportLlmStatus === "error" ? "#ef4444" : "var(--accent)"}; opacity: ${exportLlmStatus === "copied" || exportLlmStatus === "error" ? "1" : "0.6"};`}
+              onMouseOver=${e => { if (!exportLlmStatus) e.currentTarget.style.opacity = '1'; }}
+              onMouseOut=${e => { if (!exportLlmStatus) e.currentTarget.style.opacity = '0.6'; }}
+              aria-label=${exportLlmStatus === "copied" ? "Copied!" : exportLlmStatus === "error" ? "Export failed" : exportLlmStatus === "loading" ? "Exporting…" : "Export for AI"}
+              title=${exportLlmStatus === "copied" ? "Copied!" : exportLlmStatus === "error" ? "Export failed" : exportLlmStatus === "loading" ? "Exporting…" : "Export for AI"}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+              ${exportLlmStatus === "copied"
+                ? html`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+                : exportLlmStatus === "error"
+                  ? html`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`
+                  : html`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>`
+              }
             </button>
           `}
           <button
             onClick=${(e) => { e.stopPropagation(); setShowHelp(!showHelp); }}
-            style="width: 16px; height: 16px; font-size: 10px; font-weight: 600; color: var(--text-tertiary); border: 1.5px solid var(--text-tertiary); background: transparent; cursor: pointer; line-height: 1; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;"
+            style="width: 22px; height: 22px; font-size: 12px; font-weight: 600; color: var(--text-tertiary); border: 1.5px solid var(--text-tertiary); background: transparent; cursor: pointer; line-height: 1; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent;"
             aria-label="Help"
           >?</button>
           ${showHelp && html`
