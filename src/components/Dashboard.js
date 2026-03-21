@@ -750,7 +750,8 @@ export function Dashboard() {
             ${dashboardRoutes.value.length > 0 && (() => {
               const q = searchQuery.value.trim().toLowerCase();
               const filtered = dashboardRoutes.value
-                .filter(r => !q || r.name.toLowerCase().includes(q))
+                .filter(r => !q || r.name.toLowerCase().includes(q) ||
+                  (r.rides && r.rides.some(ride => ride.name && ride.name.toLowerCase().includes(q))))
                 .sort((a, b) => b.frequency - a.frequency)
                 .slice(0, 8);
               if (filtered.length === 0) return null;
