@@ -244,6 +244,11 @@ effect(() => {
           try {
             if (formatDateWeekday(a.start_date_local).toLowerCase().includes(query)) return true;
           } catch (e) {}
+          for (const route of dashboardRoutes.value) {
+            if (route.activityIds.includes(a.id) &&
+              (route.name.toLowerCase().includes(query) ||
+               (route.strava_route_name && route.strava_route_name.toLowerCase().includes(query)))) return true;
+          }
           return false;
         });
     const missing = matched.filter((a) => a.has_efforts && !activityAwards.value.has(a.id));
@@ -751,6 +756,7 @@ export function Dashboard() {
               const q = searchQuery.value.trim().toLowerCase();
               const filtered = dashboardRoutes.value
                 .filter(r => !q || r.name.toLowerCase().includes(q) ||
+                  (r.strava_route_name && r.strava_route_name.toLowerCase().includes(q)) ||
                   (r.rides && r.rides.some(ride => ride.name && ride.name.toLowerCase().includes(q))))
                 .sort((a, b) => b.frequency - a.frequency)
                 .slice(0, 8);
@@ -1329,9 +1335,11 @@ export function Dashboard() {
                   if (al && al.label.toLowerCase().includes(query)) return true;
                   if (award.segment_name && award.segment_name.toLowerCase().includes(query)) return true;
                 }
-                // Search by route name
+                // Search by route name (including Strava route names)
                 for (const route of dashboardRoutes.value) {
-                  if (route.name.toLowerCase().includes(query) && route.activityIds.includes(activity.id)) return true;
+                  if (route.activityIds.includes(activity.id) &&
+                    (route.name.toLowerCase().includes(query) ||
+                     (route.strava_route_name && route.strava_route_name.toLowerCase().includes(query)))) return true;
                 }
                 return false;
               })
