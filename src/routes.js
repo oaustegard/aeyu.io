@@ -5,14 +5,14 @@
  * Containment was removed — it's one-directional and caused short rides
  * to match long routes when they shared a subset of segments.
  *
- * Strava-seeded routes keep their segment fingerprint fixed.
- * Discovered routes grow by union (capped at 1.3x initial size).
+ * All route fingerprints are frozen after initial formation.
+ * Strava-seeded routes use their saved segments; discovered routes
+ * use the segments from the first activity that seeds them.
  */
 
 const DISTANCE_TOLERANCE = 0.30;
 const JACCARD_THRESHOLD = 0.50;
 const MIN_SEGMENTS_FOR_ROUTE = 2;
-const MAX_SEGMENT_GROWTH = 1.3;
 
 function jaccard(a, b) {
   if (a.size === 0 && b.size === 0) return 1;
@@ -63,7 +63,6 @@ export function detectRoutes(activities, stravaRoutes = []) {
     if (!sr.segments || sr.segments.length === 0) continue;
     routes.push({
       segments: new Set(sr.segments),
-      initialSize: sr.segments.length,
       distance: sr.distance || 0,
       distances: [],
       activityIds: [],
@@ -104,16 +103,12 @@ export function detectRoutes(activities, stravaRoutes = []) {
       matched.distances.push(activity.distance);
       const name = activity.name || "";
       matched.names.set(name, (matched.names.get(name) || 0) + 1);
-      if (!matched.isStravaSeeded && matched.segments.size < matched.initialSize * MAX_SEGMENT_GROWTH) {
-        for (const id of ids) matched.segments.add(id);
-      }
     } else {
       const name = activity.name || "";
       const names = new Map();
       names.set(name, 1);
       routes.push({
         segments: new Set(ids),
-        initialSize: ids.size,
         distance: activity.distance || 0,
         distances: [activity.distance || 0],
         activityIds: [activity.id],
