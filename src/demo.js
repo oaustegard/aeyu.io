@@ -4,8 +4,9 @@
  */
 
 import { signal } from "@preact/signals";
-import { openDB, switchToDemoDB, switchToRealDB, deleteDemoDB, getAuth } from "./db.js";
+import { openDB, switchToDemoDB, switchToRealDB, deleteDemoDB, getAuth, putRoutes } from "./db.js";
 import { authState } from "./auth.js";
+import { detectRoutes } from "./routes.js";
 
 export const isDemo = signal(false);
 export const demoError = signal(null);
@@ -102,6 +103,13 @@ export async function startDemo() {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
+
+    // Pre-compute routes so they're available on first Dashboard load
+    const withEfforts = data.activities.filter((a) => a.has_efforts);
+    const routes = detectRoutes(withEfforts);
+    if (routes.length > 0) {
+      await putRoutes(routes);
+    }
 
     sessionStorage.setItem("aeyu_demo_active", "true");
     authState.value = session;
