@@ -7,7 +7,7 @@
 import { html } from "htm/preact";
 import { signal } from "@preact/signals";
 import { useEffect, useRef } from "preact/hooks";
-import { getActivity, getSegment, getAllActivities, getResetEvent, getUserConfig, getAllRoutes, getStravaRoutes } from "../db.js";
+import { getActivity, getSegment, getAllActivities, getActivitiesByIds, getResetEvent, getUserConfig, getAllRoutes, getStravaRoutes } from "../db.js";
 import { computeAwards, computeRideLevelAwards } from "../awards.js";
 import { detectRoutes, findRouteForActivity } from "../routes.js";
 import { resyncActivity } from "../sync.js";
@@ -28,6 +28,7 @@ import { renderIconSVG, drawIcon } from "../icons.js";
 import { AWARD_LABELS, AWARD_COLORS } from "../award-config.js";
 import { StickyHeader } from "./StickyHeader.js";
 import { SegmentSparkline } from "./SegmentSparkline.js";
+import { TrendChart } from "./TrendChart.js";
 import { buildRideExport, rideToMarkdown, buildSegmentExport, segmentToMarkdown } from "../export-llm.js";
 
 const activity = signal(null);
@@ -45,6 +46,7 @@ const llmExportStatus = signal(null); // null | "loading" | "copied" | "error"
 const llmExportFormat = signal("markdown");
 const llmIncludeForm = signal(true);
 const segmentLlmExportStatus = signal(null); // null | { segmentId, state: "loading"|"copied"|"error" }
+const matchedRoute = signal(null); // { route, rides: [{ id, date, name, average_speed, average_watts }] }
 
 function formatDateShort(isoString) {
   return new Date(isoString).toLocaleDateString("en-US", {
@@ -63,6 +65,7 @@ async function loadActivity(id) {
   segmentCardGenerated.value = null;
   sortColumn.value = null;
   sortDirection.value = "asc";
+  matchedRoute.value = null;
   try {
     const act = await getActivity(Number(id));
     if (!act) return;
@@ -89,9 +92,9 @@ async function loadActivity(id) {
       const rideAwards = computeRideLevelAwards(act, allActivities, resetEvent);
       let awardsList = [...segmentAwards, ...rideAwards];
 
-      // Route-level Season First collapse (#84)
-      const seasonFirsts = awardsList.filter(a => a.type === "season_first");
-      if (seasonFirsts.length >= 2) {
+      // Route detection — used for Season First collapse (#84) and Similar Rides (#233)
+      let detectedRoute = null;
+      if (act.sport_type !== 'VirtualRide') {
         let routes = await getAllRoutes();
         if (!routes || routes.length === 0) {
           const withEfforts = allActivities.filter(a => a.has_efforts);
@@ -99,26 +102,47 @@ async function loadActivity(id) {
           routes = detectRoutes(withEfforts, stravaRoutes);
         }
         if (routes.length > 0) {
-          const route = findRouteForActivity(act, routes);
-          if (route) {
-            const nonSeasonFirsts = awardsList.filter(a => a.type !== "season_first");
-            const routeAward = {
-              type: "route_season_first",
-              segment: null,
-              segment_id: null,
-              time: null,
-              power: null,
-              comparison: null,
-              delta: null,
-              route_name: route.name,
-              route_frequency: route.frequency,
-              collapsed_count: seasonFirsts.length,
-              _collapsed_season_firsts: seasonFirsts,
-              message: `Season First on ${route.name}! First time this year on this route (${seasonFirsts.length} segments) — ${route.frequency} times total`,
-            };
-            awardsList = [...nonSeasonFirsts, routeAward];
-          }
+          detectedRoute = findRouteForActivity(act, routes);
         }
+      }
+
+      // Route-level Season First collapse (#84)
+      const seasonFirsts = awardsList.filter(a => a.type === "season_first");
+      if (seasonFirsts.length >= 2 && detectedRoute) {
+        const nonSeasonFirsts = awardsList.filter(a => a.type !== "season_first");
+        const routeAward = {
+          type: "route_season_first",
+          segment: null,
+          segment_id: null,
+          time: null,
+          power: null,
+          comparison: null,
+          delta: null,
+          route_name: detectedRoute.name,
+          route_frequency: detectedRoute.frequency,
+          collapsed_count: seasonFirsts.length,
+          _collapsed_season_firsts: seasonFirsts,
+          message: `Season First on ${detectedRoute.name}! First time this year on this route (${seasonFirsts.length} segments) — ${detectedRoute.frequency} times total`,
+        };
+        awardsList = [...nonSeasonFirsts, routeAward];
+      }
+
+      // Similar Rides (#233) — load route activities for trend chart
+      if (detectedRoute && detectedRoute.activityIds && detectedRoute.activityIds.length >= 2) {
+        const routeActivities = await getActivitiesByIds(detectedRoute.activityIds);
+        const rides = routeActivities
+          .filter(a => a.start_date_local)
+          .sort((a, b) => a.start_date_local.localeCompare(b.start_date_local))
+          .map(a => ({
+            id: a.id,
+            date: a.start_date_local,
+            name: a.name,
+            average_speed: a.average_speed || null,
+            average_watts: a.average_watts || null,
+          }));
+        matchedRoute.value = { route: detectedRoute, rides };
+      } else {
+        matchedRoute.value = null;
       }
 
       // Filter out disabled award types
@@ -1451,6 +1475,40 @@ export function ActivityDetail({ id }) {
             ${llmExportStatus.value === "loading" ? "Building export..." : llmExportStatus.value === "copied" ? "Copied to clipboard!" : llmExportStatus.value === "error" ? "Export failed" : "Copy ride data to clipboard"}
           </button>
         </div>
+
+        <!-- Similar Rides (#233) — route trend chart + ride list -->
+        ${matchedRoute.value && matchedRoute.value.rides.length >= 2 && html`
+          <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+            <h2 style="font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">
+              Similar Rides — ${matchedRoute.value.route.strava_route_name || matchedRoute.value.route.name}
+            </h2>
+            <p class="text-xs mb-2" style="color: var(--text-tertiary);">${matchedRoute.value.rides.length} rides on this route</p>
+            <${TrendChart} rides=${matchedRoute.value.rides} highlightId=${act.id} />
+            <div class="mt-3 space-y-1">
+              ${matchedRoute.value.rides.map(r => {
+                const isCurrent = r.id === act.id;
+                const d = new Date(r.date);
+                const dateStr = d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                const speed = r.average_speed ? formatSpeed(r.average_speed) : null;
+                const power = r.average_watts ? formatPower(r.average_watts) : null;
+                return html`
+                  <div
+                    class="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs"
+                    style=${isCurrent
+                      ? "background: var(--bg); border: 1px solid var(--border); font-weight: 600; color: var(--text);"
+                      : "cursor: pointer; color: var(--text-secondary);"}
+                    onClick=${!isCurrent ? () => { location.hash = '#/activity/' + r.id; } : undefined}
+                  >
+                    <span style="font-family: var(--font-mono); min-width: 5.5rem;">${dateStr}</span>
+                    <span class="flex-1 truncate" style="font-family: var(--font-body);">${r.name || "Ride"}</span>
+                    ${speed && html`<span style="font-family: var(--font-mono);">${speed}</span>`}
+                    ${power && html`<span style="font-family: var(--font-mono); color: var(--text-tertiary);">${power}</span>`}
+                  </div>
+                `;
+              })}
+            </div>
+          </div>
+        `}
 
         <!-- Segment efforts — summary cards with expandable detail (#88) -->
         ${act.has_efforts && act.segment_efforts && act.segment_efforts.length > 0 && html`
