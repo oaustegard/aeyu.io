@@ -2182,10 +2182,12 @@ export function detectGroupRides(allActivities, routes = []) {
           }, 0) / sub.rides.length
         );
 
-        // Name: use route name if this sub-cluster has one, else fall back to activity names
+        // Name: Strava route name is authoritative; then route name; then activity name heuristic
         const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
         let groupName;
-        if (sub.route) {
+        if (sub.route && sub.route.strava_route_name) {
+          groupName = sub.route.strava_route_name;
+        } else if (sub.route) {
           groupName = sub.route.name;
         } else {
           const nameCounts = {};
