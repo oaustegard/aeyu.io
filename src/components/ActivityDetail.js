@@ -1540,11 +1540,7 @@ export function ActivityDetail({ id }) {
                 <div class="relative rounded-xl p-4" style=${hasAwards
                   ? "background: var(--surface); border: 1px solid var(--border);"
                   : "background: var(--surface); border: 1px solid var(--border); opacity: 0.7;"}>
-                  <a href=${`https://www.strava.com/segments/${effort.segment.id}`} target="_blank" rel="noopener noreferrer" class="absolute inline-flex items-center gap-0.5 flex-shrink-0 whitespace-nowrap" style="top: 0.75rem; right: 0.75rem; font-size: 0.625rem; font-weight: 600; color: var(--strava); text-decoration: none; opacity: 0.6; transition: opacity 0.15s;" onMouseOver=${e => e.currentTarget.style.opacity = '1'} onMouseOut=${e => e.currentTarget.style.opacity = '0.6'} onClick=${e => e.stopPropagation()}>
-                    View on Strava
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                  </a>
-                  <div class="pr-20" style="font-family: var(--font-body); font-size: 16px; font-weight: 500; color: var(--text);">
+                  <div style="font-family: var(--font-body); font-size: 16px; font-weight: 500; color: var(--text);">
                     ${effort.segment.name}
                   </div>
                   <div class="mt-1" style="font-family: var(--font-mono); font-size: 14px; color: var(--text-secondary);">
@@ -1561,7 +1557,33 @@ export function ActivityDetail({ id }) {
                     <div class="mt-1" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--strava);">Strava PR #${effort.pr_rank}</div>
                   `}
                   ${seg && seg.efforts && seg.efforts.length >= 2 && html`
-                    <${SegmentSparkline} segment=${seg} currentEffortId=${effort.id} />
+                    <${SegmentSparkline}
+                      segment=${seg}
+                      currentEffortId=${effort.id}
+                      stravaSegmentId=${effort.segment.id}
+                      onExportLLM=${() => {
+                        const sid = effort.segment.id;
+                        segmentLlmExportStatus.value = { segmentId: sid, state: "loading" };
+                        (async () => {
+                          try {
+                            const textPromise = (async () => {
+                              const ctx = await buildSegmentExport(sid);
+                              if (!ctx) throw new Error("Segment not found");
+                              return llmExportFormat.value === "markdown" ? segmentToMarkdown(ctx) : JSON.stringify(ctx, null, 2);
+                            })();
+                            const blobPromise = textPromise.then(t => new Blob([t], { type: "text/plain" }));
+                            await navigator.clipboard.write([new ClipboardItem({ "text/plain": blobPromise })]);
+                            segmentLlmExportStatus.value = { segmentId: sid, state: "copied" };
+                            setTimeout(() => { segmentLlmExportStatus.value = null; }, 3000);
+                          } catch (err) {
+                            console.error("Segment export failed:", err);
+                            segmentLlmExportStatus.value = { segmentId: sid, state: "error" };
+                            setTimeout(() => { segmentLlmExportStatus.value = null; }, 3000);
+                          }
+                        })();
+                      }}
+                      exportLlmStatus=${segmentLlmExportStatus.value?.segmentId === effort.segment.id ? segmentLlmExportStatus.value.state : null}
+                    />
                   `}
                   ${hasAwards && html`
                     <div class="flex flex-wrap gap-1 mt-2">
@@ -1614,41 +1636,6 @@ export function ActivityDetail({ id }) {
                         Share Segment
                       </button>
                     </div>
-                  `}
-                  ${effortCount >= 2 && html`
-                    <button
-                      onClick=${async (e) => {
-                        e.stopPropagation();
-                        const sid = effort.segment.id;
-                        segmentLlmExportStatus.value = { segmentId: sid, state: "loading" };
-                        try {
-                          const textPromise = (async () => {
-                            const ctx = await buildSegmentExport(sid);
-                            if (!ctx) throw new Error("Segment not found");
-                            return llmExportFormat.value === "markdown" ? segmentToMarkdown(ctx) : JSON.stringify(ctx, null, 2);
-                          })();
-                          const blobPromise = textPromise.then(t => new Blob([t], { type: "text/plain" }));
-                          await navigator.clipboard.write([new ClipboardItem({ "text/plain": blobPromise })]);
-                          segmentLlmExportStatus.value = { segmentId: sid, state: "copied" };
-                          setTimeout(() => { segmentLlmExportStatus.value = null; }, 3000);
-                        } catch (err) {
-                          console.error("Segment export failed:", err);
-                          segmentLlmExportStatus.value = { segmentId: sid, state: "error" };
-                          setTimeout(() => { segmentLlmExportStatus.value = null; }, 3000);
-                        }
-                      }}
-                      disabled=${segmentLlmExportStatus.value?.segmentId === effort.segment.id && segmentLlmExportStatus.value?.state === "loading"}
-                      class="inline-flex items-center gap-1 text-xs mt-2 transition-colors"
-                      style="color: var(--accent); font-family: var(--font-body);"
-                      title="Export this segment's effort history for LLM analysis"
-                    >
-                      <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>
-                      </svg>
-                      ${segmentLlmExportStatus.value?.segmentId === effort.segment.id
-                        ? segmentLlmExportStatus.value.state === "loading" ? "Exporting..." : segmentLlmExportStatus.value.state === "copied" ? "Copied!" : "Export failed"
-                        : "Export for AI"}
-                    </button>
                   `}
                 </div>
               `;
