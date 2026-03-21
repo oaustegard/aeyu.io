@@ -195,6 +195,7 @@ const settingsTab = signal("rides"); // "rides" | "account"
 const searchQuery = signal("");
 const showSearch = signal(false);
 const groupFilterIds = signal(null);
+const routeFilter = signal(null); // { name, frequency } when filtering by route chip
 const allActivities = signal([]);
 const deleteConfirmText = signal("");
 const showDeleteConfirm = signal(false);
@@ -494,7 +495,7 @@ export function Dashboard() {
       <!-- Header -->
       <${StickyHeader}
         onHelp=${() => { showFaq.value = !showFaq.value; }}
-        onSearch=${() => { showSearch.value = !showSearch.value; if (!showSearch.value) { searchQuery.value = ""; groupFilterIds.value = null; } }}
+        onSearch=${() => { showSearch.value = !showSearch.value; if (!showSearch.value) { searchQuery.value = ""; groupFilterIds.value = null; routeFilter.value = null; } }}
         searchActive=${showSearch.value}
         syncing=${syncing}
         unitSystem=${units}
@@ -535,17 +536,17 @@ export function Dashboard() {
               </svg>
               <input
                 type="text"
-                placeholder="Search activities by name, date, or award..."
+                placeholder=${routeFilter.value ? `Filtering: ${routeFilter.value.name} (${routeFilter.value.frequency} rides)` : "Search activities by name, date, or award..."}
                 value=${searchQuery.value}
-                onInput=${(e) => { searchQuery.value = e.target.value; groupFilterIds.value = null; }}
-                onKeyDown=${(e) => { if (e.key === "Escape") { searchQuery.value = ""; showSearch.value = false; groupFilterIds.value = null; } }}
+                onInput=${(e) => { searchQuery.value = e.target.value; groupFilterIds.value = null; routeFilter.value = null; }}
+                onKeyDown=${(e) => { if (e.key === "Escape") { searchQuery.value = ""; showSearch.value = false; groupFilterIds.value = null; routeFilter.value = null; } }}
                 class="search-input w-full rounded-lg py-2 pl-9 pr-8 text-sm"
                 style="background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.2); font-family: var(--font-body); outline: none;"
-                ref=${(el) => { if (el) setTimeout(() => el.focus(), 0); }}
+                ref=${(el) => { if (el && !routeFilter.value) setTimeout(() => el.focus(), 0); }}
               />
-              ${searchQuery.value && html`
+              ${(searchQuery.value || routeFilter.value) && html`
                 <button
-                  onClick=${() => { searchQuery.value = ""; groupFilterIds.value = null; }}
+                  onClick=${() => { searchQuery.value = ""; groupFilterIds.value = null; routeFilter.value = null; }}
                   class="absolute right-2 top-1/2 -translate-y-1/2"
                   style="color: rgba(255,255,255,0.6);"
                 >
@@ -564,22 +565,24 @@ export function Dashboard() {
                 .sort((a, b) => b.frequency - a.frequency)
                 .slice(0, 8);
               if (filtered.length === 0) return null;
-              const activeRoute = filtered.find(r => groupFilterIds.value && searchQuery.value === r.name);
+              const activeRoute = filtered.find(r => routeFilter.value && routeFilter.value.name === r.name);
               return html`
                 <div class="flex flex-wrap gap-2 mt-2">
                   <span style="font-family: var(--font-body); font-size: 0.6875rem; color: rgba(255,255,255,0.5); align-self: center;">Routes</span>
                   ${filtered.map(r => {
-                    const isActive = groupFilterIds.value && searchQuery.value === r.name;
+                    const isActive = routeFilter.value && routeFilter.value.name === r.name;
                     return html`
                       <span class="inline-flex items-center rounded-full" style="background: rgba(255,255,255,${isActive ? "0.35" : "0.15"}); border: 1px solid rgba(255,255,255,${isActive ? "0.4" : "0.2"});">
                         <button
                           onClick=${() => {
                             if (isActive) {
                               groupFilterIds.value = null;
+                              routeFilter.value = null;
                               searchQuery.value = "";
                             } else {
                               groupFilterIds.value = new Set(r.activityIds);
-                              searchQuery.value = r.name;
+                              routeFilter.value = { name: r.name, frequency: r.frequency };
+                              searchQuery.value = "";
                             }
                           }}
                           class="text-xs px-3 py-1"
@@ -613,7 +616,7 @@ export function Dashboard() {
       `}
 
       <main class="max-w-3xl mx-auto px-6 py-6">
-        ${!searchQuery.value.trim() && html`
+        ${!searchQuery.value.trim() && !routeFilter.value && html`
         <!-- Inline sync progress -->
         ${syncing && html`
           <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
@@ -1181,7 +1184,9 @@ export function Dashboard() {
           <div class="space-y-3">
             <h2 style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text);">
               ${isSearching
-                ? `${displayActivities.length} ride${displayActivities.length !== 1 ? "s" : ""} for "${searchQuery.value.trim()}"`
+                ? routeFilter.value
+                  ? `${displayActivities.length} ride${displayActivities.length !== 1 ? "s" : ""} on ${routeFilter.value.name}`
+                  : `${displayActivities.length} ride${displayActivities.length !== 1 ? "s" : ""} for "${searchQuery.value.trim()}"`
                 : "Recent Activities"}
             </h2>
             ${searchClusters.length > 0 && html`
