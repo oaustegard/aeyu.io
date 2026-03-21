@@ -158,6 +158,18 @@ export async function getActivity(id) {
   });
 }
 
+export async function getActivitiesByIds(ids) {
+  const db = await openDB();
+  const tx = db.transaction("activities", "readonly");
+  const store = tx.objectStore("activities");
+  const results = await Promise.all(ids.map(id => new Promise((resolve, reject) => {
+    const req = store.get(id);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  })));
+  return results.filter(Boolean);
+}
+
 export async function getActivitiesByYear(year) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
