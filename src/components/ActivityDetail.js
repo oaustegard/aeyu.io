@@ -46,6 +46,8 @@ const llmExportStatus = signal(null); // null | "loading" | "copied" | "error"
 const llmExportFormat = signal("markdown");
 const llmIncludeForm = signal(true);
 const segmentLlmExportStatus = signal(null); // null | { segmentId, state: "loading"|"copied"|"error" }
+const coachStatus = signal(null); // null | "loading" | "opened" | "error"
+const COACH_ARTIFACT_URL = "https://claude.ai/public/artifacts/f3ed1a4c-c851-4e2e-b054-5f071bae1e0f";
 const matchedRoute = signal(null); // { route, rides: [{ id, date, name, average_speed, average_watts }] }
 
 function formatDateShort(isoString) {
@@ -1475,14 +1477,29 @@ export function ActivityDetail({ id }) {
             ${llmExportStatus.value === "loading" ? "Building export..." : llmExportStatus.value === "copied" ? "Copied to clipboard!" : llmExportStatus.value === "error" ? "Export failed" : "Copy ride data to clipboard"}
           </button>
           <span style="margin: 0 6px; color: var(--border);">|</span>
-          <a
-            href=${`/coach-claude?activity=${act.id}`}
-            target="_blank"
+          <button
+            onClick=${async () => {
+              coachStatus.value = "loading";
+              try {
+                const ctx = await buildRideExport(act.id, { includeForm: llmIncludeForm.value });
+                if (!ctx) throw new Error("Activity not found");
+                const text = rideToMarkdown(ctx);
+                await navigator.clipboard.writeText(text);
+                window.open(COACH_ARTIFACT_URL, "_blank");
+                coachStatus.value = "opened";
+                setTimeout(() => { coachStatus.value = null; }, 4000);
+              } catch (e) {
+                console.error("Coach export failed:", e);
+                coachStatus.value = "error";
+                setTimeout(() => { coachStatus.value = null; }, 3000);
+              }
+            }}
+            disabled=${coachStatus.value === "loading"}
             class="text-xs transition-colors"
-            style="color: var(--accent); text-decoration: none;"
+            style="color: var(--accent); background: none; border: none; cursor: pointer; font-family: inherit;"
           >
-            Coach with Claude →
-          </a>
+            ${coachStatus.value === "loading" ? "Preparing..." : coachStatus.value === "opened" ? "Copied! Paste in coach →" : coachStatus.value === "error" ? "Failed" : "Coach with Claude →"}
+          </button>
         </div>
 
         <!-- Similar Rides (#233) — route trend chart + ride list -->
