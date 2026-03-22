@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>aeyu.io — AI Coach</title>
+<meta name="description" content="AI-powered cycling coach. Analyze your rides with Claude.">
+<meta property="og:title" content="aeyu.io — AI Coach">
+<meta property="og:description" content="AI-powered cycling coach. Analyze your rides with Claude.">
+<meta property="og:image" content="https://aeyu.io/og-image.png">
+<meta name="theme-color" content="#F6F3EE">
+<link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif&display=swap" rel="stylesheet">
+<script type="importmap">
+  {
+    "imports": {
+      "preact": "/vendor/preact.mjs",
+      "preact/hooks": "/vendor/hooks.mjs",
+      "@preact/signals": "/vendor/signals.mjs",
+      "htm/preact": "/vendor/htm-preact.mjs"
+    }
+  }
+</script>
+<style>
+  :root {
+    --c-paper: #F6F3EE;
+    --c-card: #FFFFFF;
+    --c-text: #1A1610;
+    --c-muted: #5C5548;
+    --c-faint: #8C8374;
+    --c-border: #D4CFC7;
+    --c-terracotta: #B85A28;
+    --c-strava: #FC4C02;
+    --c-hover: #E5430A;
+    --c-tag-bg: #F0EBE3;
+    --c-success: #2D7A4F;
+    --c-error: #C53030;
+    --f-serif: 'Instrument Serif', Georgia, serif;
+    --f-sans: 'DM Sans', system-ui, sans-serif;
+    --f-mono: 'IBM Plex Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--f-sans);
+    background: var(--c-paper);
+    color: var(--c-text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .container { max-width: 560px; margin: 0 auto; padding: 32px 16px; }
+  .header { text-align: center; margin-bottom: 24px; }
+  .header h1 { font-family: var(--f-serif); font-size: 28px; font-weight: 400; margin: 0 0 4px; }
+  .header .sub { color: var(--c-faint); font-size: 13px; }
+  .header .sub a { color: var(--c-terracotta); text-decoration: none; }
+  .card {
+    background: var(--c-card);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(26,22,16,0.06);
+  }
+  .card h2 { font-family: var(--f-serif); font-size: 17px; font-weight: 400; margin: 0 0 8px; }
+  .status-line { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }
+  .dot { width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; }
+  .dot.ok { background: var(--c-success); }
+  .dot.loading { background: var(--c-strava); animation: pulse 1.2s ease-in-out infinite; }
+  .dot.error { background: var(--c-error); }
+  .dot.pending { background: var(--c-border); }
+  .meta { font-family: var(--f-mono); font-size: 12px; color: var(--c-faint); margin: 8px 0; }
+  .preview {
+    background: #FAFAF8;
+    border: 1px solid var(--c-border);
+    border-radius: 6px;
+    padding: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: var(--f-mono);
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--c-muted);
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 12px 0;
+  }
+  .cta {
+    display: block;
+    width: 100%;
+    background: var(--c-strava);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 14px 24px;
+    font-size: 16px;
+    font-weight: 600;
+    font-family: var(--f-sans);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .cta:hover { background: var(--c-hover); }
+  .cta:disabled { background: var(--c-border); color: var(--c-faint); cursor: not-allowed; }
+  .cta.secondary {
+    background: var(--c-terracotta);
+    font-size: 14px;
+    padding: 10px 16px;
+  }
+  .cta.secondary:hover { background: #9A4C22; }
+  .tag {
+    display: inline-block;
+    background: var(--c-tag-bg);
+    color: var(--c-muted);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 4px;
+  }
+  .footer { text-align: center; color: var(--c-faint); font-size: 12px; margin-top: 16px; }
+  .footer a { color: var(--c-faint); }
+  .no-auth {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--c-muted);
+  }
+  .no-auth a { color: var(--c-strava); text-decoration: none; font-weight: 600; }
+  .step-num { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 10px; background: var(--c-terracotta); color: #fff; font-size: 11px; font-weight: 700; margin-right: 6px; flex-shrink: 0; }
+  .steps .step { display: flex; align-items: flex-start; margin: 10px 0; color: var(--c-muted); font-size: 13px; line-height: 1.5; }
+  .steps .step.done { color: var(--c-faint); text-decoration: line-through; }
+  .steps .step.active { color: var(--c-text); font-weight: 500; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>AI Bike Coach</h1>
+    <div class="sub">Powered by <a href="https://aeyu.io">aeyu.io</a> + Claude</div>
+  </div>
+
+  <div id="app">
+    <div class="card">
+      <div class="status-line"><div class="dot loading"></div> Loading your data...</div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { buildLLMContext, contextToMarkdown, buildRideExport, rideToMarkdown, buildSegmentExport, segmentToMarkdown } from "./src/export-llm.js";
+import { getActivity } from "./src/db.js";
+
+// ── Config ──────────────────────────────────────────────────────
+// UPDATE THIS when the artifact is published
+const ARTIFACT_URL = "https://claude.site/artifacts/PLACEHOLDER";
+
+// ── URL params ──────────────────────────────────────────────────
+const params = new URLSearchParams(location.search);
+const activityId = params.get("activity") || params.get("a");
+const segmentId = params.get("segment") || params.get("s");
+const mode = activityId ? "ride" : segmentId ? "segment" : "training";
+
+const app = document.getElementById("app");
+
+async function init() {
+  try {
+    // Check if user has data
+    let testDb;
+    try {
+      testDb = await new Promise((resolve, reject) => {
+        const req = indexedDB.open("participation-awards");
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      const tx = testDb.transaction("auth", "readonly");
+      const auth = await new Promise((resolve, reject) => {
+        const req = tx.objectStore("auth").get("session");
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      if (!auth) throw new Error("no-auth");
+    } catch (e) {
+      app.innerHTML = `
+        <div class="card no-auth">
+          <p style="margin-bottom: 12px;">No aeyu.io data found on this device.</p>
+          <p>Go to <a href="https://aeyu.io">aeyu.io</a>, connect your Strava, and sync your rides first.</p>
+          <p style="margin-top: 16px; font-size: 12px; color: var(--c-faint);">Then come back here or use the AI Coach button in the app.</p>
+        </div>`;
+      return;
+    }
+
+    // Build export
+    app.innerHTML = `
+      <div class="card">
+        <div class="status-line"><div class="dot loading"></div> Building ${mode === "ride" ? "ride" : mode === "segment" ? "segment" : "training"} export...</div>
+      </div>`;
+
+    let exportData, markdownData, label, summary;
+
+    if (mode === "ride") {
+      exportData = await buildRideExport(activityId);
+      if (!exportData) throw new Error(`Activity ${activityId} not found`);
+      markdownData = rideToMarkdown(exportData);
+      label = exportData.ride.name;
+      const r = exportData.ride;
+      summary = `${r.date} · ${r.distance_km}km · ${r.moving_time_min}min`;
+      if (r.np_watts) summary += ` · NP ${r.np_watts}W`;
+    } else if (mode === "segment") {
+      exportData = await buildSegmentExport(segmentId);
+      if (!exportData) throw new Error(`Segment ${segmentId} not found`);
+      markdownData = segmentToMarkdown(exportData);
+      label = exportData.segment.name;
+      summary = `${exportData.stats.total_efforts} efforts · ${exportData.segment.distance_km}km · ${exportData.segment.average_grade_pct}%`;
+    } else {
+      exportData = await buildLLMContext({ days: 90 });
+      markdownData = contextToMarkdown(exportData);
+      label = `Training Log (${exportData.window_days} days)`;
+      summary = `${exportData.rides_in_window} rides`;
+      if (exportData.fitness?.performance_capacity) summary += ` · PC ${exportData.fitness.performance_capacity.score}/100`;
+    }
+
+    const charCount = markdownData.length;
+    const lineCount = markdownData.split("\n").length;
+    const previewText = markdownData.slice(0, 800) + (markdownData.length > 800 ? "\n..." : "");
+
+    let state = "ready"; // ready | copied | opening | done | error
+
+    function render() {
+      app.innerHTML = `
+        <div class="card">
+          <h2>${label}</h2>
+          <div class="meta">${summary} · ${charCount.toLocaleString()} chars · ${lineCount} lines</div>
+          <div style="margin: 8px 0 4px;">
+            <span class="tag">${mode === "ride" ? "Ride" : mode === "segment" ? "Segment" : "Training"}</span>
+            ${mode === "ride" && exportData.segment_efforts ? `<span class="tag">${exportData.segment_efforts.length} segments</span>` : ""}
+            ${mode === "ride" && exportData.ride_awards?.length ? `<span class="tag">${exportData.ride_awards.length} awards</span>` : ""}
+            ${mode === "training" && exportData.weekly_rollups ? `<span class="tag">${exportData.weekly_rollups.length} weeks</span>` : ""}
+          </div>
+          <div class="preview">${escapeHtml(previewText)}</div>
+        </div>
+
+        <div class="card steps">
+          <div class="step ${state !== "ready" ? "done" : "active"}">
+            <span class="step-num">1</span>
+            <span>Your training data is prepared and ready to copy</span>
+          </div>
+          <div class="step ${state === "copied" || state === "opening" || state === "done" ? "done" : state === "ready" ? "" : ""}">
+            <span class="step-num">2</span>
+            <span>Click the button below to copy data and open AI Coach</span>
+          </div>
+          <div class="step ${state === "done" ? "done" : ""}">
+            <span class="step-num">3</span>
+            <span>Click <strong>Paste Ride Data</strong> in the AI Coach to start your analysis</span>
+          </div>
+        </div>
+
+        <button class="cta" id="launch-btn" ${state === "done" ? "disabled" : ""}>
+          ${state === "ready" ? "Copy & Open AI Coach →" : state === "copied" ? "Opening AI Coach..." : state === "done" ? "✓ Copied — switch to the AI Coach tab" : "Copy & Open AI Coach →"}
+        </button>
+
+        ${state === "done" ? `
+          <button class="cta secondary" id="reopen-btn" style="margin-top: 8px;">
+            Open AI Coach again
+          </button>
+        ` : ""}
+      `;
+
+      const btn = document.getElementById("launch-btn");
+      if (btn && state === "ready") {
+        btn.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(markdownData);
+            state = "copied";
+            render();
+            // Small delay so user sees "copied" before tab switch
+            setTimeout(() => {
+              window.open(ARTIFACT_URL, "_blank");
+              state = "done";
+              render();
+            }, 400);
+          } catch (e) {
+            // Clipboard failed — show manual copy
+            state = "error";
+            app.innerHTML += `
+              <div class="card" style="border-left: 3px solid var(--c-error); margin-top: 12px;">
+                <p style="color: var(--c-error); font-size: 13px; margin-bottom: 8px;">Clipboard access denied. Copy manually:</p>
+                <textarea class="preview" style="min-height: 100px; user-select: all;" readonly>${escapeHtml(markdownData)}</textarea>
+                <button class="cta secondary" style="margin-top: 8px;" onclick="window.open('${ARTIFACT_URL}', '_blank')">Open AI Coach</button>
+              </div>`;
+          }
+        });
+      }
+
+      const reopenBtn = document.getElementById("reopen-btn");
+      if (reopenBtn) {
+        reopenBtn.addEventListener("click", () => {
+          window.open(ARTIFACT_URL, "_blank");
+        });
+      }
+    }
+
+    render();
+
+  } catch (e) {
+    app.innerHTML = `
+      <div class="card">
+        <div class="status-line"><div class="dot error"></div> <span style="color: var(--c-error);">${escapeHtml(e.message)}</span></div>
+      </div>`;
+  }
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+init();
+</script>
+
+<div class="footer">
+  <a href="https://aeyu.io">aeyu.io</a> · Your data is copied to clipboard only — nothing is sent to any server from this page.
+</div>
+</body>
+</html>
