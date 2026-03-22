@@ -1479,13 +1479,16 @@ export function ActivityDetail({ id }) {
           <span style="margin: 0 6px; color: var(--border);">|</span>
           <button
             onClick=${async () => {
+              // Open tab synchronously (before any await) to avoid mobile popup blockers
+              const coachTab = window.open(COACH_ARTIFACT_URL, "_blank");
               coachStatus.value = "loading";
               try {
                 const ctx = await buildRideExport(act.id, { includeForm: llmIncludeForm.value });
                 if (!ctx) throw new Error("Activity not found");
                 const text = rideToMarkdown(ctx);
-                await navigator.clipboard.writeText(text);
-                window.open(COACH_ARTIFACT_URL, "_blank");
+                try { await navigator.clipboard.writeText(text); } catch (clipErr) {
+                  console.warn("Clipboard write failed (expected on some mobile browsers):", clipErr);
+                }
                 coachStatus.value = "opened";
                 setTimeout(() => { coachStatus.value = null; }, 4000);
               } catch (e) {
