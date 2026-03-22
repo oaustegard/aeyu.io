@@ -11,6 +11,7 @@ import { computeFitnessSummary } from "./fitness.js";
 import { computeStreakData, computeAwardsForActivities, computeAwards, computeRideLevelAwards } from "./awards.js";
 import { unitSystem } from "./units.js";
 import { AWARD_LABELS } from "./award-config.js";
+import { estimateFTP, POWER_CURVE_DURATIONS, DURATION_LABELS, getAllTimeBestCurve } from "./power-curve.js";
 
 function filterByDays(activities, days) {
   const cutoff = Date.now() - days * 86400000;
@@ -56,7 +57,7 @@ function buildWeeklyRollups(activities) {
     const monday = new Date(d);
     monday.setDate(d.getDate() - ((day + 6) % 7));
     const key = monday.toISOString().slice(0, 10);
-    if (!weeks[key]) weeks[key] = { rides: 0, distance_km: 0, elevation_m: 0, moving_min: 0, np_sum: 0, np_count: 0, hr_sum: 0, hr_count: 0, indoor: 0 };
+    if (!weeks[key]) weeks[key] = { rides: 0, distance_km: 0, elevation_m: 0, moving_min: 0, np_sum: 0, np_count: 0, hr_sum: 0, hr_count: 0, indoor: 0, kj: 0, kj_count: 0 };
     const w = weeks[key];
     w.rides++;
     w.distance_km += a.distance / 1000;
@@ -64,6 +65,7 @@ function buildWeeklyRollups(activities) {
     w.moving_min += a.moving_time / 60;
     if (hasRealPower(a) && a.weighted_average_watts) { w.np_sum += a.weighted_average_watts; w.np_count++; }
     if (a.has_heartrate && a.average_heartrate) { w.hr_sum += a.average_heartrate; w.hr_count++; }
+    if (a.kilojoules) { w.kj += a.kilojoules; w.kj_count++; }
     if (a.trainer || a.sport_type === "VirtualRide") w.indoor++;
   }
   return Object.entries(weeks)
@@ -78,9 +80,107 @@ function buildWeeklyRollups(activities) {
       };
       if (w.np_count > 0) r.avg_np = Math.round(w.np_sum / w.np_count);
       if (w.hr_count > 0) r.avg_hr = Math.round(w.hr_sum / w.hr_count);
+      if (w.kj_count > 0) r.kj = Math.round(w.kj);
       if (w.indoor > 0) r.indoor_rides = w.indoor;
       return r;
     });
+}
+
+function buildWeekOverWeekDelta(weeklyRollups) {
+  if (weeklyRollups.length < 2) return null;
+  const now = new Date();
+  const currentMonday = new Date(now);
+  currentMonday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const currentWeekKey = currentMonday.toISOString().slice(0, 10);
+  const lastWeek = weeklyRollups[weeklyRollups.length - 1];
+  const isPartial = lastWeek.week_of === currentWeekKey;
+  const completeWeeks = isPartial ? weeklyRollups.slice(0, -1) : weeklyRollups;
+  if (completeWeeks.length < 1) return null;
+  const compareWeek = completeWeeks[completeWeeks.length - 1];
+  const avgCount = Math.min(4, completeWeeks.length - 1);
+  if (avgCount < 1) return null;
+  const avgWeeks = completeWeeks.slice(-(avgCount + 1), -1);
+  const avg = (field) => avgWeeks.reduce((s, w) => s + (w[field] || 0), 0) / avgWeeks.length;
+  const pctDelta = (val, baseline) => baseline > 0 ? Math.round((val / baseline - 1) * 100) : null;
+  return {
+    week: compareWeek.week_of,
+    vs_n_week_avg: avgCount,
+    volume_hrs_pct: pctDelta(compareWeek.moving_hrs, avg("moving_hrs")),
+    intensity_np_pct: compareWeek.avg_np && avg("avg_np") > 0 ? pctDelta(compareWeek.avg_np, avg("avg_np")) : null,
+    elevation_pct: pctDelta(compareWeek.elevation_m, avg("elevation_m")),
+    load_kj_pct: compareWeek.kj && avg("kj") > 0 ? pctDelta(compareWeek.kj, avg("kj")) : null,
+  };
+}
+
+const ZONE_BOUNDARIES = [
+  { zone: "Z1", label: "<55%", max: 0.55 },
+  { zone: "Z2", label: "55-75%", min: 0.55, max: 0.75 },
+  { zone: "Z3", label: "75-90%", min: 0.75, max: 0.90 },
+  { zone: "Z4", label: "90-105%", min: 0.90, max: 1.05 },
+  { zone: "Z5", label: "105-120%", min: 1.05, max: 1.20 },
+  { zone: "Z6+", label: ">120%", min: 1.20 },
+];
+
+function classifyZone(avgWatts, ftp) {
+  const ratio = avgWatts / ftp;
+  for (let i = ZONE_BOUNDARIES.length - 1; i >= 0; i--) {
+    const z = ZONE_BOUNDARIES[i];
+    if (z.min == null || ratio >= z.min) return i;
+  }
+  return 0;
+}
+
+function buildZoneDistribution(activities, ftp) {
+  if (!ftp) return null;
+  const weeks = {};
+  let excluded = 0;
+  for (const a of activities) {
+    if (!hasRealPower(a) || !a.average_watts) { excluded++; continue; }
+    const d = new Date(a.start_date_local);
+    const day = d.getDay();
+    const monday = new Date(d);
+    monday.setDate(d.getDate() - ((day + 6) % 7));
+    const key = monday.toISOString().slice(0, 10);
+    if (!weeks[key]) weeks[key] = new Float64Array(ZONE_BOUNDARIES.length);
+    const zi = classifyZone(a.average_watts, ftp);
+    weeks[key][zi] += a.moving_time / 3600;
+  }
+  const rows = Object.entries(weeks).sort(([a], [b]) => a.localeCompare(b)).map(([week, zones]) => {
+    const row = { week_of: week };
+    for (let i = 0; i < ZONE_BOUNDARIES.length; i++) {
+      row[ZONE_BOUNDARIES[i].zone] = +zones[i].toFixed(1);
+    }
+    return row;
+  });
+  return { ftp, zones: ZONE_BOUNDARIES.map(z => `${z.zone} (${z.label})`), weeks: rows, rides_without_power: excluded };
+}
+
+function buildPowerCurveSnapshot(allSorted) {
+  const now = Date.now();
+  const eightWeeks = 56 * 86400000;
+  const currentWindow = allSorted.filter(a => a.power_curve && (now - new Date(a.start_date).getTime()) <= eightWeeks);
+  const priorWindow = allSorted.filter(a => a.power_curve && (now - new Date(a.start_date).getTime()) > eightWeeks && (now - new Date(a.start_date).getTime()) <= 2 * eightWeeks);
+  if (currentWindow.length === 0) return null;
+  const KEY_DURATIONS = [5, 60, 300, 1200, 3600];
+  const bestFor = (acts, dur) => {
+    let best = 0;
+    for (const a of acts) { if (a.power_curve[dur] > best) best = a.power_curve[dur]; }
+    return best || null;
+  };
+  const rows = [];
+  for (const dur of KEY_DURATIONS) {
+    const current = bestFor(currentWindow, dur);
+    if (!current) continue;
+    const prior = bestFor(priorWindow, dur);
+    const row = { duration_s: dur, label: DURATION_LABELS[dur] || `${dur}s`, current_watts: current };
+    if (prior) {
+      row.prior_watts = prior;
+      row.delta_pct = +((current / prior - 1) * 100).toFixed(1);
+    }
+    rows.push(row);
+  }
+  if (rows.length === 0) return null;
+  return { window_weeks: 8, durations: rows };
 }
 
 function buildMonthlyDeltas(activities) {
@@ -123,6 +223,72 @@ function summarizeAwards(awardsMap) {
   return counts;
 }
 
+function buildAwardHighlights(awardsMap) {
+  const all = [];
+  for (const awards of awardsMap.values()) {
+    for (const a of awards) all.push(a);
+  }
+  if (all.length === 0) return [];
+
+  const highlights = [];
+  const counts = {};
+  for (const a of all) counts[a.type] = (counts[a.type] || 0) + 1;
+
+  const byType = {};
+  for (const a of all) {
+    if (!byType[a.type]) byType[a.type] = [];
+    byType[a.type].push(a);
+  }
+
+  // Year bests
+  if (counts.year_best) {
+    const segments = new Set(byType.year_best.map(a => a.segment).filter(Boolean));
+    highlights.push(`${counts.year_best} year best${counts.year_best !== 1 ? "s" : ""} across ${segments.size} segment${segments.size !== 1 ? "s" : ""}`);
+  }
+
+  // Improvement streaks — call out specific segments
+  if (byType.improvement_streak) {
+    const segCounts = {};
+    for (const a of byType.improvement_streak) { if (a.segment) segCounts[a.segment] = (segCounts[a.segment] || 0) + 1; }
+    const top = Object.entries(segCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    for (const [seg, cnt] of top) highlights.push(`${cnt} consecutive improvement${cnt !== 1 ? "s" : ""} on ${seg}`);
+  }
+
+  // Power year bests
+  if (byType.ytd_best_power) {
+    for (const a of byType.ytd_best_power) {
+      if (a.message) highlights.push(a.message);
+    }
+  }
+
+  // Season firsts
+  if (counts.season_first) highlights.push(`First season rides on ${counts.season_first} segment${counts.season_first !== 1 ? "s" : ""}`);
+  if (counts.route_season_first) highlights.push(`First season rides on ${counts.route_season_first} route${counts.route_season_first !== 1 ? "s" : ""}`);
+
+  // Ride-level records
+  const rideRecordTypes = ["distance_record", "elevation_record", "endurance_record", "speed_record"];
+  for (const rt of rideRecordTypes) {
+    if (byType[rt]) {
+      for (const a of byType[rt]) { if (a.message) highlights.push(a.message); }
+    }
+  }
+
+  // Top decile
+  if (counts.top_decile) highlights.push(`${counts.top_decile} top-decile effort${counts.top_decile !== 1 ? "s" : ""}`);
+
+  // Milestones
+  if (byType.milestone) {
+    for (const a of byType.milestone) { if (a.message) highlights.push(a.message); }
+  }
+
+  // Comeback
+  if (byType.comeback_pb) {
+    for (const a of byType.comeback_pb) { if (a.message) highlights.push(a.message); }
+  }
+
+  return highlights;
+}
+
 function formatFitness(fitness) {
   const out = {};
   if (fitness.performanceCapacity?.hasData) {
@@ -149,6 +315,7 @@ function formatStreaks(streakData) {
 
 export async function buildLLMContext(options = {}) {
   const days = options.days || 90;
+  const coachMode = options.coachMode || false;
   const allActs = await getAllActivities();
   const sorted = [...allActs].sort((a, b) => (a.start_date_local || "").localeCompare(b.start_date_local || ""));
   const recent = filterByDays(sorted, days);
@@ -160,19 +327,39 @@ export async function buildLLMContext(options = {}) {
     getAllSegments(),
   ]);
 
-  const totalRides = sorted.length;
-  const firstRide = sorted.length > 0 ? sorted[0].start_date_local?.slice(0, 10) : null;
-  const lastRide = sorted.length > 0 ? sorted[sorted.length - 1].start_date_local?.slice(0, 10) : null;
-  const hasPower = sorted.some((a) => hasRealPower(a));
-  const hasHR = sorted.some((a) => a.has_heartrate);
-  const sportTypes = [...new Set(sorted.map((a) => a.sport_type))];
+  const weeklyRollups = buildWeeklyRollups(recent);
 
-  const recentDetail = recent.slice(-25).reverse().map(slimActivity);
+  const userConfig = await getUserConfig();
+  const storedFTP = userConfig.ftp || null;
+  const bestCurve = await getAllTimeBestCurve();
+  const estimatedFTP = estimateFTP(bestCurve);
+  const ftp = storedFTP || estimatedFTP;
 
-  return {
+  const zoneDistribution = buildZoneDistribution(recent, ftp);
+  const powerCurveSnapshot = buildPowerCurveSnapshot(sorted);
+
+  const ctx = {
     generated_at: new Date().toISOString(),
     window_days: days,
-    athlete_summary: {
+    coach_mode: coachMode,
+    fitness: formatFitness(fitness),
+    streaks: formatStreaks(streakData),
+    weekly_rollups: weeklyRollups,
+    week_over_week: buildWeekOverWeekDelta(weeklyRollups),
+    zone_distribution: zoneDistribution,
+    power_curve: powerCurveSnapshot,
+    monthly_trends: buildMonthlyDeltas(recent),
+    rides_in_window: recent.length,
+  };
+
+  if (!coachMode) {
+    const totalRides = sorted.length;
+    const firstRide = sorted.length > 0 ? sorted[0].start_date_local?.slice(0, 10) : null;
+    const lastRide = sorted.length > 0 ? sorted[sorted.length - 1].start_date_local?.slice(0, 10) : null;
+    const hasPower = sorted.some((a) => hasRealPower(a));
+    const hasHR = sorted.some((a) => a.has_heartrate);
+    const sportTypes = [...new Set(sorted.map((a) => a.sport_type))];
+    ctx.athlete_summary = {
       total_rides: totalRides,
       first_ride: firstRide,
       last_ride: lastRide,
@@ -181,28 +368,29 @@ export async function buildLLMContext(options = {}) {
       has_heart_rate: hasHR,
       sport_types: sportTypes,
       unit_preference: unitSystem.value,
-    },
-    fitness: formatFitness(fitness),
-    streaks: formatStreaks(streakData),
-    weekly_rollups: buildWeeklyRollups(recent),
-    monthly_trends: buildMonthlyDeltas(recent),
-    recent_rides: recentDetail,
-    award_summary: summarizeAwards(awardsMap),
-    rides_in_window: recent.length,
-  };
+    };
+    ctx.recent_rides = recent.slice(-25).reverse().map(slimActivity);
+    ctx.award_summary = summarizeAwards(awardsMap);
+  } else {
+    ctx.award_highlights = buildAwardHighlights(awardsMap);
+  }
+
+  return ctx;
 }
 
 export function contextToMarkdown(ctx) {
-  let md = `# Cycling Training Data (last ${ctx.window_days} days)\n`;
-  md += `Generated: ${ctx.generated_at.slice(0, 10)}\n\n`;
+  const coachMode = ctx.coach_mode;
+  let md = `# Cycling Training Data (last ${ctx.window_days} days)${coachMode ? " — Coach Update" : ""}\n`;
+  md += `Generated: ${ctx.generated_at.slice(0, 10)} · ${ctx.rides_in_window} rides in window\n\n`;
 
-  const s = ctx.athlete_summary;
-  md += `## Athlete Summary\n`;
-  md += `- ${s.total_rides} total rides (${s.first_ride} to ${s.last_ride})\n`;
-  md += `- ${s.segments_ridden} unique segments ridden\n`;
-  md += `- Sport types: ${s.sport_types.join(", ")}\n`;
-  md += `- Power meter: ${s.has_power_meter ? "yes" : "no"}, HR monitor: ${s.has_heart_rate ? "yes" : "no"}\n`;
-  md += `- ${ctx.rides_in_window} rides in the last ${ctx.window_days} days\n\n`;
+  if (ctx.athlete_summary) {
+    const s = ctx.athlete_summary;
+    md += `## Athlete Summary\n`;
+    md += `- ${s.total_rides} total rides (${s.first_ride} to ${s.last_ride})\n`;
+    md += `- ${s.segments_ridden} unique segments ridden\n`;
+    md += `- Sport types: ${s.sport_types.join(", ")}\n`;
+    md += `- Power meter: ${s.has_power_meter ? "yes" : "no"}, HR monitor: ${s.has_heart_rate ? "yes" : "no"}\n\n`;
+  }
 
   if (ctx.fitness.performance_capacity || ctx.fitness.aerobic_efficiency) {
     md += `## Fitness Indicators\n`;
@@ -235,19 +423,62 @@ export function contextToMarkdown(ctx) {
   if (ctx.weekly_rollups.length > 0) {
     md += `## Weekly Volume\n`;
     md += `| Week | Rides | Distance (km) | Elevation (m) | Hours |`;
+    const hasKJ = ctx.weekly_rollups.some((w) => w.kj);
     const hasNP = ctx.weekly_rollups.some((w) => w.avg_np);
     const hasHR = ctx.weekly_rollups.some((w) => w.avg_hr);
+    if (hasKJ) md += ` kJ |`;
     if (hasNP) md += ` Avg NP |`;
     if (hasHR) md += ` Avg HR |`;
     md += `\n`;
     md += `|------|-------|---------------|---------------|-------|`;
+    if (hasKJ) md += `------|`;
     if (hasNP) md += `--------|`;
     if (hasHR) md += `--------|`;
     md += `\n`;
     for (const w of ctx.weekly_rollups) {
       md += `| ${w.week_of} | ${w.rides} | ${w.distance_km} | ${w.elevation_m} | ${w.moving_hrs} |`;
+      if (hasKJ) md += ` ${w.kj || "-"} |`;
       if (hasNP) md += ` ${w.avg_np || "-"} |`;
       if (hasHR) md += ` ${w.avg_hr || "-"} |`;
+      md += `\n`;
+    }
+    if (ctx.week_over_week) {
+      const d = ctx.week_over_week;
+      const fmt = (v) => v != null ? `${v > 0 ? "+" : ""}${v}%` : "n/a";
+      md += `\nThis week (${d.week}) vs ${d.vs_n_week_avg}-week avg: ${fmt(d.volume_hrs_pct)} volume (hrs)`;
+      if (d.intensity_np_pct != null) md += `, ${fmt(d.intensity_np_pct)} intensity (NP)`;
+      md += `, ${fmt(d.elevation_pct)} elevation`;
+      if (d.load_kj_pct != null) md += `, ${fmt(d.load_kj_pct)} load (kJ)`;
+      md += `\n`;
+    }
+    md += `\n`;
+  }
+
+  if (ctx.zone_distribution) {
+    const zd = ctx.zone_distribution;
+    md += `## Weekly Zone Distribution (FTP: ${zd.ftp}W)\n`;
+    md += `| Week |`;
+    for (const z of zd.zones) md += ` ${z} |`;
+    md += `\n|------|`;
+    for (let i = 0; i < zd.zones.length; i++) md += `------|`;
+    md += `\n`;
+    for (const w of zd.weeks) {
+      md += `| ${w.week_of} |`;
+      for (const zb of ZONE_BOUNDARIES) md += ` ${w[zb.zone] || "-"}h |`;
+      md += `\n`;
+    }
+    if (zd.rides_without_power > 0) md += `\n_${zd.rides_without_power} ride${zd.rides_without_power !== 1 ? "s" : ""} without power data excluded._\n`;
+    md += `\n`;
+  }
+
+  if (ctx.power_curve) {
+    const pc = ctx.power_curve;
+    md += `## Power Curve (${pc.window_weeks}-week bests)\n`;
+    md += `| Duration | Current | Prior ${pc.window_weeks}wk | Delta |\n`;
+    md += `|----------|---------|-----------|-------|\n`;
+    for (const d of pc.durations) {
+      md += `| ${d.label} | ${d.current_watts}W |`;
+      md += d.prior_watts ? ` ${d.prior_watts}W | ${d.delta_pct > 0 ? "+" : ""}${d.delta_pct}% |` : ` - | - |`;
       md += `\n`;
     }
     md += `\n`;
@@ -263,7 +494,7 @@ export function contextToMarkdown(ctx) {
     md += `\n`;
   }
 
-  if (ctx.recent_rides.length > 0) {
+  if (ctx.recent_rides && ctx.recent_rides.length > 0) {
     md += `## Last ${ctx.recent_rides.length} Rides\n`;
     for (const r of ctx.recent_rides) {
       md += `- **${r.date}** ${r.name}: ${r.distance_km}km, ${r.moving_time_min}min, ${r.elevation_m}m`;
@@ -275,14 +506,24 @@ export function contextToMarkdown(ctx) {
     md += `\n`;
   }
 
-  const awardTypes = Object.entries(ctx.award_summary);
-  if (awardTypes.length > 0) {
-    md += `## Awards Earned (last ${ctx.window_days} days)\n`;
-    awardTypes.sort((a, b) => b[1] - a[1]);
-    for (const [type, count] of awardTypes) {
-      md += `- ${type}: ${count}\n`;
+  if (ctx.award_highlights && ctx.award_highlights.length > 0) {
+    md += `## Notable Achievements (last ${ctx.window_days} days)\n`;
+    for (const h of ctx.award_highlights) {
+      md += `- ${h}\n`;
     }
     md += `\n`;
+  }
+
+  if (ctx.award_summary) {
+    const awardTypes = Object.entries(ctx.award_summary);
+    if (awardTypes.length > 0) {
+      md += `## Awards Earned (last ${ctx.window_days} days)\n`;
+      awardTypes.sort((a, b) => b[1] - a[1]);
+      for (const [type, count] of awardTypes) {
+        md += `- ${type}: ${count}\n`;
+      }
+      md += `\n`;
+    }
   }
 
   return md;

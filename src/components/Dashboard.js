@@ -170,7 +170,7 @@ const FAQ_ENTRIES = [
   {
     id: "export",
     question: "Can I export my data for an AI coach?",
-    answer: "Yes! Open Account & Data settings and use 'Export for AI Coach' to copy a compact summary of your recent training to the clipboard. You can also export a single ride from any Activity Detail page. Choose Markdown (best for chat) or JSON (best for structured prompts). Paste the result into ChatGPT, Claude, or any LLM.",
+    answer: "Yes! Open Account & Data settings and use 'Export for AI Coach' to copy a compact summary of your recent training to the clipboard. The export includes weekly volume with kJ totals, week-over-week deltas, zone distribution, power curve trends, monthly trends, and awards. Enable 'Coach mode' for a leaner export that omits your athlete profile and ride list (ideal for a stateful AI coach that already has your baseline). You can also export a single ride from any Activity Detail page. Choose Markdown (best for chat) or JSON (best for structured prompts).",
   },
   {
     id: "toggle-awards",
@@ -223,6 +223,7 @@ const showFirstSyncPrompt = signal(false);
 const firstSyncChoice = signal("5y");
 const exportDays = signal("90");
 const exportFormat = signal("markdown");
+const exportCoachMode = signal(localStorage.getItem("exportCoachMode") === "true");
 const exportStatus = signal(null); // null | "loading" | "copied" | "error"
 const activeChartHelp = signal(null);
 const disabledAwardTypes = signal(new Set());
@@ -1934,14 +1935,26 @@ export function Dashboard() {
                   <option value="json">JSON</option>
                 </select>
               </div>
+              <label class="flex items-center gap-1.5 mb-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked=${exportCoachMode.value}
+                  onChange=${(e) => { exportCoachMode.value = e.target.checked; localStorage.setItem("exportCoachMode", e.target.checked); exportStatus.value = null; }}
+                  class="rounded"
+                  style="accent-color: var(--strava);"
+                />
+                <span class="text-xs" style="color: var(--text-secondary);">Coach mode</span>
+                <span class="text-xs" style="color: var(--text-tertiary);">(stateful — omits athlete profile & ride list, condenses awards)</span>
+              </label>
               <button
                 onClick=${async () => {
                   exportStatus.value = "loading";
                   try {
                     const days = parseInt(exportDays.value);
                     const fmt = exportFormat.value;
+                    const coachMode = exportCoachMode.value;
                     const textPromise = (async () => {
-                      const ctx = await buildLLMContext({ days });
+                      const ctx = await buildLLMContext({ days, coachMode });
                       return fmt === "markdown" ? contextToMarkdown(ctx) : JSON.stringify(ctx, null, 2);
                     })();
                     const blobPromise = textPromise.then(t => new Blob([t], { type: "text/plain" }));
