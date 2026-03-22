@@ -1920,6 +1920,7 @@ export function Dashboard() {
                   class="text-xs rounded px-2 py-1 focus:outline-none"
                   style="border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-family: var(--font-mono);"
                 >
+                  <option value="7">Last 7 days</option>
                   <option value="30">Last 30 days</option>
                   <option value="90">Last 90 days</option>
                   <option value="180">Last 6 months</option>
@@ -1946,33 +1947,63 @@ export function Dashboard() {
                 <span class="text-xs" style="color: var(--text-secondary);">Coach mode</span>
                 <span class="text-xs" style="color: var(--text-tertiary);">(stateful — omits athlete profile & ride list, condenses awards)</span>
               </label>
-              <button
-                onClick=${async () => {
-                  exportStatus.value = "loading";
-                  try {
-                    const days = parseInt(exportDays.value);
-                    const fmt = exportFormat.value;
-                    const coachMode = exportCoachMode.value;
-                    const textPromise = (async () => {
+              <div class="flex items-center gap-3">
+                <button
+                  onClick=${async () => {
+                    exportStatus.value = "loading";
+                    try {
+                      const days = parseInt(exportDays.value);
+                      const fmt = exportFormat.value;
+                      const coachMode = exportCoachMode.value;
+                      const textPromise = (async () => {
+                        const ctx = await buildLLMContext({ days, coachMode });
+                        return fmt === "markdown" ? contextToMarkdown(ctx) : JSON.stringify(ctx, null, 2);
+                      })();
+                      const blobPromise = textPromise.then(t => new Blob([t], { type: "text/plain" }));
+                      await navigator.clipboard.write([new ClipboardItem({ "text/plain": blobPromise })]);
+                      exportStatus.value = "copied";
+                      setTimeout(() => { exportStatus.value = null; }, 3000);
+                    } catch (e) {
+                      console.error("Export failed:", e);
+                      exportStatus.value = "error";
+                      setTimeout(() => { exportStatus.value = null; }, 3000);
+                    }
+                  }}
+                  disabled=${exportStatus.value === "loading"}
+                  class="text-xs transition-colors"
+                  style="color: var(--accent);"
+                >
+                  ${exportStatus.value === "loading" ? "Building export..." : exportStatus.value === "copied" ? "Copied to clipboard!" : exportStatus.value === "error" ? "Export failed" : "Copy to clipboard"}
+                </button>
+                <button
+                  onClick=${async () => {
+                    exportStatus.value = "loading";
+                    try {
+                      const days = parseInt(exportDays.value);
+                      const coachMode = exportCoachMode.value;
                       const ctx = await buildLLMContext({ days, coachMode });
-                      return fmt === "markdown" ? contextToMarkdown(ctx) : JSON.stringify(ctx, null, 2);
-                    })();
-                    const blobPromise = textPromise.then(t => new Blob([t], { type: "text/plain" }));
-                    await navigator.clipboard.write([new ClipboardItem({ "text/plain": blobPromise })]);
-                    exportStatus.value = "copied";
-                    setTimeout(() => { exportStatus.value = null; }, 3000);
-                  } catch (e) {
-                    console.error("Export failed:", e);
-                    exportStatus.value = "error";
-                    setTimeout(() => { exportStatus.value = null; }, 3000);
-                  }
-                }}
-                disabled=${exportStatus.value === "loading"}
-                class="text-xs transition-colors"
-                style="color: var(--accent);"
-              >
-                ${exportStatus.value === "loading" ? "Building export..." : exportStatus.value === "copied" ? "Copied to clipboard!" : exportStatus.value === "error" ? "Export failed" : "Copy training data to clipboard"}
-              </button>
+                      const json = JSON.stringify(ctx, null, 2);
+                      const blob = new Blob([json], { type: "application/json" });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `training-${days}d-${new Date().toISOString().slice(0, 10)}.json`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                      exportStatus.value = null;
+                    } catch (e) {
+                      console.error("Export failed:", e);
+                      exportStatus.value = "error";
+                      setTimeout(() => { exportStatus.value = null; }, 3000);
+                    }
+                  }}
+                  disabled=${exportStatus.value === "loading"}
+                  class="text-xs transition-colors"
+                  style="color: var(--accent);"
+                >
+                  Download JSON
+                </button>
+              </div>
             </div>
 
             ${!isDemo.value && html`
