@@ -2004,6 +2004,17 @@ export function Dashboard() {
                   Download JSON
                 </button>
               </div>
+              <div class="mt-2 pt-2" style="border-top: 1px solid var(--border);">
+                <a
+                  href="/coach-claude"
+                  target="_blank"
+                  class="text-xs transition-colors"
+                  style="color: var(--accent); text-decoration: none;"
+                >
+                  Open AI Coach with Claude →
+                </a>
+                <p class="text-xs mt-1" style="color: var(--text-tertiary);">Copies your training data and opens the AI coaching artifact.</p>
+              </div>
             </div>
 
             ${!isDemo.value && html`
