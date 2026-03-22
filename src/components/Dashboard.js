@@ -225,6 +225,8 @@ const exportDays = signal("90");
 const exportFormat = signal("markdown");
 const exportCoachMode = signal(localStorage.getItem("exportCoachMode") === "true");
 const exportStatus = signal(null); // null | "loading" | "copied" | "error"
+const coachStatus = signal(null); // null | "loading" | "opened" | "error"
+const COACH_ARTIFACT_URL = "https://claude.ai/public/artifacts/f3ed1a4c-c851-4e2e-b054-5f071bae1e0f";
 const activeChartHelp = signal(null);
 const disabledAwardTypes = signal(new Set());
 const dashboardRoutes = signal([]);
@@ -2005,15 +2007,30 @@ export function Dashboard() {
                 </button>
               </div>
               <div class="mt-2 pt-2" style="border-top: 1px solid var(--border);">
-                <a
-                  href="/coach-claude"
-                  target="_blank"
+                <button
+                  onClick=${async () => {
+                    coachStatus.value = "loading";
+                    try {
+                      const days = Number(exportDays.value) || 90;
+                      const ctx = await buildLLMContext({ days, coachMode: exportCoachMode.value });
+                      const text = contextToMarkdown(ctx);
+                      await navigator.clipboard.writeText(text);
+                      window.open(COACH_ARTIFACT_URL, "_blank");
+                      coachStatus.value = "opened";
+                      setTimeout(() => { coachStatus.value = null; }, 4000);
+                    } catch (e) {
+                      console.error("Coach export failed:", e);
+                      coachStatus.value = "error";
+                      setTimeout(() => { coachStatus.value = null; }, 3000);
+                    }
+                  }}
+                  disabled=${coachStatus.value === "loading"}
                   class="text-xs transition-colors"
-                  style="color: var(--accent); text-decoration: none;"
+                  style="color: var(--accent); background: none; border: none; cursor: pointer; font-family: inherit; padding: 0;"
                 >
-                  Open AI Coach with Claude →
-                </a>
-                <p class="text-xs mt-1" style="color: var(--text-tertiary);">Copies your training data and opens the AI coaching artifact.</p>
+                  ${coachStatus.value === "loading" ? "Preparing..." : coachStatus.value === "opened" ? "✓ Copied! Paste in the coach tab" : coachStatus.value === "error" ? "Failed — try again" : "Coach with Claude →"}
+                </button>
+                <p class="text-xs mt-1" style="color: var(--text-tertiary);">Copies training data to clipboard and opens the AI coach in a new tab.</p>
               </div>
             </div>
 
