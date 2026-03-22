@@ -1474,6 +1474,15 @@ export function ActivityDetail({ id }) {
           >
             ${llmExportStatus.value === "loading" ? "Building export..." : llmExportStatus.value === "copied" ? "Copied to clipboard!" : llmExportStatus.value === "error" ? "Export failed" : "Copy ride data to clipboard"}
           </button>
+          <span style="margin: 0 6px; color: var(--border);">|</span>
+          <a
+            href=${`/coach-claude?activity=${act.id}`}
+            target="_blank"
+            class="text-xs transition-colors"
+            style="color: var(--accent); text-decoration: none;"
+          >
+            Coach with Claude →
+          </a>
         </div>
 
         <!-- Similar Rides (#233) — route trend chart + ride list -->
