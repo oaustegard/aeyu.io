@@ -46,7 +46,7 @@ const llmExportStatus = signal(null); // null | "loading" | "copied" | "error"
 const llmExportFormat = signal("markdown");
 const llmIncludeForm = signal(true);
 const segmentLlmExportStatus = signal(null); // null | { segmentId, state: "loading"|"copied"|"error" }
-const COACH_ARTIFACT_URL = "https://claude.ai/public/artifacts/b3b4eb9e-9c0c-4983-803f-a1634167712a";
+const COACH_ARTIFACT_URL = "https://claude.ai/public/artifacts/52d3ecd0-ea77-4646-87c3-54780ce258d7";
 const matchedRoute = signal(null); // { route, rides: [{ id, date, name, average_speed, average_watts }] }
 
 function formatDateShort(isoString) {
