@@ -8,10 +8,11 @@ A 100% client-side cycling awards app. Connects to Strava via OAuth, syncs activ
 
 ## Code Navigation
 
-**Always start by reading `_MAP.md` to orient yourself.** Before exploring or modifying any code, read the root `_MAP.md` first, then follow links to subdirectory maps. This gives you the full picture of exports, signatures, and line numbers without reading thousands of lines of source. Only open source files when you need implementation details.
+**Always start by reading `_MAP.md` and `_FEATURES.md` to orient yourself.** `_MAP.md` describes code *structure* (exports, signatures, line numbers). `_FEATURES.md` describes app *behavior* (what users see, interactions, invariants). Read both before exploring or modifying code. Only open source files when you need implementation details.
 
 ```
-_MAP.md              → root overview, subdirectory links
+_MAP.md              → root overview, subdirectory links (code structure)
+_FEATURES.md         → behavioral documentation: screens, interactions, invariants
 src/_MAP.md          → all src modules with exports and signatures
 src/components/_MAP.md → component exports
 worker/_MAP.md       → worker endpoints
@@ -99,6 +100,15 @@ Loads `demo-data.json` into IndexedDB with a fake auth session (athlete ID 99999
   ```bash
   python3 .claude/skills/mapping-codebases/scripts/codemap.py . --skip vendor,design,assets,icons
   ```
+- **`_FEATURES.md` documents app behavior.** Generated via `mapping-features` skill with browser automation + Claude vision. Captures screenshots, accessibility trees, and behavioral invariants for each page. When UI changes are made, regenerate incrementally:
+  ```bash
+  python3 /mnt/skills/user/mapping-features/scripts/featuremap.py \
+    --app-url https://aeyu.io \
+    --codebase . \
+    --routes /,/demo.html,/dashboard.html,/activity.html,/export.html \
+    --incremental
+  ```
+  The `--incremental` flag only re-describes pages whose screenshots changed. Dashboard and activity pages require Strava auth — they show the landing page without it.
 
 ## Common Tasks
 
@@ -112,6 +122,7 @@ Loads `demo-data.json` into IndexedDB with a fake auth session (athlete ID 99999
 **Add any new user-facing feature:**
 1. Add an FAQ entry in the Dashboard.js FAQ modal explaining what it does and how to use it
 2. If relevant to pre-auth users (explains what the app offers), also add an entry in the Landing.js FAQ section
+3. After deploying, re-run `mapping-features` with `--incremental` to update `_FEATURES.md` behavioral docs
 
 **Modify sync behavior:**
 Edit `sync.js`. Rate limit tracking is automatic. New fields from Strava API need to be added to both the activity summary storage and the segment effort extraction.
