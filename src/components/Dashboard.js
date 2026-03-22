@@ -225,7 +225,7 @@ const exportDays = signal("90");
 const exportFormat = signal("markdown");
 const exportCoachMode = signal(localStorage.getItem("exportCoachMode") === "true");
 const exportStatus = signal(null); // null | "loading" | "copied" | "error"
-const COACH_ARTIFACT_URL = "https://claude.ai/public/artifacts/b3b4eb9e-9c0c-4983-803f-a1634167712a";
+const COACH_ARTIFACT_URL = "https://claude.ai/public/artifacts/52d3ecd0-ea77-4646-87c3-54780ce258d7";
 const activeChartHelp = signal(null);
 const disabledAwardTypes = signal(new Set());
 const dashboardRoutes = signal([]);
