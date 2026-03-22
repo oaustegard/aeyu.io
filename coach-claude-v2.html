@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>aeyu.io — AI Coach</title>
+<meta name="theme-color" content="#F6F3EE">
+<link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Instrument+Serif&display=swap" rel="stylesheet">
+<script type="importmap">
+  {
+    "imports": {
+      "preact": "/vendor/preact.mjs",
+      "preact/hooks": "/vendor/hooks.mjs",
+      "@preact/signals": "/vendor/signals.mjs",
+      "htm/preact": "/vendor/htm-preact.mjs"
+    }
+  }
+</script>
+<style>
+  :root {
+    --c-paper: #F6F3EE;
+    --c-card: #FFFFFF;
+    --c-text: #1A1610;
+    --c-muted: #5C5548;
+    --c-faint: #8C8374;
+    --c-border: #D4CFC7;
+    --c-terracotta: #B85A28;
+    --c-strava: #FC4C02;
+    --c-hover: #E5430A;
+    --c-tag-bg: #F0EBE3;
+    --c-success: #2D7A4F;
+    --c-error: #C53030;
+    --f-serif: 'Instrument Serif', Georgia, serif;
+    --f-sans: 'DM Sans', system-ui, sans-serif;
+    --f-mono: 'IBM Plex Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--f-sans);
+    background: var(--c-paper);
+    color: var(--c-text);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .layout {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--c-border);
+    background: var(--c-card);
+    flex-shrink: 0;
+  }
+  .topbar h1 {
+    font-family: var(--f-serif);
+    font-size: 18px;
+    font-weight: 400;
+  }
+  .topbar .sub { color: var(--c-faint); font-size: 12px; }
+  .topbar .sub a { color: var(--c-terracotta); text-decoration: none; }
+
+  .data-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--c-tag-bg);
+    border-bottom: 1px solid var(--c-border);
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .data-bar .label {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--c-text);
+  }
+  .data-bar .meta {
+    font-family: var(--f-mono);
+    font-size: 11px;
+    color: var(--c-faint);
+  }
+  .tag {
+    display: inline-block;
+    background: var(--c-card);
+    color: var(--c-muted);
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .data-bar button {
+    background: var(--c-strava);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--f-sans);
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-left: auto;
+  }
+  .data-bar button:hover { background: var(--c-hover); }
+  .data-bar button:disabled { background: var(--c-border); color: var(--c-faint); cursor: default; }
+  .data-bar button.copied { background: var(--c-success); }
+
+  .artifact-frame {
+    flex: 1;
+    min-height: 0;
+  }
+  .artifact-frame iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+
+  /* Loading / error / no-auth states */
+  .state-card {
+    max-width: 480px;
+    margin: 40px auto;
+    background: var(--c-card);
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(26,22,16,0.06);
+    text-align: center;
+  }
+  .state-card p { color: var(--c-muted); margin: 8px 0; font-size: 13px; }
+  .state-card a { color: var(--c-strava); text-decoration: none; font-weight: 600; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 4px; margin-right: 6px; vertical-align: middle; }
+  .dot.loading { background: var(--c-strava); animation: pulse 1.2s ease-in-out infinite; }
+  .dot.error { background: var(--c-error); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .instructions {
+    padding: 12px 16px;
+    background: rgba(184,90,40,0.08);
+    border-bottom: 1px solid var(--c-border);
+    font-size: 13px;
+    color: var(--c-muted);
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .instructions strong { color: var(--c-text); }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="topbar">
+    <div>
+      <h1>AI Bike Coach</h1>
+    </div>
+    <div class="sub">
+      <a href="https://aeyu.io">aeyu.io</a> + Claude
+    </div>
+  </div>
+  <div id="app">
+    <div class="state-card">
+      <span class="dot loading"></span> Loading your data...
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { buildLLMContext, contextToMarkdown, buildRideExport, rideToMarkdown, buildSegmentExport, segmentToMarkdown } from "./src/export-llm.js";
+
+const ARTIFACT_EMBED = "https://claude.site/public/artifacts/f3ed1a4c-c851-4e2e-b054-5f071bae1e0f/embed";
+
+const params = new URLSearchParams(location.search);
+const activityId = params.get("activity") || params.get("a");
+const segmentId = params.get("segment") || params.get("s");
+const mode = activityId ? "ride" : segmentId ? "segment" : "training";
+
+const app = document.getElementById("app");
+
+async function init() {
+  try {
+    // Auth check
+    try {
+      const db = await new Promise((res, rej) => {
+        const req = indexedDB.open("participation-awards");
+        req.onsuccess = () => res(req.result);
+        req.onerror = () => rej(req.error);
+      });
+      const tx = db.transaction("auth", "readonly");
+      const auth = await new Promise((res, rej) => {
+        const req = tx.objectStore("auth").get("session");
+        req.onsuccess = () => res(req.result);
+        req.onerror = () => rej(req.error);
+      });
+      if (!auth) throw new Error("no-auth");
+    } catch (e) {
+      app.innerHTML = `
+        <div class="state-card">
+          <p>No aeyu.io data found on this device.</p>
+          <p>Go to <a href="https://aeyu.io">aeyu.io</a>, connect your Strava, and sync your rides first.</p>
+        </div>`;
+      return;
+    }
+
+    // Build export
+    let markdownData, label, summary, tagHtml;
+
+    if (mode === "ride") {
+      const ctx = await buildRideExport(activityId);
+      if (!ctx) throw new Error(`Activity ${activityId} not found`);
+      markdownData = rideToMarkdown(ctx);
+      label = ctx.ride.name;
+      const r = ctx.ride;
+      summary = `${r.date} · ${r.distance_km}km · ${r.moving_time_min}min`;
+      if (r.np_watts) summary += ` · NP ${r.np_watts}W`;
+      tagHtml = `<span class="tag">Ride</span>`;
+      if (ctx.segment_efforts?.length) tagHtml += ` <span class="tag">${ctx.segment_efforts.length} segments</span>`;
+    } else if (mode === "segment") {
+      const ctx = await buildSegmentExport(segmentId);
+      if (!ctx) throw new Error(`Segment ${segmentId} not found`);
+      markdownData = segmentToMarkdown(ctx);
+      label = ctx.segment.name;
+      summary = `${ctx.stats.total_efforts} efforts · ${ctx.segment.distance_km}km · ${ctx.segment.average_grade_pct}%`;
+      tagHtml = `<span class="tag">Segment</span>`;
+    } else {
+      const ctx = await buildLLMContext({ days: 90 });
+      markdownData = contextToMarkdown(ctx);
+      label = `Training Log (${ctx.window_days}d)`;
+      summary = `${ctx.rides_in_window} rides`;
+      if (ctx.fitness?.performance_capacity) summary += ` · PC ${ctx.fitness.performance_capacity.score}/100`;
+      tagHtml = `<span class="tag">Training</span>`;
+      if (ctx.weekly_rollups) tagHtml += ` <span class="tag">${ctx.weekly_rollups.length} weeks</span>`;
+    }
+
+    const chars = markdownData.length;
+
+    // Render the full UI
+    app.innerHTML = `
+      <div class="data-bar">
+        <span class="label">${esc(label)}</span>
+        ${tagHtml}
+        <span class="meta">${chars.toLocaleString()} chars</span>
+        <span class="meta">${esc(summary)}</span>
+        <button id="copy-btn">Copy to clipboard</button>
+      </div>
+      <div class="instructions" id="instructions">
+        <strong>Step 1:</strong> Copy your data above, then <strong>Step 2:</strong> click <strong>Paste Ride Data</strong> in the coach below
+      </div>
+      <div class="artifact-frame">
+        <iframe
+          src="${ARTIFACT_EMBED}"
+          title="AI Bike Coach"
+          allow="clipboard-read; clipboard-write"
+          allowfullscreen
+        ></iframe>
+      </div>
+    `;
+
+    const btn = document.getElementById("copy-btn");
+    btn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(markdownData);
+        btn.textContent = "✓ Copied!";
+        btn.classList.add("copied");
+        btn.disabled = true;
+        document.getElementById("instructions").innerHTML =
+          `<strong>Done!</strong> Now click <strong>Paste Ride Data</strong> in the coach below ↓`;
+        setTimeout(() => {
+          btn.textContent = "Copy again";
+          btn.classList.remove("copied");
+          btn.disabled = false;
+        }, 5000);
+      } catch (e) {
+        btn.textContent = "Copy failed";
+        setTimeout(() => { btn.textContent = "Copy to clipboard"; }, 2000);
+      }
+    });
+
+  } catch (e) {
+    app.innerHTML = `
+      <div class="state-card">
+        <span class="dot error"></span> ${esc(e.message)}
+      </div>`;
+  }
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+init();
+</script>
+</body>
+</html>
