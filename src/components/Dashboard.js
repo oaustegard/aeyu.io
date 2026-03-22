@@ -60,6 +60,7 @@ import { StickyHeader, headerCompact } from "./StickyHeader.js";
 import { buildLLMContext, contextToMarkdown } from "../export-llm.js";
 import { detectRoutes } from "../routes.js";
 import { TrendChart } from "./TrendChart.js";
+import { installContext } from "../install.js";
 
 // FAQ entries — searchable data structure. Award items derived from AWARD_GROUPS.
 const FAQ_ENTRIES = [
@@ -226,6 +227,7 @@ const exportFormat = signal("markdown");
 const exportCoachMode = signal(localStorage.getItem("exportCoachMode") === "true");
 const exportStatus = signal(null); // null | "loading" | "copied" | "error"
 const COACH_ARTIFACT_URL = "/coach-claude.html";
+const coachStatus = signal(null); // null | "loading" | "opened" | "error"
 const activeChartHelp = signal(null);
 const disabledAwardTypes = signal(new Set());
 const dashboardRoutes = signal([]);
@@ -2006,14 +2008,41 @@ export function Dashboard() {
                 </button>
               </div>
               <div class="mt-2 pt-2" style="border-top: 1px solid var(--border);">
-                <a
-                  href=${COACH_ARTIFACT_URL}
-                  target="_blank"
-                  rel="noopener"
-                  class="text-xs transition-colors"
-                  style="color: var(--accent);"
-                >Coach with Claude →</a>
-                <p class="text-xs mt-1" style="color: var(--text-tertiary);">Copy your data to clipboard first, then paste it in the coach.</p>
+                ${installContext.value.isMobile ? html`
+                  <a
+                    href=${COACH_ARTIFACT_URL}
+                    target="_blank"
+                    rel="noopener"
+                    class="text-xs transition-colors"
+                    style="color: var(--accent);"
+                  >Coach with Claude →</a>
+                  <p class="text-xs mt-1" style="color: var(--text-tertiary);">Copy your data to clipboard first, then paste it in the coach.</p>
+                ` : html`
+                  <button
+                    onClick=${async () => {
+                      coachStatus.value = "loading";
+                      try {
+                        const days = Number(exportDays.value) || 90;
+                        const ctx = await buildLLMContext({ days, coachMode: exportCoachMode.value });
+                        const text = contextToMarkdown(ctx);
+                        await navigator.clipboard.writeText(text);
+                        window.open(COACH_ARTIFACT_URL, "_blank");
+                        coachStatus.value = "opened";
+                        setTimeout(() => { coachStatus.value = null; }, 4000);
+                      } catch (e) {
+                        console.error("Coach export failed:", e);
+                        coachStatus.value = "error";
+                        setTimeout(() => { coachStatus.value = null; }, 3000);
+                      }
+                    }}
+                    disabled=${coachStatus.value === "loading"}
+                    class="text-xs transition-colors"
+                    style="color: var(--accent); background: none; border: none; cursor: pointer; font-family: inherit; padding: 0;"
+                  >
+                    ${coachStatus.value === "loading" ? "Preparing..." : coachStatus.value === "opened" ? "Copied! Paste in the coach tab" : coachStatus.value === "error" ? "Failed — try again" : "Coach with Claude →"}
+                  </button>
+                  <p class="text-xs mt-1" style="color: var(--text-tertiary);">Copies training data to clipboard and opens the AI coach in a new tab.</p>
+                `}
               </div>
             </div>
 
