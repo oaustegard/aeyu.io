@@ -2009,13 +2009,16 @@ export function Dashboard() {
               <div class="mt-2 pt-2" style="border-top: 1px solid var(--border);">
                 <button
                   onClick=${async () => {
+                    // Open tab synchronously (before any await) to avoid mobile popup blockers
+                    const coachTab = window.open(COACH_ARTIFACT_URL, "_blank");
                     coachStatus.value = "loading";
                     try {
                       const days = Number(exportDays.value) || 90;
                       const ctx = await buildLLMContext({ days, coachMode: exportCoachMode.value });
                       const text = contextToMarkdown(ctx);
-                      await navigator.clipboard.writeText(text);
-                      window.open(COACH_ARTIFACT_URL, "_blank");
+                      try { await navigator.clipboard.writeText(text); } catch (clipErr) {
+                        console.warn("Clipboard write failed (expected on some mobile browsers):", clipErr);
+                      }
                       coachStatus.value = "opened";
                       setTimeout(() => { coachStatus.value = null; }, 4000);
                     } catch (e) {
