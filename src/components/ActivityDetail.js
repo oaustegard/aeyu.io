@@ -1146,7 +1146,7 @@ function ZoneBarChart({ title, zones, colors, labels, totalTime }) {
       <h3 class="text-xs font-semibold mb-2" style="color: var(--text-secondary); font-family: var(--font-body); text-transform: uppercase; letter-spacing: 0.05em;">${title}</h3>
       <div class="space-y-1">
         ${zones.map((time, i) => {
-          if (time === 0 && zones.length > 5) return null;
+          if (time === 0 && zones.length > 7) return null;
           const pct = maxTime > 0 ? (time / maxTime) * 100 : 0;
           const timePct = total > 0 ? Math.round((time / total) * 100) : 0;
           return html`

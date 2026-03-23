@@ -717,7 +717,7 @@ export async function buildRideExport(activityId, options = {}) {
           zone: zoneNames[i],
           time_s: t,
           time_min: Math.round(t / 60),
-        })).filter(z => z.time_s > 0);
+        }));
         ctx.zones.ftp = ftp;
       } else {
         ctx.zones.power_raw = act.zones.power.map(b => ({
