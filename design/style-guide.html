@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Visual Style Guide — aeyu.io</title>
+<meta name="description" content="Design system for aeyu.io: Terrain v2 palette, typography, share card spec, award colors, and CSS conventions.">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    /* ── Surfaces ── */
+    --bg: #F6F3EE;
+    --surface: #FFFFFF;
+    --surface-hover: #FAF8F4;
+    --border: #E5DFD4;
+    --border-light: #EDE8E0;
+
+    /* ── Text ── */
+    --text: #1A1610;
+    --text-secondary: #5C5548;
+    --text-tertiary: #8C8374;
+    --text-on-dark: #FAF7F2;
+
+    /* ── Brand Accents ── */
+    --accent: #B85A28;            /* Terracotta — wordmark, brand identity */
+    --accent-dark: #6B3518;       /* Deep terracotta — header background */
+    --strava: #FC4C02;            /* Strava orange — CTA only */
+    --strava-hover: #E04400;
+
+    /* ── Structural Accent (Carbon Tech) ── */
+    --steel: #4A5759;             /* Steel blue — share card headers, structural UI */
+    --steel-light: #D8DBE2;       /* Aluminum — dividers, subtle accents */
+
+    /* ── Fonts ── */
+    --font-display: 'Instrument Serif', serif;
+    --font-body: 'DM Sans', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+
+  html {
+    max-width: 72ch;
+    padding: 2em 1em 4em;
+    margin: auto;
+    line-height: 1.6;
+    font-size: 1.1em;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: 2.4em;
+    font-weight: 400;
+    color: var(--text);
+    margin-bottom: 0.15em;
+  }
+  h1 .io { color: var(--accent); }
+
+  .subtitle {
+    font-style: italic;
+    color: var(--text-tertiary);
+    margin-bottom: 2.5em;
+    font-size: 0.95em;
+  }
+
+  h2 {
+    font-family: var(--font-body);
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--steel);
+    margin-top: 3em;
+    margin-bottom: 0.4em;
+    font-weight: 700;
+  }
+
+  .section-rule {
+    height: 2px;
+    background: var(--accent);
+    margin-bottom: 1.5em;
+    opacity: 0.5;
+  }
+
+  h3 {
+    font-family: var(--font-display);
+    font-size: 1.2em;
+    font-weight: 400;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+  }
+
+  p { margin-bottom: 1em; }
+
+  code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    background: rgba(0,0,0,0.04);
+    padding: 0.15em 0.4em;
+    border-radius: 3px;
+  }
+
+  pre {
+    font-family: var(--font-mono);
+    font-size: 0.82em;
+    background: #2a2a2a;
+    color: #e8e8e8;
+    padding: 1em 1.2em;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 0.8em 0 1.2em;
+    line-height: 1.5;
+  }
+  pre .comment { color: #6a9955; }
+  pre .key { color: #9cdcfe; }
+  pre .value { color: #ce9178; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.8em 0 1.2em;
+    font-size: 0.9em;
+  }
+  th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 2px solid var(--border);
+    padding: 0.4em 0.6em;
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  td {
+    padding: 0.4em 0.6em;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: top;
+  }
+
+  .note {
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    padding: 0.8em 1em;
+    margin: 1em 0;
+    font-size: 0.9em;
+    border-radius: 0 4px 4px 0;
+  }
+
+  .warning {
+    background: #FBF0D8;
+    border-left: 3px solid #B8862E;
+    padding: 0.8em 1em;
+    margin: 1em 0;
+    font-size: 0.9em;
+    border-radius: 0 4px 4px 0;
+  }
+
+  /* ── Swatches ── */
+  .palette {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+    margin: 0.8em 0 1.2em;
+  }
+  .swatch {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .swatch-color {
+    height: 52px;
+  }
+  .swatch-label {
+    padding: 6px 8px;
+    background: var(--surface);
+    font-size: 0.78em;
+    line-height: 1.3;
+  }
+  .swatch-label .name {
+    font-weight: 600;
+    color: var(--text);
+    display: block;
+  }
+  .swatch-label .hex {
+    font-family: var(--font-mono);
+    color: var(--text-tertiary);
+    font-size: 0.92em;
+  }
+
+  /* ── Award pills ── */
+  .pill-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0.6em 0 1em;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px 3px 6px;
+    border-radius: 12px;
+    font-size: 0.78em;
+    font-weight: 600;
+    white-space: nowrap;
+    border: 1px solid;
+  }
+  .pill .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── Type specimens ── */
+  .type-specimen {
+    margin: 1em 0;
+    padding: 1.2em;
+    background: var(--surface);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .type-specimen .label {
+    font-family: var(--font-mono);
+    font-size: 0.7em;
+    color: var(--text-tertiary);
+    margin-bottom: 0.6em;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* ── Share card mockup ── */
+  .card-demo {
+    margin: 1em 0;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .share-card {
+    width: 340px;
+    border-radius: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .share-card--steel {
+    border: 2px solid var(--steel);
+    box-shadow: 0 6px 20px rgba(74, 87, 89, 0.15);
+  }
+  .share-card--old {
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    opacity: 0.55;
+    transform: scale(0.95);
+    transform-origin: top left;
+  }
+
+  /* ── Header mockup ── */
+  .header-demo {
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 1em 0;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  }
+
+  /* ── Inline color chip ── */
+  .chip {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-right: 3px;
+    border: 1px solid rgba(0,0,0,0.1);
+  }
+</style>
+</head>
+<body>
+
+<h1>aeyu<span class="io">.io</span></h1>
+<p class="subtitle">Visual Style Guide — Terrain v2 + Carbon Tech · March 2026</p>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>Design Principles</h2>
+<div class="section-rule"></div>
+
+<p><strong>Strava DNA, not clone.</strong> White card surfaces, geometric sans body, Strava orange CTA. Warm page background + serif display + terracotta accent are the differentiators.</p>
+
+<p><strong>Color = awards.</strong> The UI is deliberately neutral so award pills are the brightest elements on screen — no competition from chrome.</p>
+
+<p><strong>Icons over dots.</strong> Geometric SVG outlines in each award's semantic color. Readable at 12px in pills, expressive at 32px in cards. Canvas-renderable for share images.</p>
+
+<p><strong>Type floor: 14px mono, 16px body.</strong> Target audience is 35+ cyclists reading on phones post-ride. DM Sans's wider letterforms help.</p>
+
+<p><strong>No gradients.</strong> Flat, solid colors throughout. The brand communicates through texture and typography contrast, not gradient effects.</p>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>Wordmark</h2>
+<div class="section-rule"></div>
+
+<div class="type-specimen">
+  <div class="label">Wordmark — Instrument Serif, regular</div>
+  <div style="font-family: 'Instrument Serif', serif; font-size: 2.4em; color: var(--text);">
+    aeyu<span style="color: var(--accent);">.io</span>
+  </div>
+</div>
+
+<p>The <code>.io</code> suffix renders in terracotta (<span class="chip" style="background: #B85A28;"></span><code>#B85A28</code>). At small sizes where the color doesn't register, fall back to all text color.</p>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>Typography</h2>
+<div class="section-rule"></div>
+
+<div class="type-specimen">
+  <div class="label">Display — Instrument Serif · 400 · 24px+</div>
+  <div style="font-family: 'Instrument Serif', serif; font-size: 1.8em; color: var(--text);">
+    Scott's Deflated Balloon Ride
+  </div>
+</div>
+
+<div class="type-specimen">
+  <div class="label">Body — DM Sans · 400/500/600 · 16px+</div>
+  <div style="font-family: 'DM Sans', sans-serif; font-size: 1em;">
+    <span style="font-weight: 400;">Regular 400:</span> Giving recognition for efforts where effort was given.
+    <br><span style="font-weight: 600;">Semibold 600:</span> Participation Awards
+  </div>
+</div>
+
+<div class="type-specimen">
+  <div class="label">Data — IBM Plex Mono · 400 · 14px+</div>
+  <div style="font-family: 'IBM Plex Mono', monospace; font-size: 0.95em; color: var(--text-secondary);">
+    Mar 21, 2026 · 44.7 mi · 2:59:50 · <span style="color: var(--accent);">14.9 mph</span> · 2156 ft
+  </div>
+</div>
+
+<pre><span class="comment">/* Google Fonts import */</span>
+https://fonts.googleapis.com/css2?family=Instrument+Serif
+  &family=DM+Sans:wght@400;500;600;700
+  &family=IBM+Plex+Mono:wght@400;500&display=swap</pre>
+
+<table>
+  <tr><th>Role</th><th>Font</th><th>Min Size</th><th>Weight</th></tr>
+  <tr><td>Display</td><td>Instrument Serif</td><td>24px</td><td>400</td></tr>
+  <tr><td>Body</td><td>DM Sans</td><td>16px</td><td>400 / 500 / 600</td></tr>
+  <tr><td>Data</td><td>IBM Plex Mono</td><td>14px</td><td>400</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>Color — Surfaces &amp; Text</h2>
+<div class="section-rule"></div>
+
+<h3>Surfaces</h3>
+<div class="palette">
+  <div class="swatch"><div class="swatch-color" style="background: #F6F3EE;"></div><div class="swatch-label"><span class="name">Page BG</span><span class="hex">#F6F3EE</span></div></div>
+  <div class="swatch"><div class="swatch-color" style="background: #FFFFFF; border-bottom: 1px solid #eee;"></div><div class="swatch-label"><span class="name">Surface</span><span class="hex">#FFFFFF</span></div></div>
+  <div class="swatch"><div class="swatch-color" style="background: #FAF8F4;"></div><div class="swatch-label"><span class="name">Surface Hover</span><span class="hex">#FAF8F4</span></div></div>
+  <div class="swatch"><div class="swatch-color" style="background: #E5DFD4;"></div><div class="swatch-label"><span class="name">Border</span><span class="hex">#E5DFD4</span></div></div>
+  <div class="swatch"><div class="swatch-color" style="background: #EDE8E0;"></div><div class="swatch-label"><span class="name">Border Light</span><span class="hex">#EDE8E0</span></div></div>
+</div>
+
+<h3>Text</h3>
+<div class="palette">
+  <div class="swatch"><div class="swatch-color" style="background: #1A1610;"></div><div class="swatch-label"><span class="name">Primary</span><span class="hex">#1A1610 · 14.8:1</span></div></div>
+  <div class="swatch"><div class="swatch-color" style="background: #5C5548;"></div><div class="swatch-label"><span class="name">Secondary</span><span class="hex">#5C5548 · 6.2:1</span></div></div>
+  <div class="swatch"><div class="swatch-color" style="background: #8C8374;"></div><div class="swatch-label"><span class="name">Tertiary</span><span class="hex">#8C8374 · 3.8:1</span></div></div>
+  <div class="swatch"><div class="swatch-color" style="background: #FAF7F2; border-bottom: 1px solid #ddd;"></div><div class="swatch-label"><span class="name">On Dark</span><span class="hex">#FAF7F2</span></div></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>Color — Brand Accents</h2>
+<div class="section-rule"></div>
+
+<div class="palette">
+  <div class="swatch"><div class="swatch-color" style="background: #B85A28;"></div><div class="swatch-label"><span class="name">Terracotta</span><span class="hex">#B85A28 · Brand</span></div></div>
+  <div class="swatch"><div class="swatch-color" style="background: #6B3518;"></div><div class="swatch-label"><span class="name">Deep Terracotta</span><span class="hex">#6B3518 · Header</span></div></div>
+  <div class="swatch"><div class="swatch-color" style="background: #4A5759;"></div><div class="swatch-label"><span class="name">Steel Blue</span><span class="hex">#4A5759 · Structural</span></div></div>
+  <div class="swatch"><div class="swatch-color" style="background: #D8DBE2;"></div><div class="swatch-label"><span class="name">Aluminum</span><span class="hex">#D8DBE2 · Subtle</span></div></div>
+  <div class="swatch"><div class="swatch-color" style="background: #FC4C02;"></div><div class="swatch-label"><span class="name">Strava Orange</span><span class="hex">#FC4C02 · CTA only</span></div></div>
+</div>
+
+<h3>Usage Rules</h3>
+
+<table>
+  <tr><th>Color</th><th>Use For</th><th>Never For</th></tr>
+  <tr>
+    <td><span class="chip" style="background: #B85A28;"></span> Terracotta</td>
+    <td>Wordmark <code>.io</code>, highlighted data values in share cards, section accents, tagline</td>
+    <td>Large background fills, buttons (use Strava for CTA)</td>
+  </tr>
+  <tr>
+    <td><span class="chip" style="background: #6B3518;"></span> Deep Terracotta</td>
+    <td>Site header background (flat, solid), search bar background</td>
+    <td>Gradients, text color, card borders</td>
+  </tr>
+  <tr>
+    <td><span class="chip" style="background: #4A5759;"></span> Steel Blue</td>
+    <td>Share card header cap, share card border, section headings (style guide), footer</td>
+    <td>In-app card borders (use <code>--border</code>), body text</td>
+  </tr>
+  <tr>
+    <td><span class="chip" style="background: #D8DBE2;"></span> Aluminum</td>
+    <td>Share card dividers, subtle UI accents, secondary borders</td>
+    <td>Primary text, backgrounds</td>
+  </tr>
+  <tr>
+    <td><span class="chip" style="background: #FC4C02;"></span> Strava Orange</td>
+    <td>"Connect with Strava" button only</td>
+    <td>Everything else — this is Strava's brand, not ours</td>
+  </tr>
+</table>
+
+<div class="note">
+  <strong>The monotonal trap:</strong> Terracotta and deep terracotta are the warm end. Steel blue and aluminum are the cool end. Use them <em>together</em> to create temperature contrast — warm header + cool share card frame, terracotta data highlights against steel structural elements.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>Color — Award System</h2>
+<div class="section-rule"></div>
+
+<p>Awards are the only elements allowed to be colorful. Each award has four tokens: <code>dot</code> (icon/indicator), <code>bg</code> (pill fill), <code>text</code> (pill label), <code>border</code> (pill stroke). The neutral UI ensures these are always the brightest thing on screen.</p>
+
+<h3>Core Segment Awards</h3>
+<div class="pill-grid" id="core-awards"></div>
+
+<h3>Ride Awards</h3>
+<div class="pill-grid" id="ride-awards"></div>
+
+<h3>Power Awards</h3>
+<div class="pill-grid" id="power-awards"></div>
+
+<h3>Comeback Mode</h3>
+<div class="pill-grid" id="comeback-awards"></div>
+
+<script>
+const AWARDS = {
+  core: [
+    { key: "season_first", label: "Season First", dot: "#3D7A4A", bg: "#E8F2E6", text: "#1E4D28", border: "#C0D8B8" },
+    { key: "year_best", label: "Year Best", dot: "#B8862E", bg: "#FBF0D8", text: "#6E5010", border: "#E8D4A0" },
+    { key: "top_decile", label: "Top 10%", dot: "#B85A28", bg: "#F8E4D4", text: "#7A3418", border: "#E8C0A4" },
+    { key: "recent_best", label: "Recent Best", dot: "#4882A8", bg: "#E4EEF6", text: "#2A5470", border: "#B8D0E4" },
+    { key: "consistency", label: "Metronome", dot: "#6B6260", bg: "#ECEAE6", text: "#3E3A36", border: "#D4D0C8" },
+    { key: "comeback", label: "Comeback", dot: "#A05060", bg: "#F4E4E8", text: "#6E2E3C", border: "#DCC0C8" },
+    { key: "monthly_best", label: "Monthly Best", dot: "#C08020", bg: "#FAF0D8", text: "#785010", border: "#E8D8A8" },
+    { key: "improvement_streak", label: "On a Roll", dot: "#3D7A4A", bg: "#E4F0E4", text: "#204E28", border: "#B8D4B0" },
+    { key: "ytd_best_time", label: "YTD Best", dot: "#9C6E18", bg: "#F8ECD0", text: "#5E4010", border: "#E0CCA0" },
+    { key: "ytd_best_power", label: "YTD Power", dot: "#B85030", bg: "#F6DED4", text: "#7A2E18", border: "#E4B8A4" },
+    { key: "milestone", label: "Milestone", dot: "#8C7A30", bg: "#F4EEDA", text: "#5C5018", border: "#DCD4A8" },
+    { key: "top_quartile", label: "Top Quartile", dot: "#5B6CA0", bg: "#E4E8F2", text: "#34406A", border: "#BCC4DC" },
+    { key: "beat_median", label: "Beat Median", dot: "#7A5C8A", bg: "#ECE4F0", text: "#4A3060", border: "#CCC0D8" },
+    { key: "closing_in", label: "Closing In", dot: "#A04880", bg: "#F2E0EC", text: "#6A2858", border: "#D8B8D0" },
+    { key: "anniversary", label: "Anniversary", dot: "#6B5CA0", bg: "#E8E4F4", text: "#3E3070", border: "#C4BCD8" },
+  ],
+  ride: [
+    { key: "distance_record", label: "Longest Ride", dot: "#4882A8", bg: "#E4EEF6", text: "#2A5470", border: "#B8D0E4" },
+    { key: "elevation_record", label: "Most Climbing", dot: "#6B6260", bg: "#ECEAE6", text: "#3E3A36", border: "#D4D0C8" },
+    { key: "endurance_record", label: "Longest by Time", dot: "#6B6260", bg: "#ECEAE6", text: "#3E3A36", border: "#D4D0C8" },
+    { key: "route_season_first", label: "Route Season First", dot: "#3D7A4A", bg: "#E8F2E6", text: "#1E4D28", border: "#C0D8B8" },
+    { key: "weekly_streak", label: "Ride Streak", dot: "#3D7A4A", bg: "#E8F2E6", text: "#1E4D28", border: "#C0D8B8" },
+    { key: "group_consistency", label: "Group Ride", dot: "#5B6CA0", bg: "#E4E8F2", text: "#34406A", border: "#BCC4DC" },
+  ],
+  power: [
+    { key: "np_year_best", label: "NP Year Best", dot: "#B8862E", bg: "#FBF0D8", text: "#6E5010", border: "#E8D4A0" },
+    { key: "peak_power", label: "Peak Power", dot: "#A03020", bg: "#F6DCD4", text: "#6E1810", border: "#E4B0A4" },
+    { key: "work_year_best", label: "Work Year Best", dot: "#C08020", bg: "#FAF0D8", text: "#785010", border: "#E8D8A8" },
+    { key: "power_progression", label: "Power Up", dot: "#3D7A4A", bg: "#E4F0E4", text: "#204E28", border: "#B8D4B0" },
+    { key: "watt_milestone", label: "Watt Milestone", dot: "#A03020", bg: "#F6DCD4", text: "#6E1810", border: "#E4B0A4" },
+    { key: "power_consistency", label: "Steady Power", dot: "#6B6260", bg: "#ECEAE6", text: "#3E3A36", border: "#D4D0C8" },
+  ],
+  comeback: [
+    { key: "comeback_pb", label: "Comeback PB", dot: "#A05060", bg: "#F4E4E8", text: "#6E2E3C", border: "#DCC0C8" },
+    { key: "recovery_milestone", label: "Recovery", dot: "#A05060", bg: "#F4E4E8", text: "#6E2E3C", border: "#DCC0C8" },
+    { key: "comeback_full", label: "You're Back!", dot: "#3D7A4A", bg: "#E8F2E6", text: "#1E4D28", border: "#C0D8B8" },
+  ],
+};
+
+function renderPills(containerId, awards) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = awards.map(a =>
+    `<span class="pill" style="background:${a.bg}; color:${a.text}; border-color:${a.border};">` +
+    `<span class="dot" style="background:${a.dot};"></span>${a.label}</span>`
+  ).join('');
+}
+renderPills('core-awards', AWARDS.core);
+renderPills('ride-awards', AWARDS.ride);
+renderPills('power-awards', AWARDS.power);
+renderPills('comeback-awards', AWARDS.comeback);
+</script>
+
+<div class="warning">
+  <strong>Award colors are canonical.</strong> These values live in <code>src/award-config.js</code> and must not be changed without updating both the in-app rendering and the Canvas share card renderer. See <code>src/icons.js</code> for the matching SVG icon definitions.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>Site Header</h2>
+<div class="section-rule"></div>
+
+<p>The header uses <strong>flat, solid</strong> deep terracotta — no gradients. The compact header on scroll uses the same color at the same value. The search bar area uses a slightly lighter treatment at reduced opacity.</p>
+
+<div class="header-demo">
+  <div style="background: #6B3518; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="width: 40px; height: 40px; border-radius: 8px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center;">
+        <span style="color: #FAF7F2; font-family: 'IBM Plex Mono', monospace; font-size: 9px; font-weight: 500;">aeyu</span>
+      </div>
+      <div>
+        <div style="font-family: 'Instrument Serif', serif; font-size: 18px; color: #FAF7F2;">aeyu<span style="color: rgba(255,255,255,0.55);">.io</span></div>
+        <div style="font-family: 'DM Sans', sans-serif; font-size: 11px; color: rgba(255,255,255,0.6);">Participation Awards</div>
+      </div>
+    </div>
+    <div style="display: flex; gap: 14px; align-items: center;">
+      <span style="color: rgba(255,255,255,0.5); font-size: 14px;">🔍</span>
+      <span style="color: rgba(255,255,255,0.5); font-size: 14px;">❓</span>
+      <div style="width: 30px; height: 30px; border-radius: 50%; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2);"></div>
+    </div>
+  </div>
+  <div style="background: #8E4A1F; padding: 10px 20px;">
+    <div style="background: rgba(255,255,255,0.12); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 8px;">
+      <span style="color: rgba(255,255,255,0.5); font-size: 13px;">🔍</span>
+      <span style="color: rgba(255,255,255,0.6); font-family: 'DM Sans', sans-serif; font-size: 13px;">Search rides, routes, segments…</span>
+    </div>
+  </div>
+</div>
+
+<pre><span class="comment">/* Header — flat, no gradient */</span>
+<span class="key">background</span>: <span class="value">#6B3518</span>;
+
+<span class="comment">/* Search bar area — slightly lighter solid */</span>
+<span class="key">background</span>: <span class="value">#8E4A1F</span>;</pre>
+
+<div class="note">
+  <strong>Replaces:</strong> <code>linear-gradient(135deg, #6B3518, #8E4A1F)</code>. The two-tone flat approach (dark header + lighter search bar) provides visual separation without gradients. Each zone is a distinct solid color.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>Share Cards — Carbon Tech Treatment</h2>
+<div class="section-rule"></div>
+
+<p>Share cards need to pass the <strong>scroll-stop test</strong> on white social media feeds. The in-app UI is deliberately muted; the share card is where the brand needs to <em>perform</em>.</p>
+
+<h3>Construction</h3>
+<p>Canvas dimensions: <strong>1080px wide</strong>, dynamic height. The card has three zones:</p>
+
+<table>
+  <tr><th>Zone</th><th>Background</th><th>Content</th></tr>
+  <tr>
+    <td>Header cap</td>
+    <td><span class="chip" style="background: #4A5759;"></span> Steel Blue <code>#4A5759</code></td>
+    <td>Wordmark (white) + card type label (white, italic)</td>
+  </tr>
+  <tr>
+    <td>Body</td>
+    <td><span class="chip" style="background: #F6F3EE;"></span> Page BG <code>#F6F3EE</code> + topo texture at 3%</td>
+    <td>Activity name, metadata, award pills, segment details</td>
+  </tr>
+  <tr>
+    <td>Footer</td>
+    <td>Same as body</td>
+    <td>Tagline in terracotta italic</td>
+  </tr>
+</table>
+
+<p>Outer border: <strong>2px</strong> <span class="chip" style="background: #4A5759;"></span> Steel Blue. Border radius: 12px (for platform previews; Canvas renders square, platform clips).</p>
+
+<h3>Before → After</h3>
+<div class="card-demo">
+  <!-- Old card -->
+  <div class="share-card share-card--old">
+    <div style="padding: 10px 14px; display: flex; justify-content: space-between; font-size: 12px;">
+      <span style="font-family: 'IBM Plex Mono', monospace; color: #8C8374;">aeyu.io</span>
+      <span style="color: #8C8374; font-style: italic; font-family: 'DM Sans', sans-serif;">Participation Awards</span>
+    </div>
+    <div style="padding: 4px 14px 14px; background: #F6F3EE; position: relative;">
+      <h3 style="font-family: 'Instrument Serif', serif; font-weight: 400; font-size: 18px; margin-bottom: 6px; color: #1A1610;">Scott's Deflated Balloon Ride 🎈</h3>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #5C5548; margin-bottom: 10px;">Mar 21, 2026 · 44.7 mi · 2:59:50 · 14.9 mph · 2156 ft</div>
+      <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px;">
+        <span class="pill" style="background: #E8F2E6; color: #1E4D28; border-color: #C0D8B8; font-size: 10px;"><span class="dot" style="background: #3D7A4A;"></span>Season First</span>
+        <span class="pill" style="background: #E4EEF6; color: #2A5470; border-color: #B8D0E4; font-size: 10px;"><span class="dot" style="background: #4882A8;"></span>Longest Ride</span>
+        <span class="pill" style="background: #ECEAE6; color: #3E3A36; border-color: #D4D0C8; font-size: 10px;"><span class="dot" style="background: #6B6260;"></span>Most Climbing</span>
+      </div>
+      <div style="text-align: center; font-family: 'Instrument Serif', serif; font-style: italic; font-size: 11px; color: #8C8374; margin-top: 10px;">It's just you and your efforts</div>
+    </div>
+  </div>
+
+  <!-- New card -->
+  <div class="share-card share-card--steel">
+    <div style="background: #4A5759; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center;">
+      <span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #FAF7F2; font-weight: 500; letter-spacing: 0.5px;">aeyu.io</span>
+      <span style="font-family: 'DM Sans', sans-serif; font-size: 11px; color: rgba(250,247,242,0.75); font-style: italic;">Participation Awards</span>
+    </div>
+    <div style="padding: 14px; background: #F6F3EE; position: relative;">
+      <h3 style="font-family: 'Instrument Serif', serif; font-weight: 400; font-size: 18px; margin-bottom: 6px; color: #1A1610;">Scott's Deflated Balloon Ride 🎈</h3>
+      <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #5C5548; margin-bottom: 10px;">Mar 21, 2026 · 44.7 mi · 2:59:50 · <span style="color: #B85A28; font-weight: 500;">14.9 mph</span> · 2156 ft</div>
+      <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px;">
+        <span class="pill" style="background: #E8F2E6; color: #1E4D28; border-color: #C0D8B8; font-size: 10px;"><span class="dot" style="background: #3D7A4A;"></span>Season First</span>
+        <span class="pill" style="background: #E4EEF6; color: #2A5470; border-color: #B8D0E4; font-size: 10px;"><span class="dot" style="background: #4882A8;"></span>Longest Ride</span>
+        <span class="pill" style="background: #ECEAE6; color: #3E3A36; border-color: #D4D0C8; font-size: 10px;"><span class="dot" style="background: #6B6260;"></span>Most Climbing</span>
+      </div>
+      <div style="border-top: 1px solid #D8DBE2; margin-top: 8px; padding-top: 8px;">
+        <div style="font-family: 'DM Sans', sans-serif; font-size: 11px; color: #5C5548; line-height: 1.7;">
+          🌱 Northern lollipop w Scott — Route Season First<br>
+          → Longest Ride &nbsp;·&nbsp; ⛰ Most Climbing &nbsp;·&nbsp; ⏱ Longest by Time
+        </div>
+      </div>
+      <div style="text-align: center; font-family: 'Instrument Serif', serif; font-style: italic; font-size: 11px; color: #B85A28; margin-top: 12px; opacity: 0.7;">It's just you and your efforts</div>
+    </div>
+  </div>
+</div>
+
+<h3>What Changed</h3>
+<table>
+  <tr><th>Element</th><th>Before</th><th>After</th></tr>
+  <tr><td>Header</td><td>Transparent, gray text</td><td>Solid Steel Blue cap, white text</td></tr>
+  <tr><td>Border</td><td>1px <code>#E5DFD4</code></td><td>2px <code>#4A5759</code> Steel Blue</td></tr>
+  <tr><td>Key stat (speed)</td><td>Same color as other data</td><td><span class="chip" style="background: #B85A28;"></span> Terracotta highlight</td></tr>
+  <tr><td>Dividers</td><td><code>#E5DFD4</code> warm beige</td><td><code>#D8DBE2</code> Aluminum (cool)</td></tr>
+  <tr><td>Tagline color</td><td><code>#8C8374</code> tertiary</td><td><code>#B85A28</code> Terracotta (at 0.7 opacity)</td></tr>
+  <tr><td>Shadow</td><td>Neutral black</td><td><code>rgba(74,87,89,0.15)</code> cool-tinted</td></tr>
+</table>
+
+<div class="note">
+  <strong>Temperature contrast:</strong> The steel header (cool) against the terracotta data highlight (warm) creates visual interest without introducing new hue families. The award pills remain the most colorful elements — the structural colors just frame them better.
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>CSS Variables — Complete</h2>
+<div class="section-rule"></div>
+
+<pre><span class="key">:root</span> {
+  <span class="comment">/* Surfaces */</span>
+  <span class="key">--bg</span>: <span class="value">#F6F3EE</span>;
+  <span class="key">--surface</span>: <span class="value">#FFFFFF</span>;
+  <span class="key">--surface-hover</span>: <span class="value">#FAF8F4</span>;
+  <span class="key">--border</span>: <span class="value">#E5DFD4</span>;
+  <span class="key">--border-light</span>: <span class="value">#EDE8E0</span>;
+
+  <span class="comment">/* Text */</span>
+  <span class="key">--text</span>: <span class="value">#1A1610</span>;
+  <span class="key">--text-secondary</span>: <span class="value">#5C5548</span>;
+  <span class="key">--text-tertiary</span>: <span class="value">#8C8374</span>;
+  <span class="key">--text-on-dark</span>: <span class="value">#FAF7F2</span>;
+
+  <span class="comment">/* Brand Accents */</span>
+  <span class="key">--accent</span>: <span class="value">#B85A28</span>;
+  <span class="key">--accent-dark</span>: <span class="value">#6B3518</span>;
+  <span class="key">--strava</span>: <span class="value">#FC4C02</span>;
+  <span class="key">--strava-hover</span>: <span class="value">#E04400</span>;
+
+  <span class="comment">/* Structural (Carbon Tech) */</span>
+  <span class="key">--steel</span>: <span class="value">#4A5759</span>;
+  <span class="key">--steel-light</span>: <span class="value">#D8DBE2</span>;
+
+  <span class="comment">/* Fonts */</span>
+  <span class="key">--font-display</span>: <span class="value">'Instrument Serif', serif</span>;
+  <span class="key">--font-body</span>: <span class="value">'DM Sans', sans-serif</span>;
+  <span class="key">--font-mono</span>: <span class="value">'IBM Plex Mono', monospace</span>;
+}</pre>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>Accessibility</h2>
+<div class="section-rule"></div>
+
+<table>
+  <tr><th>Combination</th><th>Ratio</th><th>Grade</th></tr>
+  <tr><td><span class="chip" style="background: #1A1610;"></span> Primary on White</td><td>14.8:1</td><td>AAA</td></tr>
+  <tr><td><span class="chip" style="background: #5C5548;"></span> Secondary on White</td><td>6.2:1</td><td>AA</td></tr>
+  <tr><td><span class="chip" style="background: #8C8374;"></span> Tertiary on White</td><td>3.8:1</td><td>AA Large</td></tr>
+  <tr><td><span class="chip" style="background: #FAF7F2;"></span> On-Dark on Steel</td><td>7.5:1</td><td>AAA</td></tr>
+  <tr><td><span class="chip" style="background: #FAF7F2;"></span> On-Dark on Deep Terracotta</td><td>7.8:1</td><td>AAA</td></tr>
+  <tr><td><span class="chip" style="background: #B85A28;"></span> Terracotta on BG</td><td>4.1:1</td><td>AA Large</td></tr>
+</table>
+
+<p>All award pill text/background combinations were designed to meet WCAG AA for the sizes used (≥11px bold).</p>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2>Implementation Notes</h2>
+<div class="section-rule"></div>
+
+<p><strong>Share card renderer:</strong> The Canvas share card in <code>ActivityDetail.js</code> needs the Steel Blue header cap added. This is a Canvas <code>fillRect</code> at the top of the card, with the wordmark and card type rendered in <code>--text-on-dark</code>.</p>
+
+<p><strong>Header migration:</strong> Replace <code>linear-gradient(135deg, #6B3518, #8E4A1F)</code> in <code>StickyHeader.js</code> with flat <code>#6B3518</code> for the main header and <code>#8E4A1F</code> for the search bar zone.</p>
+
+<p><strong>New CSS variables:</strong> Add <code>--steel</code>, <code>--steel-light</code>, and <code>--accent-dark</code> to <code>app.css</code>. The Steel variables are scoped to share cards and structural UI — they do not replace <code>--border</code> in the main app.</p>
+
+<div class="warning">
+  <strong>Scope:</strong> Carbon Tech (steel blue) applies to share cards and structural accents only. The in-app card experience remains white-on-warm-paper with the existing border palette. Don't mix share card aesthetics into the main UI.
+</div>
+
+<div style="margin-top: 4em; padding-top: 1em; border-top: 1px solid var(--border); text-align: center;">
+  <p style="font-family: var(--font-display); font-style: italic; color: var(--text-tertiary); font-size: 0.9em;">
+    It's just you and your efforts
+  </p>
+</div>
+
+</body>
+</html>
