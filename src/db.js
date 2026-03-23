@@ -233,6 +233,22 @@ export async function getActivitiesWithoutHeartRate() {
   });
 }
 
+export async function getActivitiesWithoutZones() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("activities", "readonly");
+    const req = tx.objectStore("activities").getAll();
+    req.onsuccess = () => {
+      const results = req.result.filter(
+        (a) => a.has_efforts && !a.zones && a.zones !== false && (a.has_heartrate || a.device_watts)
+      );
+      results.sort((a, b) => b.start_date_local.localeCompare(a.start_date_local));
+      resolve(results);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
 export async function getAllActivities() {
   const db = await openDB();
   return new Promise((resolve, reject) => {

@@ -30,6 +30,7 @@ import { StickyHeader } from "./StickyHeader.js";
 import { SegmentSparkline } from "./SegmentSparkline.js";
 import { TrendChart } from "./TrendChart.js";
 import { buildRideExport, rideToMarkdown, buildSegmentExport, segmentToMarkdown } from "../export-llm.js";
+import { estimateFTP, getAllTimeBestCurve } from "../power-curve.js";
 import { installContext } from "../install.js";
 
 const activity = signal(null);
@@ -1102,6 +1103,68 @@ function SegmentSortBar({ efforts, effortAwards }) {
   `;
 }
 
+// ── Zone Charts (#265) ────────────────────────────────────────────
+
+const HR_ZONE_COLORS = ["#3B82F6", "#22C55E", "#EAB308", "#F97316", "#EF4444"];
+const HR_ZONE_NAMES = ["Z1 Recovery", "Z2 Endurance", "Z3 Tempo", "Z4 Threshold", "Z5 VO2max"];
+const POWER_ZONE_COLORS = ["#94A3B8", "#3B82F6", "#22C55E", "#EAB308", "#F97316", "#EF4444", "#DC2626"];
+const POWER_ZONE_NAMES = ["Z1 Active Recovery", "Z2 Endurance", "Z3 Tempo", "Z4 Threshold", "Z5 VO2max", "Z6 Anaerobic", "Z7 Neuromuscular"];
+const POWER_ZONE_BOUNDARIES = [0.55, 0.75, 0.90, 1.05, 1.20, 1.50];
+
+function mapPowerBucketsToZones(buckets, ftp) {
+  if (!ftp || !buckets || buckets.length === 0) return null;
+  const zones = new Array(7).fill(0);
+  for (const b of buckets) {
+    const midWatts = (b.min + (b.max === -1 ? b.min + 50 : b.max)) / 2;
+    const ratio = midWatts / ftp;
+    let zi = 0;
+    for (let i = 0; i < POWER_ZONE_BOUNDARIES.length; i++) {
+      if (ratio >= POWER_ZONE_BOUNDARIES[i]) zi = i + 1;
+    }
+    zones[zi] += b.time;
+  }
+  return zones;
+}
+
+function formatZoneTime(seconds) {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  const rm = m % 60;
+  return rm > 0 ? `${h}h ${rm}m` : `${h}h`;
+}
+
+function ZoneBarChart({ title, zones, colors, labels, totalTime }) {
+  if (!zones || zones.length === 0) return null;
+  const total = totalTime || zones.reduce((s, t) => s + t, 0);
+  if (total === 0) return null;
+  const maxTime = Math.max(...zones);
+
+  return html`
+    <div>
+      <h3 class="text-xs font-semibold mb-2" style="color: var(--text-secondary); font-family: var(--font-body); text-transform: uppercase; letter-spacing: 0.05em;">${title}</h3>
+      <div class="space-y-1">
+        ${zones.map((time, i) => {
+          if (time === 0 && zones.length > 5) return null;
+          const pct = maxTime > 0 ? (time / maxTime) * 100 : 0;
+          const timePct = total > 0 ? Math.round((time / total) * 100) : 0;
+          return html`
+            <div class="flex items-center gap-2" style="font-family: var(--font-mono); font-size: 11px;">
+              <span class="flex-shrink-0" style="width: 3rem; color: var(--text-tertiary); text-align: right; font-size: 10px;">${labels[i] ? labels[i].split(" ")[0] : `Z${i + 1}`}</span>
+              <div class="flex-1 relative" style="height: 18px; background: var(--bg); border-radius: 4px; overflow: hidden;">
+                <div style="width: ${Math.max(pct, 1)}%; height: 100%; background: ${colors[i] || "#888"}; border-radius: 4px; transition: width 0.3s ease;"></div>
+              </div>
+              <span class="flex-shrink-0" style="width: 3.5rem; color: var(--text-secondary); text-align: right;">${formatZoneTime(time)}</span>
+              <span class="flex-shrink-0" style="width: 2rem; color: var(--text-tertiary); text-align: right; font-size: 10px;">${timePct}%</span>
+            </div>
+          `;
+        })}
+      </div>
+    </div>
+  `;
+}
+
 // ── Component ─────────────────────────────────────────────────────
 
 export function ActivityDetail({ id }) {
@@ -1423,6 +1486,46 @@ export function ActivityDetail({ id }) {
                 </div>
               `}
 
+            </div>
+          </div>
+        `}
+
+        <!-- Zone Distribution (#265) -->
+        ${act.zones && act.zones !== false && html`
+          <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+            <h2 style="font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Time in Zones</h2>
+            <div class="${act.zones.heartrate && act.zones.power ? 'grid gap-4 sm:grid-cols-2' : ''}">
+              ${act.zones.heartrate && html`
+                <${ZoneBarChart}
+                  title="Heart Rate"
+                  zones=${act.zones.heartrate.map(b => b.time)}
+                  colors=${HR_ZONE_COLORS}
+                  labels=${HR_ZONE_NAMES}
+                />
+              `}
+              ${act.zones.power && (() => {
+                const bestCurve = act.power_curve;
+                const ftp = bestCurve ? estimateFTP(bestCurve) : null;
+                const mapped = ftp ? mapPowerBucketsToZones(act.zones.power, ftp) : null;
+                if (mapped) {
+                  return html`
+                    <${ZoneBarChart}
+                      title=${`Power (FTP: ${ftp}W)`}
+                      zones=${mapped}
+                      colors=${POWER_ZONE_COLORS}
+                      labels=${POWER_ZONE_NAMES}
+                    />
+                  `;
+                }
+                return html`
+                  <${ZoneBarChart}
+                    title="Power"
+                    zones=${act.zones.power.map(b => b.time)}
+                    colors=${act.zones.power.map((_, i) => POWER_ZONE_COLORS[Math.min(i, POWER_ZONE_COLORS.length - 1)])}
+                    labels=${act.zones.power.map(b => b.max === -1 ? `${b.min}W+` : `${b.min}-${b.max}W`)}
+                  />
+                `;
+              })()}
             </div>
           </div>
         `}

@@ -647,6 +647,47 @@ export async function buildRideExport(activityId, options = {}) {
     segment_efforts: efforts,
   };
 
+  if (act.zones && act.zones !== false) {
+    ctx.zones = {};
+    if (act.zones.heartrate) {
+      ctx.zones.heartrate = act.zones.heartrate.map((b, i) => ({
+        zone: `Z${i + 1}`,
+        time_s: b.time,
+        time_min: Math.round(b.time / 60),
+        range_bpm: b.max === -1 ? `${b.min}+` : `${b.min}-${b.max}`,
+      })).filter(z => z.time_s > 0);
+    }
+    if (act.zones.power) {
+      const ftp = act.power_curve ? estimateFTP(act.power_curve) : null;
+      if (ftp) {
+        const BOUNDARIES = [0.55, 0.75, 0.90, 1.05, 1.20, 1.50];
+        const zoneNames = ["Z1", "Z2", "Z3", "Z4", "Z5", "Z6", "Z7"];
+        const mapped = new Array(7).fill(0);
+        for (const b of act.zones.power) {
+          const mid = (b.min + (b.max === -1 ? b.min + 50 : b.max)) / 2;
+          const ratio = mid / ftp;
+          let zi = 0;
+          for (let i = 0; i < BOUNDARIES.length; i++) {
+            if (ratio >= BOUNDARIES[i]) zi = i + 1;
+          }
+          mapped[zi] += b.time;
+        }
+        ctx.zones.power = mapped.map((t, i) => ({
+          zone: zoneNames[i],
+          time_s: t,
+          time_min: Math.round(t / 60),
+        })).filter(z => z.time_s > 0);
+        ctx.zones.ftp = ftp;
+      } else {
+        ctx.zones.power_raw = act.zones.power.map(b => ({
+          range_watts: b.max === -1 ? `${b.min}+` : `${b.min}-${b.max}`,
+          time_s: b.time,
+          time_min: Math.round(b.time / 60),
+        })).filter(z => z.time_s > 0);
+      }
+    }
+  }
+
   if (includeForm) {
     const [fitness, streakData] = await Promise.all([
       computeFitnessSummary(),
@@ -679,6 +720,26 @@ export function rideToMarkdown(ctx) {
   if (r.suffer_score) md += `- Suffer Score: ${r.suffer_score}\n`;
   if (r.trainer) md += `- Indoor trainer ride\n`;
   md += `\n`;
+
+  if (ctx.zones) {
+    md += `## Time in Zones\n`;
+    if (ctx.zones.heartrate) {
+      md += `**Heart Rate Zones:** `;
+      md += ctx.zones.heartrate.map(z => `${z.zone}: ${z.time_min}min`).join(", ");
+      md += `\n`;
+    }
+    if (ctx.zones.power) {
+      md += `**Power Zones (FTP: ${ctx.zones.ftp}W):** `;
+      md += ctx.zones.power.map(z => `${z.zone}: ${z.time_min}min`).join(", ");
+      md += `\n`;
+    }
+    if (ctx.zones.power_raw) {
+      md += `**Power Distribution:** `;
+      md += ctx.zones.power_raw.map(z => `${z.range_watts}: ${z.time_min}min`).join(", ");
+      md += `\n`;
+    }
+    md += `\n`;
+  }
 
   if (ctx.ride_awards.length > 0) {
     md += `## Ride-Level Awards\n`;
