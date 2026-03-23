@@ -9,7 +9,7 @@
 import { getAllActivities, getAllSegments, getActivity, getSegment, getResetEvent, getUserConfig } from "./db.js";
 import { computeFitnessSummary } from "./fitness.js";
 import { computeStreakData, computeAwardsForActivities, computeAwards, computeRideLevelAwards } from "./awards.js";
-import { unitSystem } from "./units.js";
+import { unitSystem, formatDistance, formatElevation, formatSpeed } from "./units.js";
 import { AWARD_LABELS } from "./award-config.js";
 import { estimateFTP, POWER_CURVE_DURATIONS, DURATION_LABELS, getAllTimeBestCurve } from "./power-curve.js";
 
@@ -380,6 +380,13 @@ export async function buildLLMContext(options = {}) {
 
 export function contextToMarkdown(ctx) {
   const coachMode = ctx.coach_mode;
+  const fmtDist = (m) => formatDistance(m).replace("\u00A0", " ");
+  const fmtElev = (m) => formatElevation(m).replace("\u00A0", " ");
+  const isImperial = unitSystem.value === "imperial";
+  const distLabel = isImperial ? "mi" : "km";
+  const elevLabel = isImperial ? "ft" : "m";
+  const convDist = (km) => isImperial ? +(km / 1.609344).toFixed(1) : km;
+  const convElev = (m) => isImperial ? Math.round(m * 3.28084) : m;
   let md = `# Cycling Training Data (last ${ctx.window_days} days)${coachMode ? " — Coach Update" : ""}\n`;
   md += `Generated: ${ctx.generated_at.slice(0, 10)} · ${ctx.rides_in_window} rides in window\n\n`;
 
@@ -422,7 +429,7 @@ export function contextToMarkdown(ctx) {
 
   if (ctx.weekly_rollups.length > 0) {
     md += `## Weekly Volume\n`;
-    md += `| Week | Rides | Distance (km) | Elevation (m) | Hours |`;
+    md += `| Week | Rides | Distance (${distLabel}) | Elevation (${elevLabel}) | Hours |`;
     const hasKJ = ctx.weekly_rollups.some((w) => w.kj);
     const hasNP = ctx.weekly_rollups.some((w) => w.avg_np);
     const hasHR = ctx.weekly_rollups.some((w) => w.avg_hr);
@@ -436,7 +443,7 @@ export function contextToMarkdown(ctx) {
     if (hasHR) md += `--------|`;
     md += `\n`;
     for (const w of ctx.weekly_rollups) {
-      md += `| ${w.week_of} | ${w.rides} | ${w.distance_km} | ${w.elevation_m} | ${w.moving_hrs} |`;
+      md += `| ${w.week_of} | ${w.rides} | ${convDist(w.distance_km)} | ${convElev(w.elevation_m)} | ${w.moving_hrs} |`;
       if (hasKJ) md += ` ${w.kj || "-"} |`;
       if (hasNP) md += ` ${w.avg_np || "-"} |`;
       if (hasHR) md += ` ${w.avg_hr || "-"} |`;
@@ -487,7 +494,7 @@ export function contextToMarkdown(ctx) {
   if (ctx.monthly_trends.length > 0) {
     md += `## Monthly Trends\n`;
     for (const m of ctx.monthly_trends) {
-      md += `- ${m.month}: ${m.rides} rides, ${m.distance_km}km, ${m.elevation_m}m elev, ${m.moving_hrs}hrs`;
+      md += `- ${m.month}: ${m.rides} rides, ${convDist(m.distance_km)}${distLabel}, ${convElev(m.elevation_m)}${elevLabel} elev, ${m.moving_hrs}hrs`;
       if (m.distance_delta_pct != null) md += ` (distance ${m.distance_delta_pct > 0 ? "+" : ""}${m.distance_delta_pct}% vs prev)`;
       md += `\n`;
     }
@@ -497,7 +504,7 @@ export function contextToMarkdown(ctx) {
   if (ctx.recent_rides && ctx.recent_rides.length > 0) {
     md += `## Last ${ctx.recent_rides.length} Rides\n`;
     for (const r of ctx.recent_rides) {
-      md += `- **${r.date}** ${r.name}: ${r.distance_km}km, ${r.moving_time_min}min, ${r.elevation_m}m`;
+      md += `- **${r.date}** ${r.name}: ${convDist(r.distance_km)}${distLabel}, ${r.moving_time_min}min, ${convElev(r.elevation_m)}${elevLabel}`;
       if (r.np_watts) md += `, NP ${r.np_watts}W`;
       if (r.avg_hr) md += `, HR ${r.avg_hr}`;
       if (r.trainer) md += ` [indoor]`;
@@ -611,12 +618,13 @@ export async function buildRideExport(activityId, options = {}) {
     rideAwards = computeRideLevelAwards(act, sorted, resetEvent);
   }
 
-  const efforts = (act.segment_efforts || []).map(e => {
+  const allEfforts = (act.segment_efforts || []).map(e => {
     const slim = slimEffort(e);
     const ea = segmentAwards.filter(a => a.segment_id === e.segment?.id);
     if (ea.length > 0) slim.awards = ea.map(slimAward);
     return slim;
   });
+  const efforts = allEfforts.filter(e => e.awards && e.awards.length > 0);
 
   const ride = {
     name: act.name,
@@ -645,6 +653,7 @@ export async function buildRideExport(activityId, options = {}) {
     ride,
     ride_awards: rideAwards.map(slimAward),
     segment_efforts: efforts,
+    total_segment_efforts: allEfforts.length,
   };
 
   if (includeForm) {
@@ -663,14 +672,17 @@ export async function buildRideExport(activityId, options = {}) {
 export function rideToMarkdown(ctx) {
   if (!ctx) return "";
   const r = ctx.ride;
+  const fmtDist = (m) => formatDistance(m).replace("\u00A0", " ");
+  const fmtElev = (m) => formatElevation(m).replace("\u00A0", " ");
+  const fmtSpd = (mps) => formatSpeed(mps).replace("\u00A0", " ");
   let md = `# Ride: ${r.name}\n`;
   md += `Date: ${r.date} | Type: ${r.type}\n\n`;
 
   md += `## Ride Summary\n`;
-  md += `- Distance: ${r.distance_km} km\n`;
+  md += `- Distance: ${fmtDist(r.distance_km * 1000)}\n`;
   md += `- Moving time: ${r.moving_time_min} min (elapsed: ${r.elapsed_time_min} min)\n`;
-  md += `- Elevation: ${r.elevation_m} m\n`;
-  md += `- Avg speed: ${r.avg_speed_kph} km/h, Max: ${r.max_speed_kph} km/h\n`;
+  md += `- Elevation: ${fmtElev(r.elevation_m)}\n`;
+  md += `- Avg speed: ${fmtSpd(r.avg_speed_kph / 3.6)}, Max: ${fmtSpd(r.max_speed_kph / 3.6)}\n`;
   if (r.np_watts) md += `- Normalized Power: ${r.np_watts} W`;
   if (r.avg_watts) md += `${r.np_watts ? ", " : "- "}Avg Power: ${r.avg_watts} W`;
   if (r.np_watts || r.avg_watts) md += `\n`;
@@ -689,12 +701,15 @@ export function rideToMarkdown(ctx) {
   }
 
   if (ctx.segment_efforts.length > 0) {
-    md += `## Segment Efforts (${ctx.segment_efforts.length})\n`;
-    md += `| Segment | Dist (km) | Grade | Time (s) | Watts | HR | Awards |\n`;
+    const totalCount = ctx.total_segment_efforts || ctx.segment_efforts.length;
+    md += `## Segment Efforts with Awards (${ctx.segment_efforts.length} of ${totalCount})\n`;
+    const distUnit = unitSystem.value === "imperial" ? "mi" : "km";
+    md += `| Segment | Dist (${distUnit}) | Grade | Time (s) | Watts | HR | Awards |\n`;
     md += `|---------|-----------|-------|----------|-------|----|--------|\n`;
     for (const e of ctx.segment_efforts) {
+      const dist = unitSystem.value === "imperial" ? +(e.distance_km / 1.609344).toFixed(2) : e.distance_km;
       const awardStr = (e.awards || []).map(a => a.label).join(", ") || "-";
-      md += `| ${e.segment} | ${e.distance_km} | ${e.grade_pct}% | ${e.elapsed_time_s} | ${e.avg_watts || "-"} | ${e.avg_hr || "-"} | ${awardStr} |\n`;
+      md += `| ${e.segment} | ${dist} | ${e.grade_pct}% | ${e.elapsed_time_s} | ${e.avg_watts || "-"} | ${e.avg_hr || "-"} | ${awardStr} |\n`;
     }
     md += `\n`;
   }
@@ -709,7 +724,7 @@ export function rideToMarkdown(ctx) {
     for (const [key, label] of windows) {
       const w = ctx.form_context[key];
       if (w) {
-        md += `- **${label}**: ${w.rides} rides, ${w.distance_km} km, ${w.moving_hrs} hrs, ${w.elevation_m} m elev`;
+        md += `- **${label}**: ${w.rides} rides, ${fmtDist(w.distance_km * 1000)}, ${w.moving_hrs} hrs, ${fmtElev(w.elevation_m)} elev`;
         if (w.avg_np) md += `, avg NP ${w.avg_np} W`;
         if (w.avg_hr) md += `, avg HR ${w.avg_hr}`;
         md += `\n`;
@@ -718,7 +733,7 @@ export function rideToMarkdown(ctx) {
     if (ctx.form_context.recent_rides_before?.length > 0) {
       md += `\nRecent rides before this one:\n`;
       for (const p of ctx.form_context.recent_rides_before) {
-        md += `- **${p.date}** ${p.name}: ${p.distance_km} km, ${p.moving_time_min} min, ${p.elevation_m} m`;
+        md += `- **${p.date}** ${p.name}: ${fmtDist(p.distance_km * 1000)}, ${p.moving_time_min} min, ${fmtElev(p.elevation_m)} elev`;
         if (p.np_watts) md += `, NP ${p.np_watts} W`;
         if (p.avg_hr) md += `, HR ${p.avg_hr}`;
         if (p.trainer) md += ` [indoor]`;

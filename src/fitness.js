@@ -147,48 +147,10 @@ export async function computePerformanceCapacity() {
 
     const segScore = weightSum > 0 ? weightedSum / weightSum : 0;
 
-    // Trend: compare last 6 weeks vs prior 6 weeks (not 90 vs 90)
-    const trendMs = TREND_WINDOW_DAYS * 86400000;
-    const recentTrendScored = scored.filter(
-      (s) => now - s.date <= trendMs
-    );
-    const olderTrendScored = scored.filter(
-      (s) => s.date >= now - trendMs * 2 && s.date < now - trendMs
-    );
-
-    let olderScore = null;
-    let recentTrendScore = null;
-
-    if (recentTrendScored.length > 0) {
-      let ws = 0, wt = 0;
-      for (const s of recentTrendScored) {
-        const ageMs = now - s.date;
-        const weight = Math.exp(-Math.LN2 * ageMs / halfLifeMs);
-        const percentile = ((s.performance - minPerf) / range) * 100;
-        ws += percentile * weight;
-        wt += weight;
-      }
-      recentTrendScore = wt > 0 ? ws / wt : null;
-    }
-
-    if (olderTrendScored.length > 0) {
-      let ws = 0, wt = 0;
-      for (const s of olderTrendScored) {
-        const ageMs = now - trendMs - s.date;
-        const weight = Math.exp(-Math.LN2 * ageMs / halfLifeMs);
-        const percentile = ((s.performance - minPerf) / range) * 100;
-        ws += percentile * weight;
-        wt += weight;
-      }
-      olderScore = wt > 0 ? ws / wt : null;
-    }
-
     segmentScores.push({
       segmentId: seg.id,
       segmentName: seg.name,
       score: segScore,
-      olderScore,
-      recentTrendScore,
       effortCount: validEfforts.length,
       recentCount: recentScored.length,
       averageGrade: seg.average_grade,
@@ -205,17 +167,26 @@ export async function computePerformanceCapacity() {
   // Composite score: average across qualifying segments (equal weight)
   const compositeScore = segmentScores.reduce((sum, s) => sum + s.score, 0) / segmentScores.length;
 
-  // Trend: compare recent 6-week composite to older 6-week composite
-  const segmentsWithTrend = segmentScores.filter((s) => s.olderScore != null && s.recentTrendScore != null);
-  let trend = null;
-  if (segmentsWithTrend.length > 0) {
-    const currentAvg = segmentsWithTrend.reduce((s, seg) => s + seg.recentTrendScore, 0) / segmentsWithTrend.length;
-    const olderAvg = segmentsWithTrend.reduce((s, seg) => s + seg.olderScore, 0) / segmentsWithTrend.length;
-    trend = currentAvg - olderAvg;
-  }
-
   // Build rolling history: 4-week rolling score at weekly intervals for sparkline
   const rollingHistory = buildRollingHistory(climbSegments);
+
+  // Trend: derive from rollingHistory so it describes actual change in the displayed score.
+  // Compare latest rolling score to the score TREND_WINDOW_DAYS ago.
+  let trend = null;
+  if (rollingHistory.length >= 2) {
+    const latest = rollingHistory[rollingHistory.length - 1];
+    const targetMs = latest.weekEnd - TREND_WINDOW_DAYS * 86400000;
+    // Find the rolling history point closest to targetMs
+    let closest = rollingHistory[0];
+    for (const pt of rollingHistory) {
+      if (Math.abs(pt.weekEnd - targetMs) < Math.abs(closest.weekEnd - targetMs)) {
+        closest = pt;
+      }
+    }
+    if (closest !== latest) {
+      trend = latest.score - closest.score;
+    }
+  }
 
   // Count unique climbs
   const climbCount = segmentScores.length;
