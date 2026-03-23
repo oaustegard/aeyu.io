@@ -2004,19 +2004,22 @@ export function computeWeeklyStreaks(allActivities) {
     rideWeeks.add(isoWeekKey(ride.start_date_local));
   }
 
-  // Build sorted list of all weeks from first ride to now
+  // Build sorted list of all COMPLETED weeks from first ride to now
+  // (exclude the current incomplete week — it hasn't ended yet)
   const firstRide = new Date(rides[0].start_date_local);
   const now = new Date();
+  const currentWeek = isoWeekKey(now.toISOString());
   const allWeeks = [];
   const d = new Date(firstRide);
   // Move to Monday of first ride's week
   d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
   while (d <= now) {
-    allWeeks.push(isoWeekKey(d.toISOString()));
+    const wk = isoWeekKey(d.toISOString());
+    if (wk !== currentWeek) allWeeks.push(wk);
     d.setDate(d.getDate() + 7);
   }
 
-  // Compute streaks with mulligan support
+  // Compute streaks with mulligan support (completed weeks only)
   let currentStreak = 0;
   let currentMulligan = false;
   let currentStart = null;
@@ -2054,6 +2057,18 @@ export function computeWeeklyStreaks(allActivities) {
       }
     }
   }
+
+  // Now handle the current (incomplete) week: extend streak if it has a ride,
+  // but never consume a mulligan or break the streak for an unfinished week
+  const thisWeekHasRide = rideWeeks.has(currentWeek);
+  if (thisWeekHasRide) {
+    if (currentStreak === 0) {
+      currentStart = currentWeek;
+      currentMulligan = false;
+    }
+    currentStreak++;
+  }
+
   if (currentStreak > longestStreak) {
     longestStreak = currentStreak;
     longestMulligan = currentMulligan;
@@ -2061,8 +2076,6 @@ export function computeWeeklyStreaks(allActivities) {
   }
 
   // Determine danger state for current streak
-  const currentWeek = isoWeekKey(now.toISOString());
-  const thisWeekHasRide = rideWeeks.has(currentWeek);
   let danger = null;
   if (currentStreak >= WEEKLY_STREAK_MIN && !thisWeekHasRide) {
     danger = currentMulligan
