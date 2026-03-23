@@ -57,7 +57,7 @@ import { AWARD_LABELS, AWARD_GROUPS } from "../award-config.js";
 import { computeFitnessSummary } from "../fitness.js";
 import { getAllTimeBestCurve, estimateFTP, POWER_CURVE_DURATIONS, DURATION_LABELS } from "../power-curve.js";
 import { StickyHeader, headerCompact } from "./StickyHeader.js";
-import { buildLLMContext, contextToMarkdown } from "../export-llm.js";
+import { buildLLMContext, contextToMarkdown, convertContextUnits } from "../export-llm.js";
 import { detectRoutes } from "../routes.js";
 import { TrendChart } from "./TrendChart.js";
 import { installContext } from "../install.js";
@@ -1960,7 +1960,7 @@ export function Dashboard() {
                       const coachMode = exportCoachMode.value;
                       const textPromise = (async () => {
                         const ctx = await buildLLMContext({ days, coachMode });
-                        return fmt === "markdown" ? contextToMarkdown(ctx) : JSON.stringify(ctx, null, 2);
+                        return fmt === "markdown" ? contextToMarkdown(ctx) : JSON.stringify(convertContextUnits(ctx), null, 2);
                       })();
                       const blobPromise = textPromise.then(t => new Blob([t], { type: "text/plain" }));
                       await navigator.clipboard.write([new ClipboardItem({ "text/plain": blobPromise })]);
@@ -1985,7 +1985,7 @@ export function Dashboard() {
                       const days = parseInt(exportDays.value);
                       const coachMode = exportCoachMode.value;
                       const ctx = await buildLLMContext({ days, coachMode });
-                      const json = JSON.stringify(ctx, null, 2);
+                      const json = JSON.stringify(convertContextUnits(ctx), null, 2);
                       const blob = new Blob([json], { type: "application/json" });
                       const url = URL.createObjectURL(blob);
                       const a = document.createElement("a");
