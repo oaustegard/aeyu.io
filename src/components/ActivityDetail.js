@@ -29,7 +29,7 @@ import { AWARD_LABELS, AWARD_COLORS } from "../award-config.js";
 import { StickyHeader } from "./StickyHeader.js";
 import { SegmentSparkline } from "./SegmentSparkline.js";
 import { TrendChart } from "./TrendChart.js";
-import { buildRideExport, rideToMarkdown, buildSegmentExport, segmentToMarkdown } from "../export-llm.js";
+import { buildRideExport, rideToMarkdown, buildSegmentExport, segmentToMarkdown, convertContextUnits } from "../export-llm.js";
 import { estimateFTP, getAllTimeBestCurve } from "../power-curve.js";
 import { installContext } from "../install.js";
 
@@ -1562,7 +1562,7 @@ export function ActivityDetail({ id }) {
                 const textPromise = (async () => {
                   const ctx = await buildRideExport(act.id, { includeForm: llmIncludeForm.value });
                   if (!ctx) throw new Error("Activity not found");
-                  return llmExportFormat.value === "markdown" ? rideToMarkdown(ctx) : JSON.stringify(ctx, null, 2);
+                  return llmExportFormat.value === "markdown" ? rideToMarkdown(ctx) : JSON.stringify(convertContextUnits(ctx), null, 2);
                 })();
                 const blobPromise = textPromise.then(t => new Blob([t], { type: "text/plain" }));
                 await navigator.clipboard.write([new ClipboardItem({ "text/plain": blobPromise })]);
@@ -1709,7 +1709,7 @@ export function ActivityDetail({ id }) {
                             const textPromise = (async () => {
                               const ctx = await buildSegmentExport(sid);
                               if (!ctx) throw new Error("Segment not found");
-                              return llmExportFormat.value === "markdown" ? segmentToMarkdown(ctx) : JSON.stringify(ctx, null, 2);
+                              return llmExportFormat.value === "markdown" ? segmentToMarkdown(ctx) : JSON.stringify(convertContextUnits(ctx), null, 2);
                             })();
                             const blobPromise = textPromise.then(t => new Blob([t], { type: "text/plain" }));
                             await navigator.clipboard.write([new ClipboardItem({ "text/plain": blobPromise })]);

@@ -378,6 +378,38 @@ export async function buildLLMContext(options = {}) {
   return ctx;
 }
 
+const METRIC_TO_IMPERIAL = {
+  distance_km: { key: "distance_mi", convert: km => +(km / 1.609344).toFixed(1) },
+  elevation_m: { key: "elevation_ft", convert: m => Math.round(m * 3.28084) },
+  elevation_gain_m: { key: "elevation_gain_ft", convert: m => Math.round(m * 3.28084) },
+  avg_speed_kph: { key: "avg_speed_mph", convert: kph => +(kph / 1.609344).toFixed(1) },
+  max_speed_kph: { key: "max_speed_mph", convert: kph => +(kph / 1.609344).toFixed(1) },
+};
+
+function convertUnitsDeep(obj) {
+  if (Array.isArray(obj)) return obj.map(convertUnitsDeep);
+  if (obj && typeof obj === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) {
+      const conv = METRIC_TO_IMPERIAL[k];
+      if (conv && typeof v === "number") {
+        out[conv.key] = conv.convert(v);
+      } else {
+        out[k] = convertUnitsDeep(v);
+      }
+    }
+    return out;
+  }
+  return obj;
+}
+
+export function convertContextUnits(ctx) {
+  if (unitSystem.value !== "imperial") return ctx;
+  const converted = convertUnitsDeep(ctx);
+  converted.units = "imperial";
+  return converted;
+}
+
 export function contextToMarkdown(ctx) {
   const coachMode = ctx.coach_mode;
   const fmtDist = (m) => formatDistance(m).replace("\u00A0", " ");
@@ -912,8 +944,10 @@ export async function buildSegmentExport(segmentId) {
 export function segmentToMarkdown(ctx) {
   if (!ctx) return "";
   const s = ctx.segment;
+  const fmtDist = (m) => formatDistance(m).replace("\u00A0", " ");
+  const fmtElev = (m) => formatElevation(m).replace("\u00A0", " ");
   let md = `# Segment: ${s.name}\n`;
-  md += `Distance: ${s.distance_km} km · Grade: ${s.average_grade_pct}% · Elevation gain: ${s.elevation_gain_m} m`;
+  md += `Distance: ${fmtDist(s.distance_km * 1000)} · Grade: ${s.average_grade_pct}% · Elevation gain: ${fmtElev(s.elevation_gain_m)}`;
   if (s.climb_category > 0) md += ` · Cat ${s.climb_category}`;
   md += `\n\n`;
 
