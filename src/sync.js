@@ -14,6 +14,7 @@ import {
   getActivitiesWithoutEfforts,
   getActivitiesWithoutPower,
   getActivitiesWithoutHeartRate,
+  getActivitiesWithoutZones,
   getSyncState,
   updateSyncState,
   appendEffort,
@@ -463,6 +464,72 @@ async function fetchPowerCurves() {
   }
 }
 
+// --- Zone Data Fetching (#265) ---
+
+async function fetchZoneData() {
+  const pending = await getActivitiesWithoutZones();
+  if (pending.length === 0) return;
+
+  syncProgress.value = {
+    ...syncProgress.value,
+    phase: "detail",
+    message: `Fetching zone data: 0/${pending.length}`,
+  };
+
+  let completed = 0;
+
+  for (const activity of pending) {
+    if (isRateLimited()) {
+      syncProgress.value = {
+        ...syncProgress.value,
+        message: `Zone data paused (rate limit) — ${completed}/${pending.length} done.`,
+      };
+      break;
+    }
+
+    try {
+      const data = await stravaFetch(`/activities/${activity.id}/zones`);
+      const zones = {};
+      for (const dist of data) {
+        if (dist.type === "heartrate") {
+          zones.heartrate = dist.distribution_buckets.map((b) => ({
+            min: b.min,
+            max: b.max,
+            time: b.time,
+          }));
+          if (dist.sensor_based != null) zones.hr_sensor_based = dist.sensor_based;
+        } else if (dist.type === "power") {
+          zones.power = dist.distribution_buckets.map((b) => ({
+            min: b.min,
+            max: b.max,
+            time: b.time,
+          }));
+        }
+      }
+      await putActivity({ ...activity, zones: Object.keys(zones).length > 0 ? zones : false });
+    } catch (err) {
+      if (err instanceof RateLimitError) {
+        syncProgress.value = {
+          ...syncProgress.value,
+          message: `Zone data paused (rate limit) — ${completed}/${pending.length} done.`,
+        };
+        break;
+      }
+      if (err.status === 404 || err.status === 403) {
+        await putActivity({ ...activity, zones: false });
+      } else {
+        console.warn(`Zone data fetch failed for activity ${activity.id}:`, err.message);
+      }
+    }
+
+    completed++;
+    syncProgress.value = {
+      ...syncProgress.value,
+      message: `Fetching zone data: ${completed}/${pending.length}`,
+    };
+  }
+}
+
 // --- Strava Routes Sync ---
 
 /**
@@ -770,6 +837,7 @@ export async function startBackfill(onProgress) {
       // even if backfill is still in progress — don't defer all power data
       // until full history is synced
       if (!isRateLimited()) await fetchPowerCurves();
+      if (!isRateLimited()) await fetchZoneData();
     }
 
     const remaining = await getActivitiesWithoutEfforts();
@@ -851,6 +919,7 @@ export async function incrementalSync() {
 
     // Fetch power curves for activities with power meters
     if (!isRateLimited()) await fetchPowerCurves();
+    if (!isRateLimited()) await fetchZoneData();
 
     const stillPending = await getActivitiesWithoutEfforts();
     syncProgress.value = {
@@ -1069,6 +1138,29 @@ export async function resyncActivity(activityId) {
     has_efforts: true,
     segment_efforts: efforts,
   };
+
+  // Fetch zone data for this activity (#265)
+  if (full.has_heartrate || full.device_watts) {
+    try {
+      const zoneData = await stravaFetch(`/activities/${activityId}/zones`);
+      const zones = {};
+      for (const dist of zoneData) {
+        if (dist.type === "heartrate") {
+          zones.heartrate = dist.distribution_buckets.map((b) => ({
+            min: b.min, max: b.max, time: b.time,
+          }));
+          if (dist.sensor_based != null) zones.hr_sensor_based = dist.sensor_based;
+        } else if (dist.type === "power") {
+          zones.power = dist.distribution_buckets.map((b) => ({
+            min: b.min, max: b.max, time: b.time,
+          }));
+        }
+      }
+      updated.zones = Object.keys(zones).length > 0 ? zones : false;
+    } catch (e) {
+      console.warn(`Zone fetch failed for ${activityId}:`, e.message);
+    }
+  }
 
   await putActivity(updated);
 
