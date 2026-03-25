@@ -248,8 +248,10 @@ function drawLogoWatermark(ctx, W, H, cardY, cardH, pad) {
 
 async function renderShareCard(canvas, act, awardsList) {
   const W = 1080;
-  const pad = 36, left = pad + 36, maxTextW = W - left - pad - 36;
-  const rightEdge = W - pad - 36;
+  const borderW = 8; // steel blue border at image edge
+  const innerPad = 44; // content padding inside body
+  const left = borderW + innerPad, maxTextW = W - left - borderW - innerPad;
+  const rightEdge = W - borderW - innerPad;
 
   await Promise.all([
     document.fonts.load('400 64px "Instrument Serif"'),
@@ -286,34 +288,43 @@ async function renderShareCard(canvas, act, awardsList) {
   const pillTypesShown = new Set(pillRows.flat().map(p => p.type));
   const hiddenPillCount = Object.keys(counts).filter(t => !pillTypesShown.has(t)).length;
 
-  const headerCapH = 64; // Steel blue header cap
-  let contentH = headerCapH;
-  contentH += 72; // gap below header cap (title ascenders need clearance)
-  contentH += nameLines.length * 74 + 8; // title (bigger font)
-  contentH += metaLines.length * 42 + 24; // meta lines + gap
+  const headerCapH = 96; // Taller steel blue header cap
+  let bodyH = 0;
+  bodyH += 72; // gap below header cap to title
+  bodyH += nameLines.length * 74 + 8; // title (bigger font)
+  bodyH += metaLines.length * 42 + 24; // meta lines + gap
 
   if (awardsList.length > 0) {
-    contentH += pillRows.length * 56 + 16 + 32; // pill rows + gap + divider
+    bodyH += pillRows.length * 56 + 16 + 32; // pill rows + gap + divider
     for (const a of highlightAwards) {
-      contentH += (a.delta && a.delta > 0) ? 68 : 52;
+      bodyH += (a.delta && a.delta > 0) ? 68 : 52;
     }
-    if (awardsList.length > highlightAwards.length) contentH += 44;
+    if (awardsList.length > highlightAwards.length) bodyH += 44;
   }
-  contentH += 48; // bottom padding
+  bodyH += 24; // tighter bottom padding before tagline
 
-  const cardY = 36, cardBottom = 36;
-  const taglineH = 56;
-  const H = cardY + contentH + taglineH + cardBottom;
+  const taglineH = 48;
+  const H = headerCapH + bodyH + taglineH + borderW; // border at edge, no matting
 
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  // Background
-  ctx.fillStyle = "#EDE9E1";
+  // Steel blue border — fills entire canvas, body punches through
+  ctx.fillStyle = "#4A5759";
   ctx.fillRect(0, 0, W, H);
 
-  // Topo texture
+  // Warm paper body area inside the border
+  const bodyTop = headerCapH;
+  const bodyBottom = H - borderW;
+  ctx.fillStyle = "#FDFCFA";
+  ctx.fillRect(borderW, bodyTop, W - borderW * 2, bodyBottom - bodyTop);
+
+  // Topo texture (on body area only)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(borderW, bodyTop, W - borderW * 2, bodyBottom - bodyTop);
+  ctx.clip();
   ctx.strokeStyle = "rgba(26, 22, 16, 0.04)";
   ctx.lineWidth = 1;
   const centers = [
@@ -327,32 +338,13 @@ async function renderShareCard(canvas, act, awardsList) {
       ctx.stroke();
     }
   }
-
-  // Card shadow
-  const cardW = W - pad * 2, cardH = contentH;
-  ctx.save();
-  ctx.shadowColor = "rgba(74, 87, 89, 0.15)";
-  ctx.shadowBlur = 24;
-  ctx.shadowOffsetY = 4;
-  ctx.fillStyle = "#FDFCFA";
-  roundRect(ctx, pad, cardY, cardW, cardH, 20);
-  ctx.fill();
-  ctx.restore();
-  ctx.strokeStyle = "#4A5759";
-  ctx.lineWidth = 2;
-  roundRect(ctx, pad, cardY, cardW, cardH, 20);
-  ctx.stroke();
-
-  // Steel blue header cap
-  ctx.save();
-  roundRect(ctx, pad, cardY, cardW, cardH, 20);
-  ctx.clip();
-  ctx.fillStyle = "#4A5759";
-  ctx.fillRect(pad, cardY, cardW, headerCapH);
   ctx.restore();
 
-  // Header text on steel cap
-  let y = cardY + 42;
+  // Logo watermark on body area
+  drawLogoWatermark(ctx, W, H, bodyTop, bodyBottom - bodyTop, borderW);
+
+  // Header text on steel cap — vertically centered
+  let y = headerCapH / 2 + 10;
   ctx.font = '500 30px "IBM Plex Mono", monospace';
   ctx.fillStyle = "#FAF7F2";
   ctx.textAlign = "left";
@@ -363,9 +355,7 @@ async function renderShareCard(canvas, act, awardsList) {
   ctx.textAlign = "right";
   ctx.fillText("Participation Awards", rightEdge, y);
   ctx.textAlign = "left";
-  y = cardY + headerCapH + 56; // clear header cap + room for title ascenders
-
-  drawLogoWatermark(ctx, W, H, cardY + headerCapH, cardH - headerCapH, pad);
+  y = headerCapH + 72; // generous gap between header and title
 
   // Activity name — larger
   ctx.font = '400 64px "Instrument Serif", serif';
@@ -467,12 +457,12 @@ async function renderShareCard(canvas, act, awardsList) {
     }
   }
 
-  // Tagline
+  // Tagline — inside the border
   ctx.font = 'italic 26px "Instrument Serif", serif';
   ctx.fillStyle = "#B85A28";
   ctx.globalAlpha = 0.7;
   ctx.textAlign = "center";
-  ctx.fillText("It's just you and your efforts", W / 2, H - 28);
+  ctx.fillText("It's just you and your efforts", W / 2, H - borderW - 16);
   ctx.globalAlpha = 1.0;
   ctx.textAlign = "left";
 }
@@ -636,8 +626,10 @@ function drawPerformanceChart(ctx, segment, currentEffortId, chartX, chartY, cha
 
 async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   const W = 1080;
-  const pad = 36, left = pad + 36, maxTextW = W - left - pad - 36;
-  const rightEdge = W - pad - 36;
+  const borderW = 8;
+  const innerPad = 44;
+  const left = borderW + innerPad, maxTextW = W - left - borderW - innerPad;
+  const rightEdge = W - borderW - innerPad;
 
   await Promise.all([
     document.fonts.load('400 64px "Instrument Serif"'),
@@ -676,15 +668,15 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   const contextText = `${act.name}  ·  ${formatDateShort(act.start_date_local)}`;
   const contextLines = wrapText(tmpCtx, contextText, maxTextW);
 
-  const headerCapH = 64; // Steel blue header cap
-  let contentH = headerCapH;
-  contentH += 72; // gap below header cap (title ascenders need clearance)
-  contentH += nameLines.length * 74 + 8; // segment name
-  contentH += metaLines.length * 42 + 24; // meta
+  const headerCapH = 96;
+  let bodyH = 0;
+  bodyH += 72; // gap below header cap
+  bodyH += nameLines.length * 74 + 8; // segment name
+  bodyH += metaLines.length * 42 + 24; // meta
 
   const hasChart = segment && segment.efforts && segment.efforts.length >= 2;
   const chartH = 220, chartStatsH = 36;
-  if (hasChart) contentH += chartH + chartStatsH + 28;
+  if (hasChart) bodyH += chartH + chartStatsH + 28;
 
   const awardMsgMaxW = maxTextW - 32;
   tmpCtx.font = '400 28px "DM Sans", sans-serif';
@@ -695,28 +687,38 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   });
 
   if (segAwards.length > 0) {
-    contentH += pillRows.length * 56 + 16 + 32; // pills + gap + divider
+    bodyH += pillRows.length * 56 + 16 + 32; // pills + gap + divider
     for (const lines of wrappedAwardMsgs) {
-      contentH += lines.length * 36 + 16;
+      bodyH += lines.length * 36 + 16;
     }
-    if (segAwards.length > displayAwards.length) contentH += 44;
+    if (segAwards.length > displayAwards.length) bodyH += 44;
   }
 
-  contentH += 24 + contextLines.length * 36 + 24; // context section
-  contentH += 48; // bottom padding
+  bodyH += 24 + contextLines.length * 36 + 24; // context section
+  bodyH += 24; // tighter bottom padding
 
-  const cardY = 36, cardBottom = 36, taglineH = 56;
-  const H = cardY + contentH + taglineH + cardBottom;
+  const taglineH = 48;
+  const H = headerCapH + bodyH + taglineH + borderW;
 
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d");
 
-  // Background
-  ctx.fillStyle = "#EDE9E1";
+  // Steel blue border — fills entire canvas
+  ctx.fillStyle = "#4A5759";
   ctx.fillRect(0, 0, W, H);
 
-  // Topo texture
+  // Warm paper body area inside the border
+  const bodyTop = headerCapH;
+  const bodyBottom = H - borderW;
+  ctx.fillStyle = "#FDFCFA";
+  ctx.fillRect(borderW, bodyTop, W - borderW * 2, bodyBottom - bodyTop);
+
+  // Topo texture (on body area only)
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(borderW, bodyTop, W - borderW * 2, bodyBottom - bodyTop);
+  ctx.clip();
   ctx.strokeStyle = "rgba(26, 22, 16, 0.04)";
   ctx.lineWidth = 1;
   const centers = [
@@ -730,32 +732,13 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
       ctx.stroke();
     }
   }
-
-  // Card with shadow (steel-tinted)
-  const cardW = W - pad * 2, cardH = contentH;
-  ctx.save();
-  ctx.shadowColor = "rgba(74, 87, 89, 0.15)";
-  ctx.shadowBlur = 24;
-  ctx.shadowOffsetY = 4;
-  ctx.fillStyle = "#FDFCFA";
-  roundRect(ctx, pad, cardY, cardW, cardH, 20);
-  ctx.fill();
-  ctx.restore();
-  ctx.strokeStyle = "#4A5759";
-  ctx.lineWidth = 2;
-  roundRect(ctx, pad, cardY, cardW, cardH, 20);
-  ctx.stroke();
-
-  // Steel blue header cap
-  ctx.save();
-  roundRect(ctx, pad, cardY, cardW, cardH, 20);
-  ctx.clip();
-  ctx.fillStyle = "#4A5759";
-  ctx.fillRect(pad, cardY, cardW, headerCapH);
   ctx.restore();
 
-  // Header text on steel cap
-  let y = cardY + 42;
+  // Logo watermark on body area
+  drawLogoWatermark(ctx, W, H, bodyTop, bodyBottom - bodyTop, borderW);
+
+  // Header text on steel cap — vertically centered
+  let y = headerCapH / 2 + 10;
   ctx.font = '500 30px "IBM Plex Mono", monospace';
   ctx.fillStyle = "#FAF7F2";
   ctx.textAlign = "left";
@@ -766,9 +749,7 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   ctx.textAlign = "right";
   ctx.fillText("Segment Awards", rightEdge, y);
   ctx.textAlign = "left";
-  y = cardY + headerCapH + 56; // clear header cap + room for title ascenders
-
-  drawLogoWatermark(ctx, W, H, cardY + headerCapH, cardH - headerCapH, pad);
+  y = headerCapH + 72; // generous gap between header and title
 
   // Segment name — larger
   ctx.font = '400 64px "Instrument Serif", serif';
@@ -861,8 +842,8 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
     }
   }
 
-  // Context — activity name + date at bottom of card
-  y = cardY + contentH - 48 - contextLines.length * 36;
+  // Context — activity name + date at bottom of body
+  y = headerCapH + bodyH - 24 - contextLines.length * 36;
   ctx.strokeStyle = "#D8DBE2";
   ctx.lineWidth = 1.5;
   ctx.beginPath();
@@ -876,12 +857,12 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
     y += 36;
   }
 
-  // Tagline
+  // Tagline — inside the border
   ctx.font = 'italic 26px "Instrument Serif", serif';
   ctx.fillStyle = "#B85A28";
   ctx.globalAlpha = 0.7;
   ctx.textAlign = "center";
-  ctx.fillText("It's just you and your efforts", W / 2, H - 28);
+  ctx.fillText("It's just you and your efforts", W / 2, H - borderW - 16);
   ctx.globalAlpha = 1.0;
   ctx.textAlign = "left";
 }
