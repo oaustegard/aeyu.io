@@ -14,6 +14,10 @@
   --strava: #FC4C02;
   --strava-hover: #E04400;
   --accent: #B85A28;
+  --accent-dark: #6B3518;
+  /* Structural (Carbon Tech — share cards, structural UI) */
+  --steel: #4A5759;
+  --steel-light: #D8DBE2;
   /* Fonts */
   --font-display: 'Instrument Serif', serif;
   --font-body: 'DM Sans', sans-serif;

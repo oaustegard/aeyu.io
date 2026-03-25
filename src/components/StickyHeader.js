@@ -59,7 +59,7 @@ export function StickyHeader({
     <div ref=${sentinelRef} style="height: 0; overflow: hidden;" />
     <header
       class="sticky-header-full ${isCompact ? 'sticky-header-full--hidden' : ''}"
-      style="background: linear-gradient(135deg, #6B3518, #8E4A1F);"
+      style="background: #6B3518;"
     >
       <div class="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
         <div class="flex items-center gap-3">
@@ -151,7 +151,7 @@ export function StickyHeader({
 
     <header
       class="sticky-header-compact ${isCompact ? 'sticky-header-compact--visible' : ''}"
-      style="background: linear-gradient(135deg, #6B3518, #8E4A1F); position: fixed; top: 0; left: 0; right: 0; z-index: 50;"
+      style="background: #6B3518; position: fixed; top: 0; left: 0; right: 0; z-index: 50;"
     >
       <div class="max-w-3xl mx-auto px-4 py-2 flex items-center justify-between">
         <div class="flex items-center gap-2">

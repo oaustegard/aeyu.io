@@ -286,9 +286,9 @@ async function renderShareCard(canvas, act, awardsList) {
   const pillTypesShown = new Set(pillRows.flat().map(p => p.type));
   const hiddenPillCount = Object.keys(counts).filter(t => !pillTypesShown.has(t)).length;
 
-  let contentH = 48;  // top padding
-  contentH += 32 + 48; // header + gap
-  contentH += 40;      // divider gap
+  const headerCapH = 64; // Steel blue header cap
+  let contentH = headerCapH;
+  contentH += 32; // gap below header cap
   contentH += nameLines.length * 74 + 8; // title (bigger font)
   contentH += metaLines.length * 42 + 24; // meta lines + gap
 
@@ -331,46 +331,41 @@ async function renderShareCard(canvas, act, awardsList) {
   // Card shadow
   const cardW = W - pad * 2, cardH = contentH;
   ctx.save();
-  ctx.shadowColor = "rgba(0, 0, 0, 0.10)";
+  ctx.shadowColor = "rgba(74, 87, 89, 0.15)";
   ctx.shadowBlur = 24;
   ctx.shadowOffsetY = 4;
   ctx.fillStyle = "#FDFCFA";
   roundRect(ctx, pad, cardY, cardW, cardH, 20);
   ctx.fill();
   ctx.restore();
-  ctx.strokeStyle = "#D8D0C4";
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "#4A5759";
+  ctx.lineWidth = 2;
   roundRect(ctx, pad, cardY, cardW, cardH, 20);
   ctx.stroke();
 
-  drawLogoWatermark(ctx, W, H, cardY, cardH, pad);
+  // Steel blue header cap
+  ctx.save();
+  roundRect(ctx, pad, cardY, cardW, cardH, 20);
+  ctx.clip();
+  ctx.fillStyle = "#4A5759";
+  ctx.fillRect(pad, cardY, cardW, headerCapH);
+  ctx.restore();
 
-  let y = cardY + 48;
-
-  // Header
-  ctx.font = '400 30px "Instrument Serif", serif';
-  ctx.fillStyle = "#1A1610";
+  // Header text on steel cap
+  let y = cardY + 42;
+  ctx.font = '500 30px "IBM Plex Mono", monospace';
+  ctx.fillStyle = "#FAF7F2";
   ctx.textAlign = "left";
-  ctx.fillText("aeyu", left, y);
-  const aeyuW = ctx.measureText("aeyu").width;
-  ctx.fillStyle = "#B85A28";
-  ctx.fillText(".io", left + aeyuW, y);
+  ctx.fillText("aeyu.io", left, y);
 
-  ctx.font = '400 30px "DM Sans", sans-serif';
-  ctx.fillStyle = "#7A7164";
+  ctx.font = 'italic 28px "DM Sans", sans-serif';
+  ctx.fillStyle = "rgba(250, 247, 242, 0.75)";
   ctx.textAlign = "right";
   ctx.fillText("Participation Awards", rightEdge, y);
   ctx.textAlign = "left";
-  y += 48;
+  y += headerCapH - 42 + 32;
 
-  // Divider
-  ctx.strokeStyle = "#D8D0C4";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(left, y);
-  ctx.lineTo(rightEdge, y);
-  ctx.stroke();
-  y += 40;
+  drawLogoWatermark(ctx, W, H, cardY + headerCapH, cardH - headerCapH, pad);
 
   // Activity name — larger
   ctx.font = '400 64px "Instrument Serif", serif';
@@ -422,7 +417,7 @@ async function renderShareCard(canvas, act, awardsList) {
     y += 16;
 
     // Divider
-    ctx.strokeStyle = "#D8D0C4";
+    ctx.strokeStyle = "#D8DBE2";
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(left, y);
@@ -474,9 +469,11 @@ async function renderShareCard(canvas, act, awardsList) {
 
   // Tagline
   ctx.font = 'italic 26px "Instrument Serif", serif';
-  ctx.fillStyle = "#7A7164";
+  ctx.fillStyle = "#B85A28";
+  ctx.globalAlpha = 0.7;
   ctx.textAlign = "center";
   ctx.fillText("It's just you and your efforts", W / 2, H - 28);
+  ctx.globalAlpha = 1.0;
   ctx.textAlign = "left";
 }
 
@@ -679,9 +676,9 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   const contextText = `${act.name}  ·  ${formatDateShort(act.start_date_local)}`;
   const contextLines = wrapText(tmpCtx, contextText, maxTextW);
 
-  let contentH = 48; // top padding
-  contentH += 32 + 48; // header + gap
-  contentH += 40; // divider
+  const headerCapH = 64; // Steel blue header cap
+  let contentH = headerCapH;
+  contentH += 32; // gap below header cap
   contentH += nameLines.length * 74 + 8; // segment name
   contentH += metaLines.length * 42 + 24; // meta
 
@@ -734,49 +731,44 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
     }
   }
 
-  // Card with shadow
+  // Card with shadow (steel-tinted)
   const cardW = W - pad * 2, cardH = contentH;
   ctx.save();
-  ctx.shadowColor = "rgba(0, 0, 0, 0.10)";
+  ctx.shadowColor = "rgba(74, 87, 89, 0.15)";
   ctx.shadowBlur = 24;
   ctx.shadowOffsetY = 4;
   ctx.fillStyle = "#FDFCFA";
   roundRect(ctx, pad, cardY, cardW, cardH, 20);
   ctx.fill();
   ctx.restore();
-  ctx.strokeStyle = "#D8D0C4";
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = "#4A5759";
+  ctx.lineWidth = 2;
   roundRect(ctx, pad, cardY, cardW, cardH, 20);
   ctx.stroke();
 
-  drawLogoWatermark(ctx, W, H, cardY, cardH, pad);
+  // Steel blue header cap
+  ctx.save();
+  roundRect(ctx, pad, cardY, cardW, cardH, 20);
+  ctx.clip();
+  ctx.fillStyle = "#4A5759";
+  ctx.fillRect(pad, cardY, cardW, headerCapH);
+  ctx.restore();
 
-  let y = cardY + 48;
-
-  // Header
-  ctx.font = '400 30px "Instrument Serif", serif';
-  ctx.fillStyle = "#1A1610";
+  // Header text on steel cap
+  let y = cardY + 42;
+  ctx.font = '500 30px "IBM Plex Mono", monospace';
+  ctx.fillStyle = "#FAF7F2";
   ctx.textAlign = "left";
-  ctx.fillText("aeyu", left, y);
-  const aeyuW = ctx.measureText("aeyu").width;
-  ctx.fillStyle = "#B85A28";
-  ctx.fillText(".io", left + aeyuW, y);
+  ctx.fillText("aeyu.io", left, y);
 
-  ctx.font = '400 30px "DM Sans", sans-serif';
-  ctx.fillStyle = "#7A7164";
+  ctx.font = 'italic 28px "DM Sans", sans-serif';
+  ctx.fillStyle = "rgba(250, 247, 242, 0.75)";
   ctx.textAlign = "right";
   ctx.fillText("Segment Awards", rightEdge, y);
   ctx.textAlign = "left";
-  y += 48;
+  y += headerCapH - 42 + 32;
 
-  // Divider
-  ctx.strokeStyle = "#D8D0C4";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(left, y);
-  ctx.lineTo(rightEdge, y);
-  ctx.stroke();
-  y += 40;
+  drawLogoWatermark(ctx, W, H, cardY + headerCapH, cardH - headerCapH, pad);
 
   // Segment name — larger
   ctx.font = '400 64px "Instrument Serif", serif';
@@ -835,7 +827,7 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
     y += 16;
 
     // Divider
-    ctx.strokeStyle = "#D8D0C4";
+    ctx.strokeStyle = "#D8DBE2";
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(left, y);
@@ -871,7 +863,7 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
 
   // Context — activity name + date at bottom of card
   y = cardY + contentH - 48 - contextLines.length * 36;
-  ctx.strokeStyle = "#D8D0C4";
+  ctx.strokeStyle = "#D8DBE2";
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   ctx.moveTo(left, y - 16);
@@ -886,9 +878,11 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
 
   // Tagline
   ctx.font = 'italic 26px "Instrument Serif", serif';
-  ctx.fillStyle = "#7A7164";
+  ctx.fillStyle = "#B85A28";
+  ctx.globalAlpha = 0.7;
   ctx.textAlign = "center";
   ctx.fillText("It's just you and your efforts", W / 2, H - 28);
+  ctx.globalAlpha = 1.0;
   ctx.textAlign = "left";
 }
 
