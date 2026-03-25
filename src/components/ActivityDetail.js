@@ -288,7 +288,7 @@ async function renderShareCard(canvas, act, awardsList) {
 
   const headerCapH = 64; // Steel blue header cap
   let contentH = headerCapH;
-  contentH += 32; // gap below header cap
+  contentH += 72; // gap below header cap (title ascenders need clearance)
   contentH += nameLines.length * 74 + 8; // title (bigger font)
   contentH += metaLines.length * 42 + 24; // meta lines + gap
 
@@ -363,7 +363,7 @@ async function renderShareCard(canvas, act, awardsList) {
   ctx.textAlign = "right";
   ctx.fillText("Participation Awards", rightEdge, y);
   ctx.textAlign = "left";
-  y += headerCapH - 42 + 32;
+  y = cardY + headerCapH + 56; // clear header cap + room for title ascenders
 
   drawLogoWatermark(ctx, W, H, cardY + headerCapH, cardH - headerCapH, pad);
 
@@ -678,7 +678,7 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
 
   const headerCapH = 64; // Steel blue header cap
   let contentH = headerCapH;
-  contentH += 32; // gap below header cap
+  contentH += 72; // gap below header cap (title ascenders need clearance)
   contentH += nameLines.length * 74 + 8; // segment name
   contentH += metaLines.length * 42 + 24; // meta
 
@@ -766,7 +766,7 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   ctx.textAlign = "right";
   ctx.fillText("Segment Awards", rightEdge, y);
   ctx.textAlign = "left";
-  y += headerCapH - 42 + 32;
+  y = cardY + headerCapH + 56; // clear header cap + room for title ascenders
 
   drawLogoWatermark(ctx, W, H, cardY + headerCapH, cardH - headerCapH, pad);
 
