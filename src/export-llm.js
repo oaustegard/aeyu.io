@@ -699,7 +699,9 @@ export async function buildRideExport(activityId, options = {}) {
       })).filter(z => z.time_s > 0);
     }
     if (act.zones.power) {
-      const ftp = act.power_curve ? estimateFTP(act.power_curve) : null;
+      const userCfg = await getUserConfig();
+      const bestCurve = await getAllTimeBestCurve();
+      const ftp = userCfg.ftp || estimateFTP(bestCurve);
       if (ftp) {
         const BOUNDARIES = [0.55, 0.75, 0.90, 1.05, 1.20, 1.50];
         const zoneNames = ["Z1", "Z2", "Z3", "Z4", "Z5", "Z6", "Z7"];
