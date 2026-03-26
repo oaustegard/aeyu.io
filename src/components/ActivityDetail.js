@@ -51,6 +51,7 @@ const segmentLlmExportStatus = signal(null); // null | { segmentId, state: "load
 const COACH_ARTIFACT_URL = "/coach-claude.html";
 const coachStatus = signal(null); // null | "loading" | "opened" | "error"
 const matchedRoute = signal(null); // { route, rides: [{ id, date, name, average_speed, average_watts }] }
+const athleteFTP = signal(null); // athlete-level FTP from config or all-time best curve
 
 function formatDateShort(isoString) {
   return new Date(isoString).toLocaleDateString("en-US", {
@@ -90,6 +91,8 @@ async function loadActivity(id) {
 
       const resetEvent = await getResetEvent();
       const userConfig = await getUserConfig();
+      const bestCurve = await getAllTimeBestCurve();
+      athleteFTP.value = userConfig.ftp || estimateFTP(bestCurve);
       const refPoints = userConfig.referencePoints || [];
       const segmentAwards = await computeAwards(act, resetEvent, refPoints);
       const allActivities = await getAllActivities();
@@ -1491,8 +1494,7 @@ export function ActivityDetail({ id }) {
                 />
               `}
               ${act.zones.power && (() => {
-                const bestCurve = act.power_curve;
-                const ftp = bestCurve ? estimateFTP(bestCurve) : null;
+                const ftp = athleteFTP.value;
                 const mapped = ftp ? mapPowerBucketsToZones(act.zones.power, ftp) : null;
                 if (mapped) {
                   return html`
