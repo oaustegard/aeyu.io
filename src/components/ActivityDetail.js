@@ -310,6 +310,12 @@ async function renderShareCard(canvas, act, awardsList) {
   canvas.height = H;
   const ctx = canvas.getContext("2d");
 
+  // Clip entire canvas to rounded rect — transparency outside
+  const cornerR = 24; // matches 12px CSS border-radius at 2x canvas
+  ctx.beginPath();
+  roundRect(ctx, 0, 0, W, H, cornerR);
+  ctx.clip();
+
   // Steel blue border — fills entire canvas, body punches through
   ctx.fillStyle = "#4A5759";
   ctx.fillRect(0, 0, W, H);
@@ -703,6 +709,12 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d");
+
+  // Clip entire canvas to rounded rect — transparency outside
+  const cornerR = 24; // matches 12px CSS border-radius at 2x canvas
+  ctx.beginPath();
+  roundRect(ctx, 0, 0, W, H, cornerR);
+  ctx.clip();
 
   // Steel blue border — fills entire canvas
   ctx.fillStyle = "#4A5759";
