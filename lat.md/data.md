@@ -30,15 +30,11 @@ Batched in groups of 80 to manage rate limits. Progress is checkpointed in `sync
 
 ### Incremental Sync
 
-[[src/sync.js#incrementalSync]] fetches only activities newer than the last known activity date. Runs automatically every 5 minutes via [[src/sync.js#startAutoSync]]. Detail-fetches new activities and runs [[data#Data Enrichment]] passes.
+[[src/sync.js#incrementalSync]] fetches only activities newer than the last known activity date. Runs automatically every 5 minutes via [[src/sync.js#startAutoSync]]. Detail-fetches new activities and runs [[data#Sync Pipeline#Data Enrichment]] passes.
 
 ### Rate Limiting
 
 Strava enforces 15-minute and daily request limits. [[src/sync.js]] tracks both via response headers (`X-RateLimit-Usage`). The `rateLimitStatus` signal drives UI warnings. Sync pauses when usage exceeds 80% of either limit.
-
-### Data Enrichment
-
-After fetching activities, additional passes fill in missing data: power curves for rides with power meters, heart rate zone data, and Strava-saved routes. Each pass queries IndexedDB for activities missing the relevant fields ([[src/db.js#getActivitiesWithoutPower]], [[src/db.js#getActivitiesWithoutHeartRate]], [[src/db.js#getActivitiesWithoutZones]]).
 
 ### Data Enrichment
 
