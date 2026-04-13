@@ -36,7 +36,8 @@ export const AWARD_LABELS = {
   comeback_endurance: { label: "Comeback Endurance",  tip: "Post-injury endurance record", dot: "#A05060", bg: "#F4E4E8", text: "#6E2E3C", border: "#DCC0C8" },
   reference_best:     { label: "Reference Best",     tip: "Best within a user-defined window", dot: "#6B6260", bg: "#ECEAE6", text: "#3E3A36", border: "#D4D0C8" },
   // Route-level Season First (#59)
-  route_season_first: { label: "Route Season First", tip: "First time riding this route this year", dot: "#3D7A4A", bg: "#E8F2E6", text: "#1E4D28", border: "#C0D8B8" },
+  route_season_first: { label: "Season First",       tip: "First time riding this route this year", dot: "#3D7A4A", bg: "#E8F2E6", text: "#1E4D28", border: "#C0D8B8" },
+  route_season_first_more: { label: "Season First",  tip: "More segments ridden for the first time on this route this year", dot: "#6A9E74", bg: "#EEF5EC", text: "#2E5E38", border: "#C8DCC2" },
   // Activity-level power awards (#45)
   season_first_power: { label: "First Power Ride",   tip: "First ride with power data this year", dot: "#3D7A4A", bg: "#E8F2E6", text: "#1E4D28", border: "#C0D8B8" },
   np_year_best:       { label: "NP Year Best",       tip: "Highest Normalized Power this year", dot: "#B8862E", bg: "#FBF0D8", text: "#6E5010", border: "#E8D4A0" },
@@ -102,6 +103,7 @@ export const AWARD_GROUPS = [
       { type: "segment_count", desc: "Most segments hit in a single ride this year." },
       { type: "endurance_record", desc: "Longest ride by moving time this year — your biggest endurance effort." },
       { type: "route_season_first", desc: "First time riding a known route this year." },
+      { type: "route_season_first_more", desc: "More segments ridden for the first time on a route you've already started this year." },
     ],
   },
   {

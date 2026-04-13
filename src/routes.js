@@ -7,14 +7,18 @@
  * segments.
  *
  * Strava-saved routes are matched to discovered clusters post-hoc using
- * containment (Strava segments ⊆ cluster segments) + distance gate.
- * The Strava API only returns a subset of a route's segments (~25 of 50+),
- * so Jaccard fails when seeding directly. Containment is safe here because
- * the Strava route is always the smaller set and we're checking if it fits
- * inside a larger organic cluster — the opposite of the problematic direction.
+ * containment (Strava segments ⊆ cluster's accumulated segment union) +
+ * distance gate. The Strava API only returns a subset of a route's segments
+ * (~25 of 50+), so Jaccard fails when seeding directly.
  *
- * All route fingerprints are frozen after initial formation.
- * Discovered routes use the segments from the first activity that seeds them.
+ * Route identity fingerprints (used for Jaccard matching) are frozen from
+ * the first activity that seeds a cluster. However, each cluster also tracks
+ * `allSeenSegments` — the union of segments across all matched activities —
+ * which is used for Strava containment matching. This fixes cases where the
+ * frozen set was too narrow for the Strava route's partial segment list.
+ *
+ * Route IDs are canonical hashes of the frozen segment set, stable across
+ * recomputation regardless of activity ordering.
  */
 
 const DISTANCE_TOLERANCE = 0.30;
@@ -71,6 +75,20 @@ function segmentIds(activity) {
 }
 
 /**
+ * Generate a stable canonical ID from a frozen segment set.
+ * Uses djb2 hash of sorted segment IDs — deterministic regardless of
+ * activity ordering or recomputation.
+ */
+function canonicalRouteId(segmentSet) {
+  const key = [...segmentSet].sort((a, b) => a - b).join(",");
+  let hash = 5381;
+  for (let i = 0; i < key.length; i++) {
+    hash = ((hash << 5) + hash + key.charCodeAt(i)) | 0;
+  }
+  return "route_" + (hash >>> 0).toString(36);
+}
+
+/**
  * Detect routes from activities by clustering on segment fingerprints.
  *
  * Phase 1: Organic clustering — group activities by segment overlap
@@ -114,12 +132,15 @@ export function detectRoutes(activities, stravaRoutes = []) {
       matched.distances.push(activity.distance);
       const name = activity.name || "";
       matched.names.set(name, (matched.names.get(name) || 0) + 1);
+      // Accumulate segments for richer Strava containment matching
+      for (const id of ids) matched.allSeenSegments.add(id);
     } else {
       const name = activity.name || "";
       const names = new Map();
       names.set(name, 1);
       routes.push({
         segments: new Set(ids),
+        allSeenSegments: new Set(ids),
         distance: activity.distance || 0,
         distances: [activity.distance || 0],
         activityIds: [activity.id],
@@ -132,9 +153,11 @@ export function detectRoutes(activities, stravaRoutes = []) {
 
   // --- Phase 2: Adopt Strava route names via containment ---
   // The Strava API returns only a subset of a route's segments, so Jaccard
-  // between the partial Strava set and the full organic cluster fails.
+  // between the partial Strava set and the frozen cluster fingerprint fails.
   // Instead: check if the Strava route's (partial) segments are mostly
-  // contained within a cluster's (full) segment set + distance gate.
+  // contained within the cluster's accumulated segment union (allSeenSegments).
+  // This is richer than the frozen fingerprint because it includes segments
+  // from all activities ever matched to the cluster.
   for (const sr of stravaRoutes) {
     if (!sr.segments || sr.segments.length === 0) continue;
     const stravaSegs = new Set(sr.segments);
@@ -148,7 +171,7 @@ export function detectRoutes(activities, stravaRoutes = []) {
       const routeDistance = medianDistance(route.distances);
       if (sr.distance && !distanceMatch(sr.distance, routeDistance)) continue;
 
-      const c = containment(stravaSegs, route.segments);
+      const c = containment(stravaSegs, route.allSeenSegments);
       if (c >= STRAVA_CONTAINMENT_THRESHOLD && c > bestContainment) {
         bestContainment = c;
         bestCluster = route;
@@ -164,7 +187,7 @@ export function detectRoutes(activities, stravaRoutes = []) {
   // --- Phase 3: Finalize ---
   const meaningful = routes.filter((r) => r.activityIds.length >= 2);
 
-  return meaningful.map((r, i) => {
+  return meaningful.map((r) => {
     // Prefer Strava name when available, fall back to most common activity name
     let bestName;
     if (r.strava_name) {
@@ -181,7 +204,7 @@ export function detectRoutes(activities, stravaRoutes = []) {
     }
 
     return {
-      id: i + 1,
+      id: canonicalRouteId(r.segments),
       segments: [...r.segments],
       activityIds: r.activityIds,
       name: bestName,

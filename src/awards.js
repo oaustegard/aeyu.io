@@ -227,6 +227,7 @@ const AWARD_TIER = {
   milestone:          1,
   recovery_milestone: 1,
   season_first:       1,
+  route_season_first_more: 1,
 };
 
 /**
@@ -604,9 +605,9 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
       cv(allTimes) > HIGH_VARIANCE_CV_THRESHOLD;
 
     // --- Comeback context (#60) ---
-    const activityDate_raw = new Date(activity.start_date_local);
+    const activityDate = new Date(activity.start_date_local);
     const comebackActive = resetEvent &&
-      activityDate_raw >= new Date(resetEvent.date) &&
+      activityDate >= new Date(resetEvent.date) &&
       (!resetEvent.sport_types || resetEvent.sport_types.includes(activity.sport_type));
     const comebackCtx = comebackActive
       ? computeComebackContext(effort, allEfforts, resetEvent)
@@ -651,8 +652,6 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
 
     // All remaining awards are suppressed on high-variance segments
     if (isHighVariance) continue;
-
-    const activityDate = new Date(activity.start_date_local);
 
     // --- Year Best ---
     const afterCalendarGate = (activityDate.getMonth() + 1) >= YEAR_BEST_CALENDAR_GATE_MONTH;
@@ -1863,7 +1862,15 @@ export async function computeAwardsForActivities(activities, disabledAwardTypes 
     await putRoutes(routes);
   }
 
-  for (const activity of activities) {
+  // Process activities chronologically so route_season_first is awarded
+  // to the first ride on a route this year; subsequent rides get the
+  // "more" variant instead of a duplicate badge.
+  const sortedActivities = [...activities].sort((a, b) =>
+    (a.start_date_local || "").localeCompare(b.start_date_local || "")
+  );
+  const routeSeasonFirstSeen = new Set(); // route IDs that already got route_season_first this year
+
+  for (const activity of sortedActivities) {
     const segmentAwards = await computeAwards(activity, resetEvent, referencePoints);
     const rideAwards = computeRideLevelAwards(activity, activities, resetEvent);
     let allAwards = [...segmentAwards, ...rideAwards];
@@ -1880,16 +1887,20 @@ export async function computeAwardsForActivities(activities, disabledAwardTypes 
       }
     }
 
-    // --- Route-level Season First collapse (#59) ---
+    // --- Route-level Season First collapse (#59, #route-season-dedup) ---
     // If this activity matches a known route and has 2+ season_first awards,
-    // collapse them into a single route_season_first award.
+    // collapse them. The first chronological ride on a route this year gets
+    // route_season_first; subsequent rides get route_season_first_more.
     const seasonFirsts = allAwards.filter((a) => a.type === "season_first");
     if (seasonFirsts.length >= 2) {
       const route = findRouteForActivity(activity, routes);
       if (route) {
         const nonSeasonFirsts = allAwards.filter((a) => a.type !== "season_first");
+        const isFirst = !routeSeasonFirstSeen.has(route.id);
+        routeSeasonFirstSeen.add(route.id);
+
         const routeAward = {
-          type: "route_season_first",
+          type: isFirst ? "route_season_first" : "route_season_first_more",
           segment: null,
           segment_id: null,
           time: null,
@@ -1897,10 +1908,13 @@ export async function computeAwardsForActivities(activities, disabledAwardTypes 
           comparison: null,
           delta: null,
           route_name: route.name,
+          route_id: route.id,
           route_frequency: route.frequency,
           collapsed_count: seasonFirsts.length,
           _collapsed_season_firsts: seasonFirsts,
-          message: `Season First on ${route.name}! First time this year on this route (${seasonFirsts.length} segments) — ${route.frequency} times total`,
+          message: isFirst
+            ? `Season First on ${route.name}! First time this year on this route (${seasonFirsts.length} segments)`
+            : `${seasonFirsts.length} more Season Firsts on ${route.name}`,
         };
         allAwards = [...nonSeasonFirsts, routeAward];
       }
@@ -1910,8 +1924,8 @@ export async function computeAwardsForActivities(activities, disabledAwardTypes 
     if (disabled.size > 0) {
       allAwards = allAwards.filter((a) => {
         if (disabled.has(a.type)) return false;
-        // route_season_first is derived from season_first — disable if season_first is disabled
-        if (a.type === "route_season_first" && disabled.has("season_first")) return false;
+        // route_season_first variants are derived from season_first — disable if season_first is disabled
+        if ((a.type === "route_season_first" || a.type === "route_season_first_more") && disabled.has("season_first")) return false;
         return true;
       });
     }

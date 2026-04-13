@@ -264,6 +264,7 @@ function buildAwardHighlights(awardsMap) {
   // Season firsts
   if (counts.season_first) highlights.push(`First season rides on ${counts.season_first} segment${counts.season_first !== 1 ? "s" : ""}`);
   if (counts.route_season_first) highlights.push(`First season rides on ${counts.route_season_first} route${counts.route_season_first !== 1 ? "s" : ""}`);
+  if (counts.route_season_first_more) highlights.push(`More season firsts on ${counts.route_season_first_more} route${counts.route_season_first_more !== 1 ? "s" : ""}`);
 
   // Ride-level records
   const rideRecordTypes = ["distance_record", "elevation_record", "endurance_record", "speed_record"];
