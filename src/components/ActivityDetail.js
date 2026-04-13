@@ -113,12 +113,23 @@ async function loadActivity(id) {
         }
       }
 
-      // Route-level Season First collapse (#84)
+      // Route-level Season First collapse (#84, #route-season-dedup)
+      // Determine if this is the first ride on the route this year (route_season_first)
+      // or a subsequent ride with more new segments (route_season_first_more).
       const seasonFirsts = awardsList.filter(a => a.type === "season_first");
       if (seasonFirsts.length >= 2 && detectedRoute) {
         const nonSeasonFirsts = awardsList.filter(a => a.type !== "season_first");
+        const currentYear = new Date(act.start_date_local).getFullYear();
+        const earlierThisYear = (detectedRoute.activityIds || []).some(aid => {
+          const other = allActivities.find(a => a.id === aid);
+          return other &&
+            other.id !== act.id &&
+            new Date(other.start_date_local).getFullYear() === currentYear &&
+            other.start_date_local < act.start_date_local;
+        });
+        const awardType = earlierThisYear ? "route_season_first_more" : "route_season_first";
         const routeAward = {
-          type: "route_season_first",
+          type: awardType,
           segment: null,
           segment_id: null,
           time: null,
@@ -126,10 +137,13 @@ async function loadActivity(id) {
           comparison: null,
           delta: null,
           route_name: detectedRoute.name,
+          route_id: detectedRoute.id,
           route_frequency: detectedRoute.frequency,
           collapsed_count: seasonFirsts.length,
           _collapsed_season_firsts: seasonFirsts,
-          message: `Season First on ${detectedRoute.name}! First time this year on this route (${seasonFirsts.length} segments) — ${detectedRoute.frequency} times total`,
+          message: awardType === "route_season_first"
+            ? `Season First on ${detectedRoute.name}! First time this year on this route (${seasonFirsts.length} segments)`
+            : `${seasonFirsts.length} more Season Firsts on ${detectedRoute.name}`,
         };
         awardsList = [...nonSeasonFirsts, routeAward];
       }
@@ -157,7 +171,7 @@ async function loadActivity(id) {
       if (disabled.size > 0) {
         awardsList = awardsList.filter((a) => {
           if (disabled.has(a.type)) return false;
-          if (a.type === "route_season_first" && disabled.has("season_first")) return false;
+          if ((a.type === "route_season_first" || a.type === "route_season_first_more") && disabled.has("season_first")) return false;
           return true;
         });
       }
@@ -282,7 +296,7 @@ async function renderShareCard(canvas, act, awardsList) {
   const highlightAwards = buildShareCardHighlights(awardsList);
 
   const counts = {};
-  const pillOrder = ["route_season_first", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record", "season_first_power", "np_year_best", "np_recent_best", "work_year_best", "work_recent_best", "peak_power", "peak_power_recent", "watt_milestone", "kj_milestone", "power_progression", "power_consistency", "ftp_milestone", "curve_year_best", "curve_all_time", "indoor_np_year_best", "indoor_work_year_best", "trainer_streak", "indoor_vs_outdoor", "weekly_streak", "group_consistency", "reference_best", "comeback_pb", "recovery_milestone", "comeback_full", "comeback_distance", "comeback_elevation", "comeback_endurance"];
+  const pillOrder = ["route_season_first", "route_season_first_more", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record", "season_first_power", "np_year_best", "np_recent_best", "work_year_best", "work_recent_best", "peak_power", "peak_power_recent", "watt_milestone", "kj_milestone", "power_progression", "power_consistency", "ftp_milestone", "curve_year_best", "curve_all_time", "indoor_np_year_best", "indoor_work_year_best", "trainer_streak", "indoor_vs_outdoor", "weekly_streak", "group_consistency", "reference_best", "comeback_pb", "recovery_milestone", "comeback_full", "comeback_distance", "comeback_elevation", "comeback_endurance"];
   for (const a of awardsList) counts[a.type] = (counts[a.type] || 0) + 1;
   tmpCtx.font = '600 30px "DM Sans", sans-serif';
   const allPillRows = layoutPillRows(tmpCtx, counts, pillOrder, left, maxTextW);
@@ -890,7 +904,7 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
  */
 function buildShareCardHighlights(awardsList) {
   const TIER = {
-    route_season_first: 20, year_best: 18, ytd_best_time: 17, ytd_best_power: 17,
+    route_season_first: 20, route_season_first_more: 15, year_best: 18, ytd_best_time: 17, ytd_best_power: 17,
     np_year_best: 16, peak_power: 16, best_month_ever: 15, top_decile: 14,
     work_year_best: 13, improvement_streak: 12, comeback: 12, closing_in: 11,
     top_quartile: 10, recent_best: 9, np_recent_best: 9, monthly_best: 8,
@@ -1390,7 +1404,7 @@ export function ActivityDetail({ id }) {
                   ${rideAwards.map(award => {
                     const al = AWARD_LABELS[award.type];
                     // Route Season First with expandable segment list
-                    if (award.type === "route_season_first" && award._collapsed_season_firsts) {
+                    if ((award.type === "route_season_first" || award.type === "route_season_first_more") && award._collapsed_season_firsts) {
                       return html`
                         <div class="flex items-start gap-2 p-2 rounded-lg" style="background: var(--bg);">
                           ${al ? renderIconSVG(award.type, { size: 16, color: al.dot }) : null}

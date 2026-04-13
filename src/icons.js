@@ -341,6 +341,7 @@ const ICON_FALLBACKS = {
   reference_best: "closing_in",
   // Route-level (#59)
   route_season_first: "season_first",
+  route_season_first_more: "season_first",
   // Indoor training (#46) → indoor_power
   indoor_np_year_best: "indoor_power",
   indoor_work_year_best: "indoor_power",

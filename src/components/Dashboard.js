@@ -1225,7 +1225,7 @@ export function Dashboard() {
               for (const a of awards) {
                 typeCounts.set(a.type, (typeCounts.get(a.type) || 0) + 1);
               }
-              const typeOrder = ["route_season_first", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "reference_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record", "weekly_streak", "group_consistency", "season_first_power", "np_year_best", "np_recent_best", "work_year_best", "work_recent_best", "peak_power", "peak_power_recent", "watt_milestone", "kj_milestone", "power_progression", "power_consistency", "ftp_milestone", "curve_year_best", "curve_all_time", "indoor_np_year_best", "indoor_work_year_best", "trainer_streak", "indoor_vs_outdoor", "comeback_pb", "recovery_milestone", "comeback_full", "comeback_distance", "comeback_elevation", "comeback_endurance"];
+              const typeOrder = ["route_season_first", "route_season_first_more", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "reference_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record", "weekly_streak", "group_consistency", "season_first_power", "np_year_best", "np_recent_best", "work_year_best", "work_recent_best", "peak_power", "peak_power_recent", "watt_milestone", "kj_milestone", "power_progression", "power_consistency", "ftp_milestone", "curve_year_best", "curve_all_time", "indoor_np_year_best", "indoor_work_year_best", "trainer_streak", "indoor_vs_outdoor", "comeback_pb", "recovery_milestone", "comeback_full", "comeback_distance", "comeback_elevation", "comeback_endurance"];
               const summary = typeOrder
                 .filter((t) => typeCounts.has(t))
                 .map((t) => ({ type: t, count: typeCounts.get(t) }));
@@ -1258,14 +1258,17 @@ export function Dashboard() {
                         (s) => {
                           const al = AWARD_LABELS[s.type];
                           const pillStyle = al ? `background: ${al.bg}; color: ${al.text}; border: 1px solid ${al.border};` : "background: #ECEAE6; color: #3E3A36;";
-                          if (s.type === "route_season_first") {
-                            const routeAward = awards.find((a) => a.type === "route_season_first");
+                          if (s.type === "route_season_first" || s.type === "route_season_first_more") {
+                            const routeAward = awards.find((a) => a.type === s.type);
                             const routeName = routeAward?.route_name || "Route";
-                            const freq = routeAward?.route_frequency;
+                            const count = routeAward?.collapsed_count;
+                            const label = s.type === "route_season_first"
+                              ? `Season First: ${routeName}`
+                              : `${count ? count + " more" : "More"} Season Firsts: ${routeName}`;
                             return html`
                               <span class="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full cursor-help" style=${pillStyle} title=${al?.tip || ""}>
                                 ${al ? renderIconSVG(s.type, { size: 12, color: al.dot }) : null}
-                                Season First: ${routeName}${freq ? ` — ${freq} times` : ""}
+                                ${label}
                               </span>
                             `;
                           }
