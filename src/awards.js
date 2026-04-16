@@ -69,8 +69,11 @@
  *     Beat Median, Top Quartile, Monthly Best, YTD Best) require ≥3 total efforts.
  *     Season First and Milestone exempt.
  *   - Calendar gate: Year Best suppressed before March 1.
- *   - High-variance filter: segments with CV > 0.5 (≥5 efforts) are
- *     traffic-dominated — all awards suppressed except Season First and Milestone.
+ *   - High-variance filter: segments with trimmed CV > 0.5 (≥5 efforts)
+ *     are potentially traffic-dominated — awards suppressed except Season
+ *     First, Milestone, Closing In, and Matched PR. Power override: if
+ *     watts correlate with speed (R² > 0.3), variance is effort-driven
+ *     and the filter is skipped.
  *   - Power awards require device_watts === true (measured, not estimated).
  *   - Indoor awards require trainer === true && device_watts === true.
  *
@@ -347,6 +350,61 @@ function cv(values) {
   return stdev(values) / m;
 }
 
+/**
+ * Trimmed coefficient of variation — drops the slowest 10% of times before
+ * computing CV. Prevents a few outliers (stopped briefly, soft-pedaling through)
+ * from flagging a segment as "traffic-dominated" when the core distribution is
+ * legitimate effort variation.
+ */
+function trimmedCv(values) {
+  if (values.length < 5) return cv(values);
+  const sorted = [...values].sort((a, b) => a - b);
+  const trim = Math.max(1, Math.floor(sorted.length * 0.1));
+  const trimmed = sorted.slice(0, sorted.length - trim); // drop slowest
+  const m = mean(trimmed);
+  if (m === 0) return 0;
+  return stdev(trimmed) / m;
+}
+
+/** R² threshold above which power→speed correlation indicates effort-driven variance */
+const POWER_SPEED_R2_THRESHOLD = 0.3;
+
+/**
+ * Detect whether a segment's time variance is explained by effort variation
+ * rather than traffic. If power (recorded or estimated) correlates with speed
+ * (R² > threshold), the rider went fast because they pushed hard — not because
+ * traffic got out of their way.
+ *
+ * @param {Array} efforts — All efforts on this segment
+ * @param {number} distance — Segment distance in meters
+ * @returns {boolean} — true if variance is effort-driven
+ */
+function isEffortDrivenVariance(efforts, distance) {
+  if (!distance || distance <= 0) return false;
+  const powered = efforts.filter((e) => (e.average_watts || 0) > 0 && e.elapsed_time > 0);
+  if (powered.length < MIN_EFFORTS_FOR_CV) return false;
+
+  const watts = powered.map((e) => e.average_watts);
+  const speeds = powered.map((e) => distance / e.elapsed_time);
+
+  // Pearson R²
+  const n = watts.length;
+  const wm = watts.reduce((s, v) => s + v, 0) / n;
+  const sm = speeds.reduce((s, v) => s + v, 0) / n;
+  let sws = 0, sww = 0, sss = 0;
+  for (let i = 0; i < n; i++) {
+    const dw = watts[i] - wm;
+    const ds = speeds[i] - sm;
+    sws += dw * ds;
+    sww += dw * dw;
+    sss += ds * ds;
+  }
+  if (sww === 0 || sss === 0) return false;
+  const r2 = (sws * sws) / (sww * sss);
+
+  return r2 > POWER_SPEED_R2_THRESHOLD;
+}
+
 /** Format a number with ordinal suffix (1st, 2nd, 3rd, etc.) */
 function ordinal(n) {
   const s = ["th", "st", "nd", "rd"];
@@ -602,11 +660,16 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
     );
 
     // --- High-variance filter (#38) ---
-    // Segments with CV > 0.5 and ≥5 efforts are traffic-dominated.
-    // Only Season First passes through; all other awards are suppressed.
-    const isHighVariance =
+    // Segments with high time CV are potentially traffic-dominated.
+    // Uses trimmed CV (drops slowest 10%) and power-based override:
+    // if watts correlate with speed (R² > 0.3), the variance is effort-
+    // driven (sprinting vs cruising), not traffic noise.
+    // Season First, Milestone, Closing In, Matched PR are exempt.
+    const highTimeCv =
       allEfforts.length >= MIN_EFFORTS_FOR_CV &&
-      cv(allTimes) > HIGH_VARIANCE_CV_THRESHOLD;
+      trimmedCv(allTimes) > HIGH_VARIANCE_CV_THRESHOLD;
+    const isHighVariance = highTimeCv &&
+      !isEffortDrivenVariance(allEfforts, segment.distance);
 
     // --- Comeback context (#60) ---
     const activityDate = new Date(activity.start_date_local);
@@ -652,6 +715,46 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
           : `First ride on ${segment.name} this year!`,
       });
       continue; // Season first — no other awards possible
+    }
+
+    // --- Closing In on PR / Matched PR (#28) — exempt from CV filter ---
+    // PR-related awards are meaningful even on traffic-affected segments.
+    if (allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
+      const allTimeBest = Math.min(...allTimes);
+      if (effort.elapsed_time > allTimeBest) {
+        const gap = (effort.elapsed_time - allTimeBest) / allTimeBest;
+        if (gap <= 0.05) {
+          const pctLabel = gap <= 0.02 ? "2%" : "5%";
+          awards.push({
+            type: "closing_in",
+            segment: segment.name,
+            segment_id: segment.id,
+            time: effort.elapsed_time,
+            power: effort.average_watts || null,
+            comparison: null,
+            delta: effort.elapsed_time - allTimeBest,
+            message: `Within ${pctLabel} of your PR on ${segment.name}! ${formatTime(effort.elapsed_time)} — just ${formatTime(effort.elapsed_time - allTimeBest)} off your best`,
+          });
+        }
+      } else if (effort.elapsed_time === allTimeBest) {
+        // Matched PR: tied all-time best (requires a prior effort at the same time)
+        const priorMatchingPR = allEfforts.some(
+          (e) => e.effort_id !== effort.id && e.elapsed_time === allTimeBest
+        );
+        if (priorMatchingPR) {
+          const matchCount = allEfforts.filter((e) => e.elapsed_time === allTimeBest).length;
+          awards.push({
+            type: "matched_pr",
+            segment: segment.name,
+            segment_id: segment.id,
+            time: effort.elapsed_time,
+            power: effort.average_watts || null,
+            comparison: null,
+            delta: 0,
+            message: `Matched your PR on ${segment.name}! ${formatTime(effort.elapsed_time)} — tied your all-time best${matchCount > 2 ? ` (${ordinal(matchCount)} time at this pace)` : ""}`,
+          });
+        }
+      }
     }
 
     // All remaining awards are suppressed on high-variance segments
@@ -921,46 +1024,6 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
               message: `Best ${monthName} ever on ${segment.name}! ${formatTime(effort.elapsed_time)} — fastest across ${yearsSpanned} years`,
             });
           }
-        }
-      }
-    }
-
-    // --- Closing In on PR (#28) ---
-    // Within 5% of all-time best (but not the best itself)
-    if (allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
-      const allTimeBest = Math.min(...allTimes);
-      if (effort.elapsed_time > allTimeBest) {
-        const gap = (effort.elapsed_time - allTimeBest) / allTimeBest;
-        if (gap <= 0.05) {
-          const pctLabel = gap <= 0.02 ? "2%" : "5%";
-          awards.push({
-            type: "closing_in",
-            segment: segment.name,
-            segment_id: segment.id,
-            time: effort.elapsed_time,
-            power: effort.average_watts || null,
-            comparison: null,
-            delta: effort.elapsed_time - allTimeBest,
-            message: `Within ${pctLabel} of your PR on ${segment.name}! ${formatTime(effort.elapsed_time)} — just ${formatTime(effort.elapsed_time - allTimeBest)} off your best`,
-          });
-        }
-      } else if (effort.elapsed_time === allTimeBest) {
-        // Matched PR: tied all-time best (requires a prior effort at the same time)
-        const priorMatchingPR = allEfforts.some(
-          (e) => e.effort_id !== effort.id && e.elapsed_time === allTimeBest
-        );
-        if (priorMatchingPR) {
-          const matchCount = allEfforts.filter((e) => e.elapsed_time === allTimeBest).length;
-          awards.push({
-            type: "matched_pr",
-            segment: segment.name,
-            segment_id: segment.id,
-            time: effort.elapsed_time,
-            power: effort.average_watts || null,
-            comparison: null,
-            delta: 0,
-            message: `Matched your PR on ${segment.name}! ${formatTime(effort.elapsed_time)} — tied your all-time best${matchCount > 2 ? ` (${ordinal(matchCount)} time at this pace)` : ""}`,
-          });
         }
       }
     }
