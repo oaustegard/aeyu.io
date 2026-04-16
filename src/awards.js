@@ -70,9 +70,10 @@
  *     Season First and Milestone exempt.
  *   - Calendar gate: Year Best suppressed before March 1.
  *   - High-variance filter: segments with trimmed CV > 0.5 (≥5 efforts)
- *     are traffic-dominated — awards suppressed except Season First,
- *     Milestone, Closing In, and Matched PR. Trimmed CV drops the
- *     slowest 10% of efforts so occasional stops don't poison the metric.
+ *     are potentially traffic-dominated — awards suppressed except Season
+ *     First, Milestone, Closing In, and Matched PR. Power override: if
+ *     watts correlate with speed (R² > 0.3), variance is effort-driven
+ *     and the filter is skipped.
  *   - Power awards require device_watts === true (measured, not estimated).
  *   - Indoor awards require trainer === true && device_watts === true.
  *
@@ -365,6 +366,45 @@ function trimmedCv(values) {
   return stdev(trimmed) / m;
 }
 
+/** R² threshold above which power→speed correlation indicates effort-driven variance */
+const POWER_SPEED_R2_THRESHOLD = 0.3;
+
+/**
+ * Detect whether a segment's time variance is explained by effort variation
+ * rather than traffic. If power (recorded or estimated) correlates with speed
+ * (R² > threshold), the rider went fast because they pushed hard — not because
+ * traffic got out of their way.
+ *
+ * @param {Array} efforts — All efforts on this segment
+ * @param {number} distance — Segment distance in meters
+ * @returns {boolean} — true if variance is effort-driven
+ */
+function isEffortDrivenVariance(efforts, distance) {
+  if (!distance || distance <= 0) return false;
+  const powered = efforts.filter((e) => (e.average_watts || 0) > 0 && e.elapsed_time > 0);
+  if (powered.length < MIN_EFFORTS_FOR_CV) return false;
+
+  const watts = powered.map((e) => e.average_watts);
+  const speeds = powered.map((e) => distance / e.elapsed_time);
+
+  // Pearson R²
+  const n = watts.length;
+  const wm = watts.reduce((s, v) => s + v, 0) / n;
+  const sm = speeds.reduce((s, v) => s + v, 0) / n;
+  let sws = 0, sww = 0, sss = 0;
+  for (let i = 0; i < n; i++) {
+    const dw = watts[i] - wm;
+    const ds = speeds[i] - sm;
+    sws += dw * ds;
+    sww += dw * dw;
+    sss += ds * ds;
+  }
+  if (sww === 0 || sss === 0) return false;
+  const r2 = (sws * sws) / (sww * sss);
+
+  return r2 > POWER_SPEED_R2_THRESHOLD;
+}
+
 /** Format a number with ordinal suffix (1st, 2nd, 3rd, etc.) */
 function ordinal(n) {
   const s = ["th", "st", "nd", "rd"];
@@ -620,13 +660,16 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
     );
 
     // --- High-variance filter (#38) ---
-    // Segments with trimmed CV > 0.5 and ≥5 efforts are traffic-dominated.
-    // Uses trimmed CV (drops slowest 10%) so a few outliers from stopping
-    // or soft-pedaling don't suppress awards on effort-variable segments.
+    // Segments with high time CV are potentially traffic-dominated.
+    // Uses trimmed CV (drops slowest 10%) and power-based override:
+    // if watts correlate with speed (R² > 0.3), the variance is effort-
+    // driven (sprinting vs cruising), not traffic noise.
     // Season First, Milestone, Closing In, Matched PR are exempt.
-    const isHighVariance =
+    const highTimeCv =
       allEfforts.length >= MIN_EFFORTS_FOR_CV &&
       trimmedCv(allTimes) > HIGH_VARIANCE_CV_THRESHOLD;
+    const isHighVariance = highTimeCv &&
+      !isEffortDrivenVariance(allEfforts, segment.distance);
 
     // --- Comeback context (#60) ---
     const activityDate = new Date(activity.start_date_local);
