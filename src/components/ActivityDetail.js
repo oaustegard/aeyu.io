@@ -1000,6 +1000,7 @@ function wrapText(ctx, text, maxW) {
 const SORT_COLUMNS = [
   { key: "name", label: "Name" },
   { key: "time", label: "Time" },
+  { key: "speed", label: "Speed" },
   { key: "distance", label: "Dist" },
   { key: "grade", label: "Grade" },
   { key: "power", label: "Power" },
@@ -1038,6 +1039,10 @@ function sortEfforts(efforts, effortAwards) {
       case "time":
         va = a.elapsed_time || 0;
         vb = b.elapsed_time || 0;
+        break;
+      case "speed":
+        va = (a.elapsed_time > 0 && a.segment.distance) ? a.segment.distance / a.elapsed_time : 0;
+        vb = (b.elapsed_time > 0 && b.segment.distance) ? b.segment.distance / b.elapsed_time : 0;
         break;
       case "distance":
         va = a.segment.distance || 0;

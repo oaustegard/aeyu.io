@@ -339,6 +339,7 @@ const ICON_FALLBACKS = {
   comeback_elevation: "comeback",
   comeback_endurance: "comeback",
   reference_best: "closing_in",
+  matched_pr: "closing_in",
   // Route-level (#59)
   route_season_first: "season_first",
   route_season_first_more: "season_first",

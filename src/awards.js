@@ -166,7 +166,7 @@ const RECOVERY_MILESTONES = [80, 90, 95, 100];
 const SUPPRESSED_IN_RECOVERY = new Set([
   "year_best", "beat_median", "top_quartile", "top_decile",
   "recent_best", "best_month_ever", "ytd_best_time", "ytd_best_power",
-  "closing_in",
+  "closing_in", "matched_pr",
 ]);
 
 // ── Award Ranking (#80) ─────────────────────────────────────────────
@@ -183,6 +183,7 @@ const MAX_AWARDS_PER_TYPE = {
   top_decile:          5,
   consistency:         3,
   closing_in:          3,
+  matched_pr:          3,
   monthly_best:        5,
   recent_best:         5,
   improvement_streak:  5,
@@ -201,6 +202,7 @@ const SUBSUMES = {
   year_best: ["recent_best", "monthly_best", "best_month_ever", "ytd_best_time"],
   ytd_best_time: ["best_month_ever", "monthly_best"],
   best_month_ever: ["monthly_best"],
+  matched_pr: ["closing_in"],
   comeback_full: ["comeback_pb", "recovery_milestone", "comeback"],
   comeback_pb: ["comeback"],
 };
@@ -212,6 +214,7 @@ const AWARD_TIER = {
   top_decile:         4,
   comeback_pb:        4,
   closing_in:         4,
+  matched_pr:         4,
   ytd_best_time:      3,
   ytd_best_power:     3,
   best_month_ever:    3,
@@ -588,6 +591,7 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
   const awards = [];
 
   for (const effort of activity.segment_efforts) {
+    try {
     const segment = await getSegment(effort.segment.id);
     if (!segment || !segment.efforts || segment.efforts.length === 0) continue;
 
@@ -940,6 +944,24 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
             message: `Within ${pctLabel} of your PR on ${segment.name}! ${formatTime(effort.elapsed_time)} — just ${formatTime(effort.elapsed_time - allTimeBest)} off your best`,
           });
         }
+      } else if (effort.elapsed_time === allTimeBest) {
+        // Matched PR: tied all-time best (requires a prior effort at the same time)
+        const priorMatchingPR = allEfforts.some(
+          (e) => e.effort_id !== effort.id && e.elapsed_time === allTimeBest
+        );
+        if (priorMatchingPR) {
+          const matchCount = allEfforts.filter((e) => e.elapsed_time === allTimeBest).length;
+          awards.push({
+            type: "matched_pr",
+            segment: segment.name,
+            segment_id: segment.id,
+            time: effort.elapsed_time,
+            power: effort.average_watts || null,
+            comparison: null,
+            delta: 0,
+            message: `Matched your PR on ${segment.name}! ${formatTime(effort.elapsed_time)} — tied your all-time best${matchCount > 2 ? ` (${ordinal(matchCount)} time at this pace)` : ""}`,
+          });
+        }
       }
     }
 
@@ -1084,6 +1106,9 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
           });
         }
       }
+    }
+    } catch (err) {
+      console.warn(`[aeyu] Award computation failed for segment ${effort.segment?.id} (${effort.segment?.name}):`, err);
     }
   }
 
