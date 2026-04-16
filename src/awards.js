@@ -70,7 +70,8 @@
  *     Season First and Milestone exempt.
  *   - Calendar gate: Year Best suppressed before March 1.
  *   - High-variance filter: segments with CV > 0.5 (≥5 efforts) are
- *     traffic-dominated — all awards suppressed except Season First and Milestone.
+ *     traffic-dominated — all awards suppressed except Season First,
+ *     Milestone, Closing In, and Matched PR.
  *   - Power awards require device_watts === true (measured, not estimated).
  *   - Indoor awards require trainer === true && device_watts === true.
  *
@@ -654,6 +655,46 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
       continue; // Season first — no other awards possible
     }
 
+    // --- Closing In on PR / Matched PR (#28) — exempt from CV filter ---
+    // PR-related awards are meaningful even on traffic-affected segments.
+    if (allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
+      const allTimeBest = Math.min(...allTimes);
+      if (effort.elapsed_time > allTimeBest) {
+        const gap = (effort.elapsed_time - allTimeBest) / allTimeBest;
+        if (gap <= 0.05) {
+          const pctLabel = gap <= 0.02 ? "2%" : "5%";
+          awards.push({
+            type: "closing_in",
+            segment: segment.name,
+            segment_id: segment.id,
+            time: effort.elapsed_time,
+            power: effort.average_watts || null,
+            comparison: null,
+            delta: effort.elapsed_time - allTimeBest,
+            message: `Within ${pctLabel} of your PR on ${segment.name}! ${formatTime(effort.elapsed_time)} — just ${formatTime(effort.elapsed_time - allTimeBest)} off your best`,
+          });
+        }
+      } else if (effort.elapsed_time === allTimeBest) {
+        // Matched PR: tied all-time best (requires a prior effort at the same time)
+        const priorMatchingPR = allEfforts.some(
+          (e) => e.effort_id !== effort.id && e.elapsed_time === allTimeBest
+        );
+        if (priorMatchingPR) {
+          const matchCount = allEfforts.filter((e) => e.elapsed_time === allTimeBest).length;
+          awards.push({
+            type: "matched_pr",
+            segment: segment.name,
+            segment_id: segment.id,
+            time: effort.elapsed_time,
+            power: effort.average_watts || null,
+            comparison: null,
+            delta: 0,
+            message: `Matched your PR on ${segment.name}! ${formatTime(effort.elapsed_time)} — tied your all-time best${matchCount > 2 ? ` (${ordinal(matchCount)} time at this pace)` : ""}`,
+          });
+        }
+      }
+    }
+
     // All remaining awards are suppressed on high-variance segments
     if (isHighVariance) continue;
 
@@ -921,46 +962,6 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
               message: `Best ${monthName} ever on ${segment.name}! ${formatTime(effort.elapsed_time)} — fastest across ${yearsSpanned} years`,
             });
           }
-        }
-      }
-    }
-
-    // --- Closing In on PR (#28) ---
-    // Within 5% of all-time best (but not the best itself)
-    if (allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
-      const allTimeBest = Math.min(...allTimes);
-      if (effort.elapsed_time > allTimeBest) {
-        const gap = (effort.elapsed_time - allTimeBest) / allTimeBest;
-        if (gap <= 0.05) {
-          const pctLabel = gap <= 0.02 ? "2%" : "5%";
-          awards.push({
-            type: "closing_in",
-            segment: segment.name,
-            segment_id: segment.id,
-            time: effort.elapsed_time,
-            power: effort.average_watts || null,
-            comparison: null,
-            delta: effort.elapsed_time - allTimeBest,
-            message: `Within ${pctLabel} of your PR on ${segment.name}! ${formatTime(effort.elapsed_time)} — just ${formatTime(effort.elapsed_time - allTimeBest)} off your best`,
-          });
-        }
-      } else if (effort.elapsed_time === allTimeBest) {
-        // Matched PR: tied all-time best (requires a prior effort at the same time)
-        const priorMatchingPR = allEfforts.some(
-          (e) => e.effort_id !== effort.id && e.elapsed_time === allTimeBest
-        );
-        if (priorMatchingPR) {
-          const matchCount = allEfforts.filter((e) => e.elapsed_time === allTimeBest).length;
-          awards.push({
-            type: "matched_pr",
-            segment: segment.name,
-            segment_id: segment.id,
-            time: effort.elapsed_time,
-            power: effort.average_watts || null,
-            comparison: null,
-            delta: 0,
-            message: `Matched your PR on ${segment.name}! ${formatTime(effort.elapsed_time)} — tied your all-time best${matchCount > 2 ? ` (${ordinal(matchCount)} time at this pace)` : ""}`,
-          });
         }
       }
     }
