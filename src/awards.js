@@ -69,9 +69,10 @@
  *     Beat Median, Top Quartile, Monthly Best, YTD Best) require ≥3 total efforts.
  *     Season First and Milestone exempt.
  *   - Calendar gate: Year Best suppressed before March 1.
- *   - High-variance filter: segments with CV > 0.5 (≥5 efforts) are
- *     traffic-dominated — all awards suppressed except Season First,
- *     Milestone, Closing In, and Matched PR.
+ *   - High-variance filter: segments with trimmed CV > 0.5 (≥5 efforts)
+ *     are traffic-dominated — awards suppressed except Season First,
+ *     Milestone, Closing In, and Matched PR. Trimmed CV drops the
+ *     slowest 10% of efforts so occasional stops don't poison the metric.
  *   - Power awards require device_watts === true (measured, not estimated).
  *   - Indoor awards require trainer === true && device_watts === true.
  *
@@ -348,6 +349,22 @@ function cv(values) {
   return stdev(values) / m;
 }
 
+/**
+ * Trimmed coefficient of variation — drops the slowest 10% of times before
+ * computing CV. Prevents a few outliers (stopped briefly, soft-pedaling through)
+ * from flagging a segment as "traffic-dominated" when the core distribution is
+ * legitimate effort variation.
+ */
+function trimmedCv(values) {
+  if (values.length < 5) return cv(values);
+  const sorted = [...values].sort((a, b) => a - b);
+  const trim = Math.max(1, Math.floor(sorted.length * 0.1));
+  const trimmed = sorted.slice(0, sorted.length - trim); // drop slowest
+  const m = mean(trimmed);
+  if (m === 0) return 0;
+  return stdev(trimmed) / m;
+}
+
 /** Format a number with ordinal suffix (1st, 2nd, 3rd, etc.) */
 function ordinal(n) {
   const s = ["th", "st", "nd", "rd"];
@@ -603,11 +620,13 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
     );
 
     // --- High-variance filter (#38) ---
-    // Segments with CV > 0.5 and ≥5 efforts are traffic-dominated.
-    // Only Season First passes through; all other awards are suppressed.
+    // Segments with trimmed CV > 0.5 and ≥5 efforts are traffic-dominated.
+    // Uses trimmed CV (drops slowest 10%) so a few outliers from stopping
+    // or soft-pedaling don't suppress awards on effort-variable segments.
+    // Season First, Milestone, Closing In, Matched PR are exempt.
     const isHighVariance =
       allEfforts.length >= MIN_EFFORTS_FOR_CV &&
-      cv(allTimes) > HIGH_VARIANCE_CV_THRESHOLD;
+      trimmedCv(allTimes) > HIGH_VARIANCE_CV_THRESHOLD;
 
     // --- Comeback context (#60) ---
     const activityDate = new Date(activity.start_date_local);
