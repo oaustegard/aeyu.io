@@ -12,6 +12,7 @@ import { computeStreakData, computeAwardsForActivities, computeAwards, computeRi
 import { unitSystem, formatDistance, formatElevation, formatSpeed } from "./units.js";
 import { AWARD_LABELS } from "./award-config.js";
 import { estimateFTP, POWER_CURVE_DURATIONS, DURATION_LABELS, getAllTimeBestCurve } from "./power-curve.js";
+import { estimateCriticalPower } from "./critical-power.js";
 
 function filterByDays(activities, days) {
   const cutoff = Date.now() - days * 86400000;
@@ -335,6 +336,7 @@ export async function buildLLMContext(options = {}) {
   const bestCurve = await getAllTimeBestCurve();
   const estimatedFTP = estimateFTP(bestCurve);
   const ftp = storedFTP || estimatedFTP;
+  const criticalPower = estimateCriticalPower(bestCurve);
 
   const zoneDistribution = buildZoneDistribution(recent, ftp);
   const powerCurveSnapshot = buildPowerCurveSnapshot(sorted);
@@ -349,6 +351,13 @@ export async function buildLLMContext(options = {}) {
     week_over_week: buildWeekOverWeekDelta(weeklyRollups),
     zone_distribution: zoneDistribution,
     power_curve: powerCurveSnapshot,
+    critical_power: criticalPower ? {
+      cp_watts: criticalPower.cp,
+      w_prime_joules: criticalPower.wPrime,
+      w_prime_kj: +(criticalPower.wPrime / 1000).toFixed(2),
+      fit_durations_s: criticalPower.fitDurations,
+      r_squared: criticalPower.rSquared,
+    } : null,
     monthly_trends: buildMonthlyDeltas(recent),
     rides_in_window: recent.length,
   };
@@ -522,6 +531,17 @@ export function contextToMarkdown(ctx) {
       md += `\n`;
     }
     md += `\n`;
+  }
+
+  if (ctx.critical_power) {
+    const cp = ctx.critical_power;
+    md += `## Critical Power Model (all-time bests, linear W = CP·t + W′ fit)\n`;
+    md += `- **CP**: ${cp.cp_watts}W — sustainable/unsustainable boundary\n`;
+    md += `- **W′**: ${cp.w_prime_kj}kJ (${cp.w_prime_joules}J) — finite work reservoir above CP\n`;
+    md += `- Fit durations (s): ${cp.fit_durations_s.join(", ")}`;
+    if (cp.r_squared != null) md += ` · R² ${cp.r_squared.toFixed(3)}`;
+    md += `\n`;
+    md += `- Time to exhaustion at P > CP: t = W′ / (P − CP). At CP+50W: ${Math.round(cp.w_prime_joules / 50)}s. At CP+100W: ${Math.round(cp.w_prime_joules / 100)}s.\n\n`;
   }
 
   if (ctx.monthly_trends.length > 0) {
@@ -703,6 +723,13 @@ export async function buildRideExport(activityId, options = {}) {
       const userCfg = await getUserConfig();
       const bestCurve = await getAllTimeBestCurve();
       const ftp = userCfg.ftp || estimateFTP(bestCurve);
+      const cp = estimateCriticalPower(bestCurve);
+      if (cp) {
+        ctx.athlete_cp = {
+          cp_watts: cp.cp,
+          w_prime_kj: +(cp.wPrime / 1000).toFixed(2),
+        };
+      }
       if (ftp) {
         const BOUNDARIES = [0.55, 0.75, 0.90, 1.05, 1.20, 1.50];
         const zoneNames = ["Z1", "Z2", "Z3", "Z4", "Z5", "Z6", "Z7"];
@@ -786,6 +813,12 @@ export function rideToMarkdown(ctx) {
       md += `\n`;
     }
     md += `\n`;
+  }
+
+  if (ctx.athlete_cp) {
+    md += `## Athlete Critical Power (all-time)\n`;
+    md += `- CP: ${ctx.athlete_cp.cp_watts}W · W′: ${ctx.athlete_cp.w_prime_kj}kJ\n`;
+    md += `- Above CP, time-to-exhaustion = W′ / (P − CP).\n\n`;
   }
 
   if (ctx.ride_awards.length > 0) {

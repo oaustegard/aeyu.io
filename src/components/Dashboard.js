@@ -56,6 +56,7 @@ import { renderIconSVG } from "../icons.js";
 import { AWARD_LABELS, AWARD_GROUPS } from "../award-config.js";
 import { computeFitnessSummary } from "../fitness.js";
 import { getAllTimeBestCurve, estimateFTP, POWER_CURVE_DURATIONS, DURATION_LABELS } from "../power-curve.js";
+import { estimateCriticalPower } from "../critical-power.js";
 import { StickyHeader, headerCompact } from "./StickyHeader.js";
 import { buildLLMContext, contextToMarkdown, convertContextUnits } from "../export-llm.js";
 import { detectRoutes } from "../routes.js";
@@ -422,7 +423,11 @@ async function loadDashboard() {
     try {
       const bestCurve = await getAllTimeBestCurve();
       if (Object.keys(bestCurve).length > 0) {
-        powerCurveData.value = { curve: bestCurve, ftp: estimateFTP(bestCurve) };
+        powerCurveData.value = {
+          curve: bestCurve,
+          ftp: estimateFTP(bestCurve),
+          cp: estimateCriticalPower(bestCurve),
+        };
       }
     } catch (e) {
       console.warn("Power curve computation failed:", e);
@@ -1082,16 +1087,29 @@ export function Dashboard() {
               <h2 class="inline-flex items-center" style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin: 0;">Power Curve
                 <${ChartHelp} id="power-curve">
                   Your all-time best average power at each standard duration from your power meter data.<br/><br/>
-                  <strong>FTP</strong> (Functional Threshold Power) is estimated as 95% of your best 20-minute power. Durations: 5s sprint, 30s, 1 min, 5 min VO\u2082max, 20 min FTP, 60 min sustained.
+                  <strong>FTP</strong> (Functional Threshold Power) is estimated as 95% of your best 20-minute power. Durations: 5s sprint, 30s, 1 min, 5 min VO\u2082max, 20 min FTP, 60 min sustained.<br/><br/>
+                  <strong>CP</strong> (Critical Power) and <strong>W\u2032</strong> are fitted from your 3\u201330 min bests via W = CP\u00b7t + W\u2032. CP is the boundary between sustainable and unsustainable effort; W\u2032 is the finite work reservoir you can spend above CP (in kJ). More physiologically grounded than FTP \u2014 see the FAQ.
                 <//>
               </h2>
-              ${powerCurveData.value.ftp && html`
-                <div class="flex items-center gap-1.5" title="Estimated FTP: 95% of 20-min best power">
-                  <span style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">est. FTP</span>
-                  <span style="font-family: var(--font-display); font-size: 1.25rem; color: var(--text);">${powerCurveData.value.ftp}</span>
-                  <span style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">W</span>
-                </div>
-              `}
+              <div class="flex items-center gap-3">
+                ${powerCurveData.value.cp && html`
+                  <div class="flex items-center gap-1.5" title="Critical Power: boundary between sustainable and unsustainable effort, fitted from 3\u201330 min bests">
+                    <span style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">CP</span>
+                    <span style="font-family: var(--font-display); font-size: 1.25rem; color: var(--text);">${powerCurveData.value.cp.cp}</span>
+                    <span style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">W</span>
+                    <span style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary); margin-left: 0.25rem;">\u00b7 W\u2032</span>
+                    <span style="font-family: var(--font-display); font-size: 1rem; color: var(--text);">${(powerCurveData.value.cp.wPrime / 1000).toFixed(1)}</span>
+                    <span style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">kJ</span>
+                  </div>
+                `}
+                ${powerCurveData.value.ftp && html`
+                  <div class="flex items-center gap-1.5" title="Estimated FTP: 95% of 20-min best power">
+                    <span style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">est. FTP</span>
+                    <span style="font-family: var(--font-display); font-size: 1.25rem; color: var(--text);">${powerCurveData.value.ftp}</span>
+                    <span style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">W</span>
+                  </div>
+                `}
+              </div>
             </div>
             <div style="display: flex; flex-direction: column; gap: 6px;">
               ${POWER_CURVE_DURATIONS.filter((dur) => powerCurveData.value.curve[dur]).map((dur) => {
@@ -1664,6 +1682,19 @@ export function Dashboard() {
                 <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
                   <p>If you ride with a power meter, the app can fetch your per-second power data and compute your <strong>power curve</strong> — your best average power at standard durations (5s sprint, 30s, 1 min, 5 min VO2max, 20 min FTP proxy, 60 min sustained).</p>
                   <p>Your <strong>FTP</strong> (Functional Threshold Power) is estimated as 95% of your best 20-minute power. Awards like Curve Year Best and Curve Record track improvements at each duration. Power curve data is fetched and cached locally over multiple sync sessions.</p>
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  What are CP and W′? Why show them next to FTP?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1 space-y-2" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  <p><strong>Critical Power (CP)</strong> is the boundary between two physiologically distinct regimes. Below CP, your oxygen uptake reaches a steady state and effort is sustainable in principle. Above CP, oxygen uptake keeps climbing toward maximum and exhaustion becomes mathematically inevitable.</p>
+                  <p><strong>W′</strong> ("W-prime", in kJ) is the finite work reservoir you can spend above CP. The model predicts time-to-exhaustion at a constant power above CP as t = W′ / (P − CP).</p>
+                  <p>aeyu fits CP and W′ from your power curve via the linear work-time form W = CP·t + W′, using bests in the 3–30 minute range where the model holds.</p>
+                  <p>FTP, by contrast, is an operational definition (95% of a 20-minute max) without direct physiological grounding — it doesn't reliably align with CP, lactate threshold 1, or LT2. We show both: FTP for compatibility with training platforms you already use, CP/W′ for the science.</p>
                 </div>
               </details>
 

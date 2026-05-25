@@ -4,6 +4,14 @@ All merged pull requests for [aeyu.io](https://aeyu.io), a Strava-powered cyclin
 
 -----
 
+## 2026-05-25
+
+### Features
+
+- **Critical Power model (CP and W′)** — Fit a physiologically grounded 2-parameter Critical Power model from the all-time best power curve and surface CP and W′ alongside the existing FTP estimate in the Dashboard Power Curve card. CP marks the boundary between sustainable and unsustainable effort; W′ is the finite work reservoir above CP. The AI coach export now includes CP, W′, and predicted time-to-exhaustion above CP. FTP is retained for compatibility with downstream platforms.
+
+-----
+
 ## 2026-03-14
 
 ### Features

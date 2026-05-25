@@ -2,6 +2,16 @@
 
 Two complementary form indicators computed entirely from local IndexedDB data. No additional API calls — uses segment efforts and activity data already synced. Entry point: [[src/fitness.js#computeFitnessSummary]].
 
+## Critical Power Model
+
+The 2-parameter Critical Power model (CP, W′) is a physiologically grounded alternative to FTP. Fitted from the all-time best power curve by [[src/critical-power.js#estimateCriticalPower]] via linear regression W = CP·t + W′ over 3–30 min bests.
+
+CP marks the boundary between two regimes: below CP, oxygen uptake reaches steady-state and effort is sustainable in principle; above CP, oxygen uptake keeps climbing toward maximum and W′ (a finite work reservoir, in joules) depletes linearly with the power excess. Time-to-exhaustion above CP is t = W′ / (P − CP) — exposed as [[src/critical-power.js#timeToExhaustion]].
+
+CP and W′ are surfaced alongside the existing FTP estimate in the Dashboard Power Curve card and in the AI coach export. FTP (95% of 20-min best) is retained for compatibility with downstream training platforms; it lacks direct physiological grounding (PMC7552657) but remains the lingua franca of consumer cycling tools.
+
+Fit quality requires at least two durations spaced ≥300s apart. With only the standard 5-min and 20-min bests (the production [[src/power-curve.js#POWER_CURVE_DURATIONS]]), the fit is exact-2-point (no R²); when richer curves are available (demo data, future enrichment), the regression returns R² as well.
+
 ## Performance Capacity
 
 Measures what the athlete's body can produce on the bike. Uses climb segment performance over time to produce a 0-100 index relative to the athlete's own all-time range. Does not require heart rate or power meter data.
