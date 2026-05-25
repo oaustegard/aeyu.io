@@ -4,13 +4,13 @@ LLM export pipeline that builds compact context payloads for AI cycling coaching
 
 ## Context Building
 
-[[src/export-llm.js#buildLLMContext]] constructs a full coaching snapshot: recent ride summaries (slimmed to essential fields), weekly rollups with week-over-week deltas, power zone distribution, [[fitness]] summary, [[awards]] highlights, and [[routes#Detection Algorithm]] streak data.
+[[src/export-llm.js#buildLLMContext]] constructs a full coaching snapshot: recent ride summaries (slimmed to essential fields), weekly rollups with week-over-week deltas, power zone distribution, athlete-level Critical Power and W′ (see [[fitness#Critical Power Model]]), [[fitness]] summary, [[awards]] highlights, and [[routes#Detection Algorithm]] streak data.
 
 Activities are filtered by a configurable day window (default 90 days). Each ride is compressed by `slimActivity` to ~10 fields — name, date, distance, time, elevation, power metrics, heart rate. Weekly rollups aggregate distance, elevation, moving time, and ride count.
 
 ## Single Ride Export
 
-[[src/export-llm.js#buildRideExport]] produces a focused payload for coaching a specific ride. Includes the ride's segment efforts with per-segment history context, awards earned, [[fitness]] form snapshot at the time of the ride, and power curve data.
+[[src/export-llm.js#buildRideExport]] produces a focused payload for coaching a specific ride. Includes the ride's segment efforts with per-segment history context, awards earned, [[fitness]] form snapshot at the time of the ride, power curve data, and the athlete's CP/W′ when fittable.
 
 Segment efforts are slimmed to time, rank within history, delta from PR, and whether a power meter was present. This gives an LLM enough context to comment on pacing and effort distribution.
 

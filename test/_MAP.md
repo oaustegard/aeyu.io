@@ -1,11 +1,15 @@
 # test/
-*Files: 4 | Subdirectories: 1*
+*Files: 5 | Subdirectories: 1*
 
 ## Subdirectories
 
 - [screenshots/](./screenshots/_MAP.md)
 
 ## Files
+
+### gear-stats.test.js
+> Imports: `node:test, strict, gear-stats.js`
+- *No top-level symbols*
 
 ### harness.py
 > Imports: `json, math, os, random, sys`...
