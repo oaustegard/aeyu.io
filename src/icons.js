@@ -352,6 +352,7 @@ const ICON_FALLBACKS = {
   curve_all_time: "peak_power",
   // Power milestones (#47)
   ftp_milestone: "watt_milestone",
+  cp_milestone: "watt_milestone",
 };
 
 // ── HTM/Preact SVG Rendering ───────────────────────────────────────

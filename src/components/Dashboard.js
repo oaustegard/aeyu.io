@@ -1127,6 +1127,20 @@ export function Dashboard() {
                   </div>
                 `;
               })}
+              ${powerCurveData.value.cp && (() => {
+                const cpWatts = powerCurveData.value.cp.cp;
+                const maxWatts = Math.max(...POWER_CURVE_DURATIONS.map((d) => powerCurveData.value.curve[d] || 0));
+                const pct = maxWatts > 0 ? Math.round((cpWatts / maxWatts) * 100) : 0;
+                return html`
+                  <div style="display: flex; align-items: center; gap: 6px;" title="Critical Power (model fit): ${cpWatts}W \u2014 boundary between sustainable and unsustainable effort">
+                    <span style="font-size: 0.6875rem; color: var(--text-secondary); width: 52px; flex-shrink: 0; text-align: right; font-style: italic;">CP</span>
+                    <div style="flex: 1; height: 14px; background: var(--border); border-radius: 3px; overflow: hidden;">
+                      <div style="height: 100%; width: ${pct}%; background: repeating-linear-gradient(45deg, #6B4F8F, #6B4F8F 4px, #8A6FAD 4px, #8A6FAD 8px); border-radius: 3px; transition: width 0.3s;"></div>
+                    </div>
+                    <span style="font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text); min-width: 2.5rem; text-align: right;">${cpWatts}W</span>
+                  </div>
+                `;
+              })()}
             </div>
           </div>
         `}
@@ -1243,7 +1257,7 @@ export function Dashboard() {
               for (const a of awards) {
                 typeCounts.set(a.type, (typeCounts.get(a.type) || 0) + 1);
               }
-              const typeOrder = ["route_season_first", "route_season_first_more", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "reference_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record", "weekly_streak", "group_consistency", "season_first_power", "np_year_best", "np_recent_best", "work_year_best", "work_recent_best", "peak_power", "peak_power_recent", "watt_milestone", "kj_milestone", "power_progression", "power_consistency", "ftp_milestone", "curve_year_best", "curve_all_time", "indoor_np_year_best", "indoor_work_year_best", "trainer_streak", "indoor_vs_outdoor", "comeback_pb", "recovery_milestone", "comeback_full", "comeback_distance", "comeback_elevation", "comeback_endurance"];
+              const typeOrder = ["route_season_first", "route_season_first_more", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "reference_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record", "weekly_streak", "group_consistency", "season_first_power", "np_year_best", "np_recent_best", "work_year_best", "work_recent_best", "peak_power", "peak_power_recent", "watt_milestone", "kj_milestone", "power_progression", "power_consistency", "ftp_milestone", "cp_milestone", "curve_year_best", "curve_all_time", "indoor_np_year_best", "indoor_work_year_best", "trainer_streak", "indoor_vs_outdoor", "comeback_pb", "recovery_milestone", "comeback_full", "comeback_distance", "comeback_elevation", "comeback_endurance"];
               const summary = typeOrder
                 .filter((t) => typeCounts.has(t))
                 .map((t) => ({ type: t, count: typeCounts.get(t) }));
@@ -1538,6 +1552,7 @@ export function Dashboard() {
                     ["power_progression", "Power Up", "Your Normalized Power is trending upward over your last 10 rides. Uses linear regression to detect real improvement."],
                     ["power_consistency", "Steady Power", "Low variation in NP across your last 10 rides — steady, repeatable power output."],
                     ["ftp_milestone", "FTP Milestone", "Your estimated FTP (95% of 20-min best) crosses a threshold (150W, 200W, ... 400W). Requires power curve data."],
+                    ["cp_milestone", "CP Milestone", "Your Critical Power (fit from all-time 3–30 min bests) crosses a threshold (150W, 200W, ... 400W). Physiologically grounded — see the CP/W′ FAQ entry."],
                     ["curve_year_best", "Curve Year Best", "Year's best power at a standard duration (5s sprint, 1min anaerobic, 5min VO2max, 20min FTP, etc)."],
                     ["curve_all_time", "Curve Record", "All-time personal record at a standard power curve duration. Your best ever."],
                   ].map(([type, label, desc]) => {
