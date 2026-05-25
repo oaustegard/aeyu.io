@@ -1112,34 +1112,36 @@ export function Dashboard() {
               </div>
             </div>
             <div style="display: flex; flex-direction: column; gap: 6px;">
-              ${POWER_CURVE_DURATIONS.filter((dur) => powerCurveData.value.curve[dur]).map((dur) => {
-                const watts = powerCurveData.value.curve[dur];
-                const maxWatts = Math.max(...POWER_CURVE_DURATIONS.map((d) => powerCurveData.value.curve[d] || 0));
-                const pct = maxWatts > 0 ? Math.round((watts / maxWatts) * 100) : 0;
-                const labels = { 5: "Sprint", 30: "30s", 60: "1 min", 300: "VO\u2082max", 1200: "FTP", 3600: "60 min" };
-                return html`
-                  <div style="display: flex; align-items: center; gap: 6px;" title="${DURATION_LABELS[dur]} best: ${watts}W">
-                    <span style="font-size: 0.6875rem; color: var(--text-secondary); width: 52px; flex-shrink: 0; text-align: right;">${labels[dur]}</span>
-                    <div style="flex: 1; height: 14px; background: var(--border); border-radius: 3px; overflow: hidden;">
-                      <div style="height: 100%; width: ${pct}%; background: #4882A8; border-radius: 3px; transition: width 0.3s;"></div>
+              ${(() => {
+                const labels = { 5: "Sprint", 30: "30s", 60: "1 min", 300: "VO\u2082max", 1200: "20 min", 3600: "60 min" };
+                const rows = POWER_CURVE_DURATIONS
+                  .filter((dur) => powerCurveData.value.curve[dur])
+                  .map((dur) => ({
+                    label: labels[dur],
+                    watts: powerCurveData.value.curve[dur],
+                    title: `${DURATION_LABELS[dur]} best: ${powerCurveData.value.curve[dur]}W`,
+                  }));
+                if (powerCurveData.value.cp) {
+                  rows.push({
+                    label: "CP",
+                    watts: powerCurveData.value.cp.cp,
+                    title: `Critical Power (model fit from 3\u201330 min bests): ${powerCurveData.value.cp.cp}W \u2014 boundary between sustainable and unsustainable effort`,
+                  });
+                }
+                rows.sort((a, b) => b.watts - a.watts);
+                const maxWatts = rows.length > 0 ? rows[0].watts : 0;
+                return rows.map((row) => {
+                  const pct = maxWatts > 0 ? Math.round((row.watts / maxWatts) * 100) : 0;
+                  return html`
+                    <div style="display: flex; align-items: center; gap: 6px;" title="${row.title}">
+                      <span style="font-size: 0.6875rem; color: var(--text-secondary); width: 52px; flex-shrink: 0; text-align: right;">${row.label}</span>
+                      <div style="flex: 1; height: 14px; background: var(--border); border-radius: 3px; overflow: hidden;">
+                        <div style="height: 100%; width: ${pct}%; background: #4882A8; border-radius: 3px; transition: width 0.3s;"></div>
+                      </div>
+                      <span style="font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text); min-width: 2.5rem; text-align: right;">${row.watts}W</span>
                     </div>
-                    <span style="font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text); min-width: 2.5rem; text-align: right;">${watts}W</span>
-                  </div>
-                `;
-              })}
-              ${powerCurveData.value.cp && (() => {
-                const cpWatts = powerCurveData.value.cp.cp;
-                const maxWatts = Math.max(...POWER_CURVE_DURATIONS.map((d) => powerCurveData.value.curve[d] || 0));
-                const pct = maxWatts > 0 ? Math.round((cpWatts / maxWatts) * 100) : 0;
-                return html`
-                  <div style="display: flex; align-items: center; gap: 6px;" title="Critical Power (model fit): ${cpWatts}W \u2014 boundary between sustainable and unsustainable effort">
-                    <span style="font-size: 0.6875rem; color: var(--text-secondary); width: 52px; flex-shrink: 0; text-align: right; font-style: italic;">CP</span>
-                    <div style="flex: 1; height: 14px; background: var(--border); border-radius: 3px; overflow: hidden;">
-                      <div style="height: 100%; width: ${pct}%; background: repeating-linear-gradient(45deg, #6B4F8F, #6B4F8F 4px, #8A6FAD 4px, #8A6FAD 8px); border-radius: 3px; transition: width 0.3s;"></div>
-                    </div>
-                    <span style="font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text); min-width: 2.5rem; text-align: right;">${cpWatts}W</span>
-                  </div>
-                `;
+                  `;
+                });
               })()}
             </div>
           </div>
