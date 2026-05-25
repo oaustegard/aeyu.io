@@ -86,3 +86,39 @@ test('canFitCP: requires ≥2 in-range durations with ≥300s spread', () => {
   assert.equal(canFitCP({ 300: 250, 1200: 230 }), true);
   assert.equal(canFitCP({ 300: 250, 360: 245 }), false, 'spread too small');
 });
+
+// Threshold-crossing scenario backing the cp_milestone award.
+test('CP milestone: prior < threshold, current ≥ threshold detects crossing', () => {
+  const priorBestCurve = { 300: 200, 1200: 180 };
+  const newActivityCurve = { 300: 250, 1200: 230 };
+  const currentBestCurve = {
+    300: Math.max(priorBestCurve[300], newActivityCurve[300]),
+    1200: Math.max(priorBestCurve[1200], newActivityCurve[1200]),
+  };
+  const priorCP = estimateCriticalPower(priorBestCurve);
+  const currentCP = estimateCriticalPower(currentBestCurve);
+  assert.ok(priorCP.cp < 200, `prior CP ${priorCP.cp} should be < 200W threshold`);
+  assert.ok(currentCP.cp >= 200, `current CP ${currentCP.cp} should be ≥ 200W threshold`);
+});
+
+test('CP milestone: stable curve does not fire (no crossing)', () => {
+  const priorBestCurve = { 300: 250, 1200: 230 };
+  const newActivityCurve = { 300: 240, 1200: 220 };
+  const currentBestCurve = {
+    300: Math.max(priorBestCurve[300], newActivityCurve[300]),
+    1200: Math.max(priorBestCurve[1200], newActivityCurve[1200]),
+  };
+  const priorCP = estimateCriticalPower(priorBestCurve);
+  const currentCP = estimateCriticalPower(currentBestCurve);
+  assert.equal(priorCP.cp, currentCP.cp, 'curve unchanged → CP unchanged → no new award');
+});
+
+test('CP milestone: prior null (no prior power curves) still fires when current ≥ threshold', () => {
+  const priorBestCurve = {};
+  const newActivityCurve = { 300: 260, 1200: 240 };
+  const currentBestCurve = { ...newActivityCurve };
+  const priorCP = estimateCriticalPower(priorBestCurve);
+  const currentCP = estimateCriticalPower(currentBestCurve);
+  assert.equal(priorCP, null);
+  assert.ok(currentCP.cp >= 200, 'first-ever fit should still cross thresholds');
+});

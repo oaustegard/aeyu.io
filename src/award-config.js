@@ -61,6 +61,7 @@ export const AWARD_LABELS = {
   power_progression:    { label: "Power Up",          tip: "Normalized Power trending upward over last 10 rides", dot: "#3D7A4A", bg: "#E4F0E4", text: "#204E28", border: "#B8D4B0" },
   power_consistency:    { label: "Steady Power",      tip: "Low NP variation across last 10 rides", dot: "#6B6260", bg: "#ECEAE6", text: "#3E3A36", border: "#D4D0C8" },
   ftp_milestone:        { label: "FTP Milestone",     tip: "Estimated FTP crosses a new threshold", dot: "#A03020", bg: "#F6DCD4", text: "#6E1810", border: "#E4B0A4" },
+  cp_milestone:         { label: "CP Milestone",      tip: "Critical Power (fit from 3–30 min bests) crosses a new threshold", dot: "#6B4F8F", bg: "#ECE4F0", text: "#3D2A60", border: "#CCC0D8" },
   // Power curve awards (#48)
   curve_year_best:      { label: "Curve Year Best",   tip: "Year's best power at a standard duration", dot: "#B8862E", bg: "#FBF0D8", text: "#6E5010", border: "#E8D4A0" },
   curve_all_time:       { label: "Curve Record",      tip: "All-time personal record at a power curve duration", dot: "#A03020", bg: "#F6DCD4", text: "#6E1810", border: "#E4B0A4" },
@@ -130,6 +131,7 @@ export const AWARD_GROUPS = [
       { type: "power_progression", desc: "Your Normalized Power is trending upward over your last 10 rides." },
       { type: "power_consistency", desc: "Low variation in NP across your last 10 rides — steady, repeatable power output." },
       { type: "ftp_milestone", desc: "Your estimated FTP crosses a threshold (150W, 200W, ... 400W). Requires power curve data." },
+      { type: "cp_milestone", desc: "Your Critical Power (fit from all-time 3–30 min bests) crosses a threshold (150W, 200W, ... 400W). Requires multiple power-metered rides." },
     ],
   },
   {

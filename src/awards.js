@@ -88,6 +88,7 @@
 import { getSegment, getResetEvent, recordRecoveryMilestone, getUserConfig, getAllActivities, putRoutes, getStravaRoutes } from "./db.js";
 import { formatTime, formatDistance } from "./units.js";
 import { detectRoutes, findRouteForActivity } from "./routes.js";
+import { estimateCriticalPower } from "./critical-power.js";
 
 /** Minimum total efforts on a segment before comparative awards apply */
 const MIN_EFFORTS_FOR_AWARDS = 3;
@@ -145,6 +146,9 @@ const KJ_MILESTONES = [500, 1000, 1500, 2000, 2500, 3000];
 
 /** FTP milestones (based on 95% of 20-min best power) */
 const FTP_MILESTONES = [150, 200, 250, 300, 350, 400];
+
+/** Critical Power milestones (fit from all-time best curve, 3–30 min range) */
+const CP_MILESTONES = [150, 200, 250, 300, 350, 400];
 
 /** Power curve duration labels for award messages */
 const CURVE_DURATION_LABELS = {
@@ -1848,6 +1852,45 @@ export function computeRideLevelAwards(activity, allActivities, resetEvent = nul
               comparison: null,
               delta: null,
               message: `Estimated FTP: ${currentFTP}W — you've crossed the ${threshold}W threshold!`,
+            });
+            break;
+          }
+        }
+      }
+    }
+
+    // --- Critical Power Milestone ---
+    // Fires when this activity pushes the all-time CP fit across a threshold.
+    // Mirrors how the dashboard displays CP (from all-time best curve), so a CP
+    // milestone here means the displayed CP actually crossed the threshold.
+    if (activity.power_curve) {
+      const priorWithCurves = allPoweredSameType.filter((a) => a.power_curve);
+      const priorBestCurve = {};
+      for (const a of priorWithCurves) {
+        for (const [durStr, watts] of Object.entries(a.power_curve)) {
+          const dur = parseInt(durStr, 10);
+          if (!priorBestCurve[dur] || watts > priorBestCurve[dur]) priorBestCurve[dur] = watts;
+        }
+      }
+      const currentBestCurve = { ...priorBestCurve };
+      for (const [durStr, watts] of Object.entries(activity.power_curve)) {
+        const dur = parseInt(durStr, 10);
+        if (!currentBestCurve[dur] || watts > currentBestCurve[dur]) currentBestCurve[dur] = watts;
+      }
+      const currentCP = estimateCriticalPower(currentBestCurve);
+      const priorCP = estimateCriticalPower(priorBestCurve);
+      if (currentCP) {
+        for (const threshold of CP_MILESTONES) {
+          if (currentCP.cp >= threshold && (!priorCP || priorCP.cp < threshold)) {
+            awards.push({
+              type: "cp_milestone",
+              segment: null,
+              segment_id: null,
+              time: null,
+              power: currentCP.cp,
+              comparison: null,
+              delta: null,
+              message: `Critical Power: ${currentCP.cp}W (W′ ${(currentCP.wPrime / 1000).toFixed(1)}kJ) — you've crossed the ${threshold}W CP threshold!`,
             });
             break;
           }

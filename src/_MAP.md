@@ -24,18 +24,18 @@
 
 ### award-config.js
 - **AWARD_LABELS** (variable) :9
-- **AWARD_COLORS** (variable) :70
-- **AWARD_GROUPS** (variable) :76
+- **AWARD_COLORS** (variable) :71
+- **AWARD_GROUPS** (variable) :77
 
 ### awards.js
-> Imports: `db.js, units.js, routes.js`
-- **rankSegmentAwards** (f) `(awards)` :248
-- **computeAwards** (f) `(activity, resetEvent = null, referencePoints = [])` :643
-- **computeRideLevelAwards** (f) `(activity, allActivities, resetEvent = null)` :1228
-- **computeAwardsForActivities** (f) `(activities, disabledAwardTypes = null)` :1935
-- **computeWeeklyStreaks** (f) `(allActivities)` :2093
-- **detectGroupRides** (f) `(allActivities, routes = [])` :2215
-- **computeStreakData** (f) `(allActivities, routes = [])` :2416
+> Imports: `db.js, units.js, routes.js, critical-power.js`
+- **rankSegmentAwards** (f) `(awards)` :252
+- **computeAwards** (f) `(activity, resetEvent = null, referencePoints = [])` :647
+- **computeRideLevelAwards** (f) `(activity, allActivities, resetEvent = null)` :1232
+- **computeAwardsForActivities** (f) `(activities, disabledAwardTypes = null)` :1978
+- **computeWeeklyStreaks** (f) `(allActivities)` :2136
+- **detectGroupRides** (f) `(allActivities, routes = [])` :2258
+- **computeStreakData** (f) `(allActivities, routes = [])` :2459
 
 ### config.js
 - **STRAVA_CLIENT_ID** (variable) :6
@@ -121,10 +121,10 @@
 
 ### icons.js
 > Imports: `preact`
-- **renderIconSVG** (f) `(type, { size = 16, color = "#6B6260", strokeWidth } = {})` :368
-- **AwardIcon** (f) `({ type, size, color, strokeWidth })` :415
-- **drawIcon** (f) `(ctx, type, x, y, size, color, strokeWidth = 2)` :434
-- **ICON_TYPES** (variable) :518
+- **renderIconSVG** (f) `(type, { size = 16, color = "#6B6260", strokeWidth } = {})` :369
+- **AwardIcon** (f) `({ type, size, color, strokeWidth })` :416
+- **drawIcon** (f) `(ctx, type, x, y, size, color, strokeWidth = 2)` :435
+- **ICON_TYPES** (variable) :519
 
 ### install.js
 > Imports: `signals`

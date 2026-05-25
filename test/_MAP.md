@@ -1,11 +1,15 @@
 # test/
-*Files: 5 | Subdirectories: 1*
+*Files: 6 | Subdirectories: 1*
 
 ## Subdirectories
 
 - [screenshots/](./screenshots/_MAP.md)
 
 ## Files
+
+### critical-power.test.js
+> Imports: `node:test, strict, critical-power.js`
+- *No top-level symbols*
 
 ### gear-stats.test.js
 > Imports: `node:test, strict, gear-stats.js`
