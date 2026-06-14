@@ -698,6 +698,27 @@ export async function buildRideExport(activityId, options = {}) {
     ride.avg_hr = Math.round(act.average_heartrate);
     ride.max_hr = Math.round(act.max_heartrate || 0);
   }
+  if (act.durability && act.durability !== false) {
+    const d = act.durability;
+    ride.durability = {};
+    if (d.decoupling) {
+      ride.durability.decoupling_pct = d.decoupling.decouplingPct;
+      if (d.decoupling.matched) {
+        ride.durability.matched_power_hr = {
+          band_w: d.decoupling.matched.band,
+          first_half_bpm: d.decoupling.matched.hrFirst,
+          second_half_bpm: d.decoupling.matched.hrSecond,
+        };
+      }
+    }
+    if (d.blocks) {
+      ride.durability.sustained_blocks = d.blocks.byThreshold.map((b) => ({
+        at_or_above_bpm: b.threshold,
+        longest_min: +(b.longestSec / 60).toFixed(1),
+        total_min: +(b.totalSec / 60).toFixed(1),
+      }));
+    }
+  }
   if (act.suffer_score) ride.suffer_score = act.suffer_score;
 
   const ctx = {
