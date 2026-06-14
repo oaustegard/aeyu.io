@@ -1538,6 +1538,37 @@ export function ActivityDetail({ id }) {
           </div>
         `}
 
+        <!-- Durability (within-ride decoupling + sustained blocks) -->
+        ${act.durability && act.durability !== false && html`
+          <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
+            <h2 style="font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem;">Durability</h2>
+            ${act.durability.decoupling && html`
+              <div class="mb-3">
+                <div class="flex items-baseline justify-between">
+                  <span class="text-xs" style="color: var(--text-secondary); font-family: var(--font-body);" title="How much your power-to-heart-rate ratio drifts from the first half of the ride to the second. Under 5% means you held output against a steady heart-rate cost — a durable aerobic engine.">Aerobic decoupling</span>
+                  <span class="text-sm font-semibold" style="font-family: var(--font-mono); color: ${act.durability.decoupling.decouplingPct <= 5 ? 'var(--text)' : '#F97316'};">${act.durability.decoupling.decouplingPct}%</span>
+                </div>
+                ${act.durability.decoupling.matched && html`
+                  <p class="text-xs mt-1" style="color: var(--text-tertiary); font-family: var(--font-body);">
+                    Same power (${act.durability.decoupling.matched.band[0]}–${act.durability.decoupling.matched.band[1]}W) cost ${act.durability.decoupling.matched.hrFirst} bpm early vs ${act.durability.decoupling.matched.hrSecond} bpm late.
+                  </p>
+                `}
+              </div>
+            `}
+            ${act.durability.blocks && html`
+              <div>
+                <p class="text-xs mb-1" style="color: var(--text-secondary); font-family: var(--font-body);" title="The longest unbroken stretch held at or above each heart-rate floor — how long you can actually sit in the zone, not just total time accumulated.">Longest sustained block</p>
+                ${act.durability.blocks.byThreshold.slice().reverse().map(b => html`
+                  <div class="flex items-baseline justify-between py-0.5" style="font-family: var(--font-mono); font-size: 0.7rem;">
+                    <span style="color: var(--text-tertiary);">≥ ${b.threshold} bpm</span>
+                    <span style="color: var(--text);">${formatZoneTime(b.longestSec)} <span style="color: var(--text-tertiary);">/ ${formatZoneTime(b.totalSec)} total</span></span>
+                  </div>
+                `)}
+              </div>
+            `}
+          </div>
+        `}
+
         <!-- LLM Export — always visible -->
         <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">
           <p class="text-xs font-medium mb-1" style="color: var(--text-secondary); font-family: var(--font-body);">Export for AI Coach</p>
