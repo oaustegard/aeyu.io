@@ -54,7 +54,7 @@ Season context (northern hemisphere cycling seasons) is included for UI display.
 
 ## Within-Ride Durability
 
-Two single-ride fatigue-resistance metrics computed from the per-second watts + heartrate streams during the power-curve sync pass. Entry point: [[src/durability.js#computeDurability]]. Stored on the activity as `durability` (or `false` when power exists but HR does not). Surfaced in the ActivityDetail "Durability" card and the single-ride coach export ([[coaching#Single Ride Export]]).
+Two single-ride fatigue-resistance metrics computed from the per-second watts + heartrate streams during the power-curve sync pass. Entry point: [[src/durability.js#computeDurability]]. Stored on the activity as `durability` (or `false` when no usable stream). Computed in the [[src/sync.js#fetchPowerCurves]] pass for any power-metered ride missing it, so existing history backfills on the next sync — not just new rides. Surfaced in the ActivityDetail "Durability" card and the single-ride coach export ([[coaching#Single Ride Export]]).
 
 These are the within-ride analogue of the athlete-level [[fitness#Aerobic Efficiency]] metric: that one trends Efficiency Factor across weeks of rides; these expose how a single ride held up minute to minute, which Strava does not show.
 
