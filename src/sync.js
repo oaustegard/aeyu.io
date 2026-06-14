@@ -415,14 +415,15 @@ async function fetchActivityDetails() {
 async function fetchPowerCurves() {
   const all = await getAllActivities();
   const pending = all.filter(
-    (a) => a.device_watts && a.has_efforts && a.power_curve !== false && !a.power_curve
+    (a) => a.device_watts && a.has_efforts && a.power_curve !== false &&
+           (!a.power_curve || a.durability === undefined)
   );
   if (pending.length === 0) return;
 
   syncProgress.value = {
     ...syncProgress.value,
     phase: "detail",
-    message: `Fetching power curves: 0/${pending.length}`,
+    message: `Fetching power & durability data: 0/${pending.length}`,
   };
 
   let completed = 0;
@@ -431,7 +432,7 @@ async function fetchPowerCurves() {
     if (isRateLimited()) {
       syncProgress.value = {
         ...syncProgress.value,
-        message: `Power curves paused (rate limit) — ${completed}/${pending.length} done.`,
+        message: `Power & durability data paused (rate limit) — ${completed}/${pending.length} done.`,
       };
       break;
     }
@@ -442,24 +443,24 @@ async function fetchPowerCurves() {
       );
       const watts = data.watts && data.watts.data ? data.watts.data : null;
       const hr = data.heartrate && data.heartrate.data ? data.heartrate.data : null;
-      const curve = watts ? computePowerCurve(watts) : null;
+      const curve = activity.power_curve || (watts ? computePowerCurve(watts) : null);
       const durability = (watts && hr)
         ? computeDurability(watts, hr, hrThresholds(activity.max_heartrate))
         : null;
-      // Use false for permanent "no data" (streams exist but no watts), truthy curve for success
+      // false = permanent "no usable stream data" (no watts, or no HR for durability)
       await putActivity({ ...activity, power_curve: curve || false, durability: durability || false });
     } catch (err) {
       if (err instanceof RateLimitError) {
         syncProgress.value = {
           ...syncProgress.value,
-          message: `Power curves paused (rate limit) — ${completed}/${pending.length} done.`,
+          message: `Power & durability data paused (rate limit) — ${completed}/${pending.length} done.`,
         };
         break;
       }
       if (err.status === 404 || err.status === 403) {
         // No streams available for this activity — mark permanently with false
         // (null is reserved for retryable/legacy entries)
-        await putActivity({ ...activity, power_curve: false });
+        await putActivity({ ...activity, power_curve: false, durability: false });
       } else {
         // Transient error (network, 500, etc.) — skip but leave for retry
         console.warn(`Power curve fetch failed for activity ${activity.id}:`, err.message);
@@ -469,7 +470,7 @@ async function fetchPowerCurves() {
     completed++;
     syncProgress.value = {
       ...syncProgress.value,
-      message: `Fetching power curves: ${completed}/${pending.length}`,
+      message: `Fetching power & durability data: ${completed}/${pending.length}`,
     };
   }
 }
