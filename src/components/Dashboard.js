@@ -135,6 +135,11 @@ const FAQ_ENTRIES = [
     answer: "If you ride with a power meter, the app can fetch your per-second power data and compute your power curve — your best average power at standard durations (5s sprint, 30s, 1 min, 5 min VO2max, 20 min FTP proxy, 60 min sustained). Your FTP is estimated as 95% of your best 20-minute power.",
   },
   {
+    id: "durability",
+    question: "What is Durability?",
+    answer: "For rides with both power and heart-rate data, the activity page shows two within-ride fatigue metrics Strava doesn't. Aerobic decoupling compares your power-to-heart-rate ratio in the first half vs the second half — under 5% means you held your output against a steady heart-rate cost, the mark of a durable aerobic engine. It also reports what the same power band cost in heartbeats early vs late. Longest sustained block shows the longest unbroken stretch you held at or above each heart-rate level — how long you can actually sit in a zone, not just total time accumulated.",
+  },
+  {
     id: "units",
     question: "Can I switch between metric and imperial?",
     answer: "Yes — tap the unit toggle button in the header (km/mi). This switches all distance, elevation, and speed values between metric and imperial. Your preference is saved locally and persists between sessions.",

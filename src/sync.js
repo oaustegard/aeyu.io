@@ -23,6 +23,12 @@ import {
   getStravaRoutes,
 } from "./db.js";
 import { computePowerCurve } from "./power-curve.js";
+import { computeDurability } from "./durability.js";
+
+function hrThresholds(maxHr) {
+  const hm = maxHr && maxHr > 120 ? maxHr : 185;
+  return [0.70, 0.80, 0.87, 0.93].map((f) => Math.round(hm * f));
+}
 
 // --- Signals ---
 
@@ -432,12 +438,16 @@ async function fetchPowerCurves() {
 
     try {
       const data = await stravaFetch(
-        `/activities/${activity.id}/streams?keys=watts,time&key_by_type=true`
+        `/activities/${activity.id}/streams?keys=watts,heartrate,time&key_by_type=true`
       );
       const watts = data.watts && data.watts.data ? data.watts.data : null;
+      const hr = data.heartrate && data.heartrate.data ? data.heartrate.data : null;
       const curve = watts ? computePowerCurve(watts) : null;
+      const durability = (watts && hr)
+        ? computeDurability(watts, hr, hrThresholds(activity.max_heartrate))
+        : null;
       // Use false for permanent "no data" (streams exist but no watts), truthy curve for success
-      await putActivity({ ...activity, power_curve: curve || false });
+      await putActivity({ ...activity, power_curve: curve || false, durability: durability || false });
     } catch (err) {
       if (err instanceof RateLimitError) {
         syncProgress.value = {

@@ -51,3 +51,19 @@ When the athlete has power-metered rides but no heart rate data in the recent wi
 **ideal** — both trending up. **pushing** — capacity up, efficiency flat. **building** — efficiency up, capacity flat. **overreaching** — capacity up but efficiency dropping. **detraining** — both declining. **maintaining** — stable.
 
 Season context (northern hemisphere cycling seasons) is included for UI display.
+
+## Within-Ride Durability
+
+Two single-ride fatigue-resistance metrics computed from the per-second watts + heartrate streams during the power-curve sync pass. Entry point: [[src/durability.js#computeDurability]]. Stored on the activity as `durability` (or `false` when power exists but HR does not). Surfaced in the ActivityDetail "Durability" card and the single-ride coach export ([[coaching#Single Ride Export]]).
+
+These are the within-ride analogue of the athlete-level [[fitness#Aerobic Efficiency]] metric: that one trends Efficiency Factor across weeks of rides; these expose how a single ride held up minute to minute, which Strava does not show.
+
+### Aerobic Decoupling
+
+[[src/durability.js#computeDecoupling]] splits the ride in half and compares the power-to-HR ratio (EF) of each half: `decouplingPct = (efFirst − efSecond) / efFirst × 100`. Under ~5% indicates output held against a steady HR cost. Requires ≥600 samples (~10 min) or returns null.
+
+A matched-power refinement centers a ±20% band on whole-ride average power and reports mean HR in that band first half vs second half — isolating drift at comparable output. Reported only when ≥30 samples land in the band in each half (skipped for highly variable interval rides).
+
+### Sustained Blocks
+
+[[src/durability.js#computeSustainedBlocks]] computes, for each HR floor, the longest *unbroken* run at or above it plus cumulative time. Floors derive from observed max HR (0.70/0.80/0.87/0.93 × max, fallback max 185) in [[src/sync.js#hrThresholds]]. The "Time in Zones" card shows cumulative time; this shows the longest stretch actually held — the durability read.
