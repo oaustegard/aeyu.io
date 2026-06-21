@@ -49,6 +49,9 @@
   table { width:100%; border-collapse:collapse; margin-top:18px; font-size:.92rem; }
   thead th { text-align:left; font-size:.7rem; text-transform:uppercase; letter-spacing:.06em;
               color:var(--text-tertiary); font-weight:600; padding:8px 8px; border-bottom:1px solid var(--border); }
+  th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
+  th.sortable:hover { color:var(--accent); }
+  .arr { font-size:.65rem; }
   tbody td { padding:9px 8px; border-bottom:1px solid var(--border-light); vertical-align:middle; }
   tbody tr:hover { background:var(--surface-hover); }
   .c-rk { width:34px; text-align:center; font-family:var(--font-mono); }
@@ -111,360 +114,365 @@
 
   <table>
     <thead><tr>
-      <th></th><th>Q</th><th class="ind-k">IND</th><th class="rot-k">ROT</th>
-      <th>avg&nbsp;mph</th><th>date</th><th>ride</th>
+      <th class="sortable" data-col="0" data-type="num">#<span class="arr"></span></th>
+      <th class="sortable" data-col="1" data-type="num">Q<span class="arr"> ▼</span></th>
+      <th class="sortable ind-k" data-col="2" data-type="num">IND<span class="arr"></span></th>
+      <th class="sortable rot-k" data-col="3" data-type="num">ROT<span class="arr"></span></th>
+      <th class="sortable" data-col="4" data-type="num">avg&nbsp;mph<span class="arr"></span></th>
+      <th class="sortable" data-col="5" data-type="str">date<span class="arr"></span></th>
+      <th class="sortable" data-col="6" data-type="str">ride<span class="arr"></span></th>
     </tr></thead>
     <tbody>
 <tr>
-  <td class="c-rk">🥇</td>
-  <td class="c-q"><b>88</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:88%;background:var(--steel)"></span></span><span class="num">88</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:89%;background:var(--accent)"></span></span><span class="num">89</span></td>
-  <td class="c-avg">22.0</td>
-  <td class="c-date">2023-09-03</td>
-  <td class="c-name">One cappuccino, decaf, please <span class="badge cad">cadence</span></td>
+  <td class="c-rk" data-sort="1">🥇</td>
+  <td class="c-q" data-sort="88"><b>88</b></td>
+  <td class="c-sub" data-sort="88"><span class="bar"><span class="fill" style="width:88%;background:var(--steel)"></span></span><span class="num">88</span></td>
+  <td class="c-sub" data-sort="89"><span class="bar"><span class="fill" style="width:89%;background:var(--accent)"></span></span><span class="num">89</span></td>
+  <td class="c-avg" data-sort="22.0">22.0</td>
+  <td class="c-date" data-sort="2023-09-03">2023-09-03</td>
+  <td class="c-name" data-sort="one cappuccino, decaf, please">One cappuccino, decaf, please <span class="badge cad">cadence</span></td>
 </tr>
 <tr>
-  <td class="c-rk">🥈</td>
-  <td class="c-q"><b>85</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:85%;background:var(--steel)"></span></span><span class="num">85</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:85%;background:var(--accent)"></span></span><span class="num">85</span></td>
-  <td class="c-avg">21.5</td>
-  <td class="c-date">2025-10-26</td>
-  <td class="c-name">Cappuccino + <span class="badge cad">cadence</span></td>
+  <td class="c-rk" data-sort="2">🥈</td>
+  <td class="c-q" data-sort="85"><b>85</b></td>
+  <td class="c-sub" data-sort="85"><span class="bar"><span class="fill" style="width:85%;background:var(--steel)"></span></span><span class="num">85</span></td>
+  <td class="c-sub" data-sort="85"><span class="bar"><span class="fill" style="width:85%;background:var(--accent)"></span></span><span class="num">85</span></td>
+  <td class="c-avg" data-sort="21.5">21.5</td>
+  <td class="c-date" data-sort="2025-10-26">2025-10-26</td>
+  <td class="c-name" data-sort="cappuccino +">Cappuccino + <span class="badge cad">cadence</span></td>
 </tr>
 <tr>
-  <td class="c-rk">🥉</td>
-  <td class="c-q"><b>84</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:81%;background:var(--steel)"></span></span><span class="num">81</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:86%;background:var(--accent)"></span></span><span class="num">86</span></td>
-  <td class="c-avg">20.7</td>
-  <td class="c-date">2024-07-21</td>
-  <td class="c-name">Chill Cappuccino <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="3">🥉</td>
+  <td class="c-q" data-sort="84"><b>84</b></td>
+  <td class="c-sub" data-sort="81"><span class="bar"><span class="fill" style="width:81%;background:var(--steel)"></span></span><span class="num">81</span></td>
+  <td class="c-sub" data-sort="86"><span class="bar"><span class="fill" style="width:86%;background:var(--accent)"></span></span><span class="num">86</span></td>
+  <td class="c-avg" data-sort="20.7">20.7</td>
+  <td class="c-date" data-sort="2024-07-21">2024-07-21</td>
+  <td class="c-name" data-sort="chill cappuccino">Chill Cappuccino <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">4</span></td>
-  <td class="c-q"><b>82</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:92%;background:var(--steel)"></span></span><span class="num">92</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:71%;background:var(--accent)"></span></span><span class="num">71</span></td>
-  <td class="c-avg">21.2</td>
-  <td class="c-date">2024-10-20</td>
-  <td class="c-name">Cappuccino con Cappuccino! <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="4"><span class="rk">4</span></td>
+  <td class="c-q" data-sort="82"><b>82</b></td>
+  <td class="c-sub" data-sort="92"><span class="bar"><span class="fill" style="width:92%;background:var(--steel)"></span></span><span class="num">92</span></td>
+  <td class="c-sub" data-sort="71"><span class="bar"><span class="fill" style="width:71%;background:var(--accent)"></span></span><span class="num">71</span></td>
+  <td class="c-avg" data-sort="21.2">21.2</td>
+  <td class="c-date" data-sort="2024-10-20">2024-10-20</td>
+  <td class="c-name" data-sort="cappuccino con cappuccino!">Cappuccino con Cappuccino! <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">5</span></td>
-  <td class="c-q"><b>82</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:85%;background:var(--steel)"></span></span><span class="num">85</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:79%;background:var(--accent)"></span></span><span class="num">79</span></td>
-  <td class="c-avg">21.7</td>
-  <td class="c-date">2025-11-02</td>
-  <td class="c-name">Cappuccino <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="5"><span class="rk">5</span></td>
+  <td class="c-q" data-sort="82"><b>82</b></td>
+  <td class="c-sub" data-sort="85"><span class="bar"><span class="fill" style="width:85%;background:var(--steel)"></span></span><span class="num">85</span></td>
+  <td class="c-sub" data-sort="79"><span class="bar"><span class="fill" style="width:79%;background:var(--accent)"></span></span><span class="num">79</span></td>
+  <td class="c-avg" data-sort="21.7">21.7</td>
+  <td class="c-date" data-sort="2025-11-02">2025-11-02</td>
+  <td class="c-name" data-sort="cappuccino">Cappuccino <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">6</span></td>
-  <td class="c-q"><b>80</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:92%;background:var(--steel)"></span></span><span class="num">92</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:69%;background:var(--accent)"></span></span><span class="num">69</span></td>
-  <td class="c-avg">19.0</td>
-  <td class="c-date">2024-02-25</td>
-  <td class="c-name">Extra-Foamy, Vanilla Bean-Infused, Oat Milk Cappuccino with a Half-Spoon of Raw Sugar, a Dash of Cinnamon, Topped with Cocoa Powder, Served at Exactly 62 Degrees Celsius in a Pre-Warmed, Hand-Painted Ceramic Cup Ride <span class="badge cad">cadence</span></td>
+  <td class="c-rk" data-sort="6"><span class="rk">6</span></td>
+  <td class="c-q" data-sort="80"><b>80</b></td>
+  <td class="c-sub" data-sort="92"><span class="bar"><span class="fill" style="width:92%;background:var(--steel)"></span></span><span class="num">92</span></td>
+  <td class="c-sub" data-sort="69"><span class="bar"><span class="fill" style="width:69%;background:var(--accent)"></span></span><span class="num">69</span></td>
+  <td class="c-avg" data-sort="19.0">19.0</td>
+  <td class="c-date" data-sort="2024-02-25">2024-02-25</td>
+  <td class="c-name" data-sort="extra-foamy, vanilla bean-infused, oat milk cappuccino with a half-spoon of raw sugar, a dash of cinnamon, topped with cocoa powder, served at exactly 62 degrees celsius in a pre-warmed, hand-painted ceramic cup ride">Extra-Foamy, Vanilla Bean-Infused, Oat Milk Cappuccino with a Half-Spoon of Raw Sugar, a Dash of Cinnamon, Topped with Cocoa Powder, Served at Exactly 62 Degrees Celsius in a Pre-Warmed, Hand-Painted Ceramic Cup Ride <span class="badge cad">cadence</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">7</span></td>
-  <td class="c-q"><b>80</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:69%;background:var(--steel)"></span></span><span class="num">69</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:91%;background:var(--accent)"></span></span><span class="num">91</span></td>
-  <td class="c-avg">22.9</td>
-  <td class="c-date">2026-05-10</td>
-  <td class="c-name">Mother’s Day Cappuccino Express(o) <span class="badge cad">cadence</span></td>
+  <td class="c-rk" data-sort="7"><span class="rk">7</span></td>
+  <td class="c-q" data-sort="80"><b>80</b></td>
+  <td class="c-sub" data-sort="69"><span class="bar"><span class="fill" style="width:69%;background:var(--steel)"></span></span><span class="num">69</span></td>
+  <td class="c-sub" data-sort="91"><span class="bar"><span class="fill" style="width:91%;background:var(--accent)"></span></span><span class="num">91</span></td>
+  <td class="c-avg" data-sort="22.9">22.9</td>
+  <td class="c-date" data-sort="2026-05-10">2026-05-10</td>
+  <td class="c-name" data-sort="mother’s day cappuccino express(o)">Mother’s Day Cappuccino Express(o) <span class="badge cad">cadence</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">8</span></td>
-  <td class="c-q"><b>79</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:76%;background:var(--steel)"></span></span><span class="num">76</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:82%;background:var(--accent)"></span></span><span class="num">82</span></td>
-  <td class="c-avg">20.2</td>
-  <td class="c-date">2024-02-18</td>
-  <td class="c-name">Cappuccino in the Afternoon <span class="badge cad">cadence</span></td>
+  <td class="c-rk" data-sort="8"><span class="rk">8</span></td>
+  <td class="c-q" data-sort="79"><b>79</b></td>
+  <td class="c-sub" data-sort="76"><span class="bar"><span class="fill" style="width:76%;background:var(--steel)"></span></span><span class="num">76</span></td>
+  <td class="c-sub" data-sort="82"><span class="bar"><span class="fill" style="width:82%;background:var(--accent)"></span></span><span class="num">82</span></td>
+  <td class="c-avg" data-sort="20.2">20.2</td>
+  <td class="c-date" data-sort="2024-02-18">2024-02-18</td>
+  <td class="c-name" data-sort="cappuccino in the afternoon">Cappuccino in the Afternoon <span class="badge cad">cadence</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">9</span></td>
-  <td class="c-q"><b>77</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:69%;background:var(--steel)"></span></span><span class="num">69</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:85%;background:var(--accent)"></span></span><span class="num">85</span></td>
-  <td class="c-avg">20.8</td>
-  <td class="c-date">2024-08-04</td>
-  <td class="c-name">Half-caf Cappuccino <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="9"><span class="rk">9</span></td>
+  <td class="c-q" data-sort="77"><b>77</b></td>
+  <td class="c-sub" data-sort="69"><span class="bar"><span class="fill" style="width:69%;background:var(--steel)"></span></span><span class="num">69</span></td>
+  <td class="c-sub" data-sort="85"><span class="bar"><span class="fill" style="width:85%;background:var(--accent)"></span></span><span class="num">85</span></td>
+  <td class="c-avg" data-sort="20.8">20.8</td>
+  <td class="c-date" data-sort="2024-08-04">2024-08-04</td>
+  <td class="c-name" data-sort="half-caf cappuccino">Half-caf Cappuccino <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">10</span></td>
-  <td class="c-q"><b>76</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:53%;background:var(--steel)"></span></span><span class="num">53</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:100%;background:var(--accent)"></span></span><span class="num">100</span></td>
-  <td class="c-avg">21.7</td>
-  <td class="c-date">2024-03-03</td>
-  <td class="c-name">Cappuccino plus plus <span class="badge cad">cadence</span></td>
+  <td class="c-rk" data-sort="10"><span class="rk">10</span></td>
+  <td class="c-q" data-sort="76"><b>76</b></td>
+  <td class="c-sub" data-sort="53"><span class="bar"><span class="fill" style="width:53%;background:var(--steel)"></span></span><span class="num">53</span></td>
+  <td class="c-sub" data-sort="100"><span class="bar"><span class="fill" style="width:100%;background:var(--accent)"></span></span><span class="num">100</span></td>
+  <td class="c-avg" data-sort="21.7">21.7</td>
+  <td class="c-date" data-sort="2024-03-03">2024-03-03</td>
+  <td class="c-name" data-sort="cappuccino plus plus">Cappuccino plus plus <span class="badge cad">cadence</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">11</span></td>
-  <td class="c-q"><b>76</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:69%;background:var(--steel)"></span></span><span class="num">69</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:83%;background:var(--accent)"></span></span><span class="num">83</span></td>
-  <td class="c-avg">20.5</td>
-  <td class="c-date">2025-06-22</td>
-  <td class="c-name">Cursed Cappuccino <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="11"><span class="rk">11</span></td>
+  <td class="c-q" data-sort="76"><b>76</b></td>
+  <td class="c-sub" data-sort="69"><span class="bar"><span class="fill" style="width:69%;background:var(--steel)"></span></span><span class="num">69</span></td>
+  <td class="c-sub" data-sort="83"><span class="bar"><span class="fill" style="width:83%;background:var(--accent)"></span></span><span class="num">83</span></td>
+  <td class="c-avg" data-sort="20.5">20.5</td>
+  <td class="c-date" data-sort="2025-06-22">2025-06-22</td>
+  <td class="c-name" data-sort="cursed cappuccino">Cursed Cappuccino <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">12</span></td>
-  <td class="c-q"><b>76</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:67%;background:var(--steel)"></span></span><span class="num">67</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:84%;background:var(--accent)"></span></span><span class="num">84</span></td>
-  <td class="c-avg">19.7</td>
-  <td class="c-date">2026-05-03</td>
-  <td class="c-name">Cappuccinoesque <span class="badge cad">cadence</span></td>
+  <td class="c-rk" data-sort="12"><span class="rk">12</span></td>
+  <td class="c-q" data-sort="76"><b>76</b></td>
+  <td class="c-sub" data-sort="67"><span class="bar"><span class="fill" style="width:67%;background:var(--steel)"></span></span><span class="num">67</span></td>
+  <td class="c-sub" data-sort="84"><span class="bar"><span class="fill" style="width:84%;background:var(--accent)"></span></span><span class="num">84</span></td>
+  <td class="c-avg" data-sort="19.7">19.7</td>
+  <td class="c-date" data-sort="2026-05-03">2026-05-03</td>
+  <td class="c-name" data-sort="cappuccinoesque">Cappuccinoesque <span class="badge cad">cadence</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">13</span></td>
-  <td class="c-q"><b>74</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:62%;background:var(--steel)"></span></span><span class="num">62</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:86%;background:var(--accent)"></span></span><span class="num">86</span></td>
-  <td class="c-avg">21.7</td>
-  <td class="c-date">2023-10-01</td>
-  <td class="c-name">Cappuccino- part decaf <span class="badge cad">cadence</span></td>
+  <td class="c-rk" data-sort="13"><span class="rk">13</span></td>
+  <td class="c-q" data-sort="74"><b>74</b></td>
+  <td class="c-sub" data-sort="62"><span class="bar"><span class="fill" style="width:62%;background:var(--steel)"></span></span><span class="num">62</span></td>
+  <td class="c-sub" data-sort="86"><span class="bar"><span class="fill" style="width:86%;background:var(--accent)"></span></span><span class="num">86</span></td>
+  <td class="c-avg" data-sort="21.7">21.7</td>
+  <td class="c-date" data-sort="2023-10-01">2023-10-01</td>
+  <td class="c-name" data-sort="cappuccino- part decaf">Cappuccino- part decaf <span class="badge cad">cadence</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">14</span></td>
-  <td class="c-q"><b>73</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:74%;background:var(--steel)"></span></span><span class="num">74</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:72%;background:var(--accent)"></span></span><span class="num">72</span></td>
-  <td class="c-avg">19.9</td>
-  <td class="c-date">2024-11-24</td>
-  <td class="c-name">Cappuccino (sans park) <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="14"><span class="rk">14</span></td>
+  <td class="c-q" data-sort="73"><b>73</b></td>
+  <td class="c-sub" data-sort="74"><span class="bar"><span class="fill" style="width:74%;background:var(--steel)"></span></span><span class="num">74</span></td>
+  <td class="c-sub" data-sort="72"><span class="bar"><span class="fill" style="width:72%;background:var(--accent)"></span></span><span class="num">72</span></td>
+  <td class="c-avg" data-sort="19.9">19.9</td>
+  <td class="c-date" data-sort="2024-11-24">2024-11-24</td>
+  <td class="c-name" data-sort="cappuccino (sans park)">Cappuccino (sans park) <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">15</span></td>
-  <td class="c-q"><b>72</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:78%;background:var(--steel)"></span></span><span class="num">78</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:65%;background:var(--accent)"></span></span><span class="num">65</span></td>
-  <td class="c-avg">20.9</td>
-  <td class="c-date">2026-06-14</td>
-  <td class="c-name">Cappuccino, hot, decaf <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="15"><span class="rk">15</span></td>
+  <td class="c-q" data-sort="72"><b>72</b></td>
+  <td class="c-sub" data-sort="78"><span class="bar"><span class="fill" style="width:78%;background:var(--steel)"></span></span><span class="num">78</span></td>
+  <td class="c-sub" data-sort="65"><span class="bar"><span class="fill" style="width:65%;background:var(--accent)"></span></span><span class="num">65</span></td>
+  <td class="c-avg" data-sort="20.9">20.9</td>
+  <td class="c-date" data-sort="2026-06-14">2026-06-14</td>
+  <td class="c-name" data-sort="cappuccino, hot, decaf">Cappuccino, hot, decaf <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">16</span></td>
-  <td class="c-q"><b>70</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:83%;background:var(--steel)"></span></span><span class="num">83</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:56%;background:var(--accent)"></span></span><span class="num">56</span></td>
-  <td class="c-avg">19.8</td>
-  <td class="c-date">2025-04-27</td>
-  <td class="c-name">Decaf Cappuccino, extra foam <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="16"><span class="rk">16</span></td>
+  <td class="c-q" data-sort="70"><b>70</b></td>
+  <td class="c-sub" data-sort="83"><span class="bar"><span class="fill" style="width:83%;background:var(--steel)"></span></span><span class="num">83</span></td>
+  <td class="c-sub" data-sort="56"><span class="bar"><span class="fill" style="width:56%;background:var(--accent)"></span></span><span class="num">56</span></td>
+  <td class="c-avg" data-sort="19.8">19.8</td>
+  <td class="c-date" data-sort="2025-04-27">2025-04-27</td>
+  <td class="c-name" data-sort="decaf cappuccino, extra foam">Decaf Cappuccino, extra foam <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">17</span></td>
-  <td class="c-q"><b>70</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:59%;background:var(--steel)"></span></span><span class="num">59</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:81%;background:var(--accent)"></span></span><span class="num">81</span></td>
-  <td class="c-avg">20.7</td>
-  <td class="c-date">2025-05-18</td>
-  <td class="c-name">Decaf Cappuccino + cooldown <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="17"><span class="rk">17</span></td>
+  <td class="c-q" data-sort="70"><b>70</b></td>
+  <td class="c-sub" data-sort="59"><span class="bar"><span class="fill" style="width:59%;background:var(--steel)"></span></span><span class="num">59</span></td>
+  <td class="c-sub" data-sort="81"><span class="bar"><span class="fill" style="width:81%;background:var(--accent)"></span></span><span class="num">81</span></td>
+  <td class="c-avg" data-sort="20.7">20.7</td>
+  <td class="c-date" data-sort="2025-05-18">2025-05-18</td>
+  <td class="c-name" data-sort="decaf cappuccino + cooldown">Decaf Cappuccino + cooldown <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">18</span></td>
-  <td class="c-q"><b>70</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:58%;background:var(--steel)"></span></span><span class="num">58</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:82%;background:var(--accent)"></span></span><span class="num">82</span></td>
-  <td class="c-avg">21.6</td>
-  <td class="c-date">2026-03-22</td>
-  <td class="c-name">Too Early Decaf Cappuccino <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="18"><span class="rk">18</span></td>
+  <td class="c-q" data-sort="70"><b>70</b></td>
+  <td class="c-sub" data-sort="58"><span class="bar"><span class="fill" style="width:58%;background:var(--steel)"></span></span><span class="num">58</span></td>
+  <td class="c-sub" data-sort="82"><span class="bar"><span class="fill" style="width:82%;background:var(--accent)"></span></span><span class="num">82</span></td>
+  <td class="c-avg" data-sort="21.6">21.6</td>
+  <td class="c-date" data-sort="2026-03-22">2026-03-22</td>
+  <td class="c-name" data-sort="too early decaf cappuccino">Too Early Decaf Cappuccino <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">19</span></td>
-  <td class="c-q"><b>68</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:57%;background:var(--steel)"></span></span><span class="num">57</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:80%;background:var(--accent)"></span></span><span class="num">80</span></td>
-  <td class="c-avg">22.0</td>
-  <td class="c-date">2024-06-16</td>
-  <td class="c-name">Cappuccino con grande energía <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="19"><span class="rk">19</span></td>
+  <td class="c-q" data-sort="68"><b>68</b></td>
+  <td class="c-sub" data-sort="57"><span class="bar"><span class="fill" style="width:57%;background:var(--steel)"></span></span><span class="num">57</span></td>
+  <td class="c-sub" data-sort="80"><span class="bar"><span class="fill" style="width:80%;background:var(--accent)"></span></span><span class="num">80</span></td>
+  <td class="c-avg" data-sort="22.0">22.0</td>
+  <td class="c-date" data-sort="2024-06-16">2024-06-16</td>
+  <td class="c-name" data-sort="cappuccino con grande energía">Cappuccino con grande energía <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">20</span></td>
-  <td class="c-q"><b>68</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:87%;background:var(--steel)"></span></span><span class="num">87</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:50%;background:var(--accent)"></span></span><span class="num">50</span></td>
-  <td class="c-avg">19.6</td>
-  <td class="c-date">2025-11-16</td>
-  <td class="c-name">Cappuccino foam everywhere 🍁 <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="20"><span class="rk">20</span></td>
+  <td class="c-q" data-sort="68"><b>68</b></td>
+  <td class="c-sub" data-sort="87"><span class="bar"><span class="fill" style="width:87%;background:var(--steel)"></span></span><span class="num">87</span></td>
+  <td class="c-sub" data-sort="50"><span class="bar"><span class="fill" style="width:50%;background:var(--accent)"></span></span><span class="num">50</span></td>
+  <td class="c-avg" data-sort="19.6">19.6</td>
+  <td class="c-date" data-sort="2025-11-16">2025-11-16</td>
+  <td class="c-name" data-sort="cappuccino foam everywhere 🍁">Cappuccino foam everywhere 🍁 <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">21</span></td>
-  <td class="c-q"><b>67</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:47%;background:var(--steel)"></span></span><span class="num">47</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:87%;background:var(--accent)"></span></span><span class="num">87</span></td>
-  <td class="c-avg">21.5</td>
-  <td class="c-date">2025-09-28</td>
-  <td class="c-name">Backseat Cappuccino <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="21"><span class="rk">21</span></td>
+  <td class="c-q" data-sort="67"><b>67</b></td>
+  <td class="c-sub" data-sort="47"><span class="bar"><span class="fill" style="width:47%;background:var(--steel)"></span></span><span class="num">47</span></td>
+  <td class="c-sub" data-sort="87"><span class="bar"><span class="fill" style="width:87%;background:var(--accent)"></span></span><span class="num">87</span></td>
+  <td class="c-avg" data-sort="21.5">21.5</td>
+  <td class="c-date" data-sort="2025-09-28">2025-09-28</td>
+  <td class="c-name" data-sort="backseat cappuccino">Backseat Cappuccino <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">22</span></td>
-  <td class="c-q"><b>66</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:60%;background:var(--steel)"></span></span><span class="num">60</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:71%;background:var(--accent)"></span></span><span class="num">71</span></td>
-  <td class="c-avg">22.1</td>
-  <td class="c-date">2025-09-14</td>
-  <td class="c-name">Decaf Cappuccino with 3 1/2 sugars <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="22"><span class="rk">22</span></td>
+  <td class="c-q" data-sort="66"><b>66</b></td>
+  <td class="c-sub" data-sort="60"><span class="bar"><span class="fill" style="width:60%;background:var(--steel)"></span></span><span class="num">60</span></td>
+  <td class="c-sub" data-sort="71"><span class="bar"><span class="fill" style="width:71%;background:var(--accent)"></span></span><span class="num">71</span></td>
+  <td class="c-avg" data-sort="22.1">22.1</td>
+  <td class="c-date" data-sort="2025-09-14">2025-09-14</td>
+  <td class="c-name" data-sort="decaf cappuccino with 3 1/2 sugars">Decaf Cappuccino with 3 1/2 sugars <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">23</span></td>
-  <td class="c-q"><b>64</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:50%;background:var(--steel)"></span></span><span class="num">50</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:77%;background:var(--accent)"></span></span><span class="num">77</span></td>
-  <td class="c-avg">20.8</td>
-  <td class="c-date">2024-09-01</td>
-  <td class="c-name">Cappuccino, Cliff Notes version <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="23"><span class="rk">23</span></td>
+  <td class="c-q" data-sort="64"><b>64</b></td>
+  <td class="c-sub" data-sort="50"><span class="bar"><span class="fill" style="width:50%;background:var(--steel)"></span></span><span class="num">50</span></td>
+  <td class="c-sub" data-sort="77"><span class="bar"><span class="fill" style="width:77%;background:var(--accent)"></span></span><span class="num">77</span></td>
+  <td class="c-avg" data-sort="20.8">20.8</td>
+  <td class="c-date" data-sort="2024-09-01">2024-09-01</td>
+  <td class="c-name" data-sort="cappuccino, cliff notes version">Cappuccino, Cliff Notes version <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">24</span></td>
-  <td class="c-q"><b>62</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:51%;background:var(--steel)"></span></span><span class="num">51</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:72%;background:var(--accent)"></span></span><span class="num">72</span></td>
-  <td class="c-avg">19.3</td>
-  <td class="c-date">2024-01-07</td>
-  <td class="c-name">Cappuccino on the Beach <span class="badge cad">cadence</span></td>
+  <td class="c-rk" data-sort="24"><span class="rk">24</span></td>
+  <td class="c-q" data-sort="62"><b>62</b></td>
+  <td class="c-sub" data-sort="51"><span class="bar"><span class="fill" style="width:51%;background:var(--steel)"></span></span><span class="num">51</span></td>
+  <td class="c-sub" data-sort="72"><span class="bar"><span class="fill" style="width:72%;background:var(--accent)"></span></span><span class="num">72</span></td>
+  <td class="c-avg" data-sort="19.3">19.3</td>
+  <td class="c-date" data-sort="2024-01-07">2024-01-07</td>
+  <td class="c-name" data-sort="cappuccino on the beach">Cappuccino on the Beach <span class="badge cad">cadence</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">25</span></td>
-  <td class="c-q"><b>62</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:46%;background:var(--steel)"></span></span><span class="num">46</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:78%;background:var(--accent)"></span></span><span class="num">78</span></td>
-  <td class="c-avg">20.9</td>
-  <td class="c-date">2024-08-11</td>
-  <td class="c-name">Cappuccino + cool down <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="25"><span class="rk">25</span></td>
+  <td class="c-q" data-sort="62"><b>62</b></td>
+  <td class="c-sub" data-sort="46"><span class="bar"><span class="fill" style="width:46%;background:var(--steel)"></span></span><span class="num">46</span></td>
+  <td class="c-sub" data-sort="78"><span class="bar"><span class="fill" style="width:78%;background:var(--accent)"></span></span><span class="num">78</span></td>
+  <td class="c-avg" data-sort="20.9">20.9</td>
+  <td class="c-date" data-sort="2024-08-11">2024-08-11</td>
+  <td class="c-name" data-sort="cappuccino + cool down">Cappuccino + cool down <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">26</span></td>
-  <td class="c-q"><b>62</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:59%;background:var(--steel)"></span></span><span class="num">59</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:65%;background:var(--accent)"></span></span><span class="num">65</span></td>
-  <td class="c-avg">20.9</td>
-  <td class="c-date">2025-06-29</td>
-  <td class="c-name">Hot and Steamy Decaf Cappuccino <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="26"><span class="rk">26</span></td>
+  <td class="c-q" data-sort="62"><b>62</b></td>
+  <td class="c-sub" data-sort="59"><span class="bar"><span class="fill" style="width:59%;background:var(--steel)"></span></span><span class="num">59</span></td>
+  <td class="c-sub" data-sort="65"><span class="bar"><span class="fill" style="width:65%;background:var(--accent)"></span></span><span class="num">65</span></td>
+  <td class="c-avg" data-sort="20.9">20.9</td>
+  <td class="c-date" data-sort="2025-06-29">2025-06-29</td>
+  <td class="c-name" data-sort="hot and steamy decaf cappuccino">Hot and Steamy Decaf Cappuccino <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">27</span></td>
-  <td class="c-q"><b>60</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:20%;background:var(--steel)"></span></span><span class="num">20</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:99%;background:var(--accent)"></span></span><span class="num">99</span></td>
-  <td class="c-avg">22.1</td>
-  <td class="c-date">2026-05-17</td>
-  <td class="c-name">🇳🇴 17. Mai Cappuccino med grus og litt ekstra <span class="badge cad">cadence</span></td>
+  <td class="c-rk" data-sort="27"><span class="rk">27</span></td>
+  <td class="c-q" data-sort="60"><b>60</b></td>
+  <td class="c-sub" data-sort="20"><span class="bar"><span class="fill" style="width:20%;background:var(--steel)"></span></span><span class="num">20</span></td>
+  <td class="c-sub" data-sort="99"><span class="bar"><span class="fill" style="width:99%;background:var(--accent)"></span></span><span class="num">99</span></td>
+  <td class="c-avg" data-sort="22.1">22.1</td>
+  <td class="c-date" data-sort="2026-05-17">2026-05-17</td>
+  <td class="c-name" data-sort="🇳🇴 17. mai cappuccino med grus og litt ekstra">🇳🇴 17. Mai Cappuccino med grus og litt ekstra <span class="badge cad">cadence</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">28</span></td>
-  <td class="c-q"><b>58</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:38%;background:var(--steel)"></span></span><span class="num">38</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:77%;background:var(--accent)"></span></span><span class="num">77</span></td>
-  <td class="c-avg">22.0</td>
-  <td class="c-date">2024-06-30</td>
-  <td class="c-name">🌡️Melted Cappuccino 💦 <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="28"><span class="rk">28</span></td>
+  <td class="c-q" data-sort="58"><b>58</b></td>
+  <td class="c-sub" data-sort="38"><span class="bar"><span class="fill" style="width:38%;background:var(--steel)"></span></span><span class="num">38</span></td>
+  <td class="c-sub" data-sort="77"><span class="bar"><span class="fill" style="width:77%;background:var(--accent)"></span></span><span class="num">77</span></td>
+  <td class="c-avg" data-sort="22.0">22.0</td>
+  <td class="c-date" data-sort="2024-06-30">2024-06-30</td>
+  <td class="c-name" data-sort="🌡️melted cappuccino 💦">🌡️Melted Cappuccino 💦 <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">29</span></td>
-  <td class="c-q"><b>56</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:79%;background:var(--steel)"></span></span><span class="num">79</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:32%;background:var(--accent)"></span></span><span class="num">32</span></td>
-  <td class="c-avg">18.8</td>
-  <td class="c-date">2026-03-08</td>
-  <td class="c-name">Cappuccino with 4hr DST adjustment <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="29"><span class="rk">29</span></td>
+  <td class="c-q" data-sort="56"><b>56</b></td>
+  <td class="c-sub" data-sort="79"><span class="bar"><span class="fill" style="width:79%;background:var(--steel)"></span></span><span class="num">79</span></td>
+  <td class="c-sub" data-sort="32"><span class="bar"><span class="fill" style="width:32%;background:var(--accent)"></span></span><span class="num">32</span></td>
+  <td class="c-avg" data-sort="18.8">18.8</td>
+  <td class="c-date" data-sort="2026-03-08">2026-03-08</td>
+  <td class="c-name" data-sort="cappuccino with 4hr dst adjustment">Cappuccino with 4hr DST adjustment <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">30</span></td>
-  <td class="c-q"><b>45</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:45%;background:var(--steel)"></span></span><span class="num">45</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:45%;background:var(--accent)"></span></span><span class="num">45</span></td>
-  <td class="c-avg">20.4</td>
-  <td class="c-date">2025-08-17</td>
-  <td class="c-name">Cappuccino sans GF <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="30"><span class="rk">30</span></td>
+  <td class="c-q" data-sort="45"><b>45</b></td>
+  <td class="c-sub" data-sort="45"><span class="bar"><span class="fill" style="width:45%;background:var(--steel)"></span></span><span class="num">45</span></td>
+  <td class="c-sub" data-sort="45"><span class="bar"><span class="fill" style="width:45%;background:var(--accent)"></span></span><span class="num">45</span></td>
+  <td class="c-avg" data-sort="20.4">20.4</td>
+  <td class="c-date" data-sort="2025-08-17">2025-08-17</td>
+  <td class="c-name" data-sort="cappuccino sans gf">Cappuccino sans GF <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">31</span></td>
-  <td class="c-q"><b>44</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:21%;background:var(--steel)"></span></span><span class="num">21</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:66%;background:var(--accent)"></span></span><span class="num">66</span></td>
-  <td class="c-avg">22.7</td>
-  <td class="c-date">2024-06-09</td>
-  <td class="c-name">Cappuccino — extra foamy, bad driver edition <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="31"><span class="rk">31</span></td>
+  <td class="c-q" data-sort="44"><b>44</b></td>
+  <td class="c-sub" data-sort="21"><span class="bar"><span class="fill" style="width:21%;background:var(--steel)"></span></span><span class="num">21</span></td>
+  <td class="c-sub" data-sort="66"><span class="bar"><span class="fill" style="width:66%;background:var(--accent)"></span></span><span class="num">66</span></td>
+  <td class="c-avg" data-sort="22.7">22.7</td>
+  <td class="c-date" data-sort="2024-06-09">2024-06-09</td>
+  <td class="c-name" data-sort="cappuccino — extra foamy, bad driver edition">Cappuccino — extra foamy, bad driver edition <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">32</span></td>
-  <td class="c-q"><b>44</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:5%;background:var(--steel)"></span></span><span class="num">5</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:82%;background:var(--accent)"></span></span><span class="num">82</span></td>
-  <td class="c-avg">21.6</td>
-  <td class="c-date">2025-08-31</td>
-  <td class="c-name">Cappuccino with Sir Eddington <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="32"><span class="rk">32</span></td>
+  <td class="c-q" data-sort="44"><b>44</b></td>
+  <td class="c-sub" data-sort="5"><span class="bar"><span class="fill" style="width:5%;background:var(--steel)"></span></span><span class="num">5</span></td>
+  <td class="c-sub" data-sort="82"><span class="bar"><span class="fill" style="width:82%;background:var(--accent)"></span></span><span class="num">82</span></td>
+  <td class="c-avg" data-sort="21.6">21.6</td>
+  <td class="c-date" data-sort="2025-08-31">2025-08-31</td>
+  <td class="c-name" data-sort="cappuccino with sir eddington">Cappuccino with Sir Eddington <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">33</span></td>
-  <td class="c-q"><b>42</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:12%;background:var(--steel)"></span></span><span class="num">12</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:72%;background:var(--accent)"></span></span><span class="num">72</span></td>
-  <td class="c-avg">20.9</td>
-  <td class="c-date">2025-08-24</td>
-  <td class="c-name">Cappuccino/Pancake <span class="badge cad">cadence</span></td>
+  <td class="c-rk" data-sort="33"><span class="rk">33</span></td>
+  <td class="c-q" data-sort="42"><b>42</b></td>
+  <td class="c-sub" data-sort="12"><span class="bar"><span class="fill" style="width:12%;background:var(--steel)"></span></span><span class="num">12</span></td>
+  <td class="c-sub" data-sort="72"><span class="bar"><span class="fill" style="width:72%;background:var(--accent)"></span></span><span class="num">72</span></td>
+  <td class="c-avg" data-sort="20.9">20.9</td>
+  <td class="c-date" data-sort="2025-08-24">2025-08-24</td>
+  <td class="c-name" data-sort="cappuccino/pancake">Cappuccino/Pancake <span class="badge cad">cadence</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">34</span></td>
-  <td class="c-q"><b>40</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:22%;background:var(--steel)"></span></span><span class="num">22</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:58%;background:var(--accent)"></span></span><span class="num">58</span></td>
-  <td class="c-avg">20.9</td>
-  <td class="c-date">2023-11-12</td>
-  <td class="c-name">Hot and Cold Cappuccino <span class="badge cad">cadence</span></td>
+  <td class="c-rk" data-sort="34"><span class="rk">34</span></td>
+  <td class="c-q" data-sort="40"><b>40</b></td>
+  <td class="c-sub" data-sort="22"><span class="bar"><span class="fill" style="width:22%;background:var(--steel)"></span></span><span class="num">22</span></td>
+  <td class="c-sub" data-sort="58"><span class="bar"><span class="fill" style="width:58%;background:var(--accent)"></span></span><span class="num">58</span></td>
+  <td class="c-avg" data-sort="20.9">20.9</td>
+  <td class="c-date" data-sort="2023-11-12">2023-11-12</td>
+  <td class="c-name" data-sort="hot and cold cappuccino">Hot and Cold Cappuccino <span class="badge cad">cadence</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">35</span></td>
-  <td class="c-q"><b>38</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:29%;background:var(--steel)"></span></span><span class="num">29</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:48%;background:var(--accent)"></span></span><span class="num">48</span></td>
-  <td class="c-avg">20.6</td>
-  <td class="c-date">2026-06-07</td>
-  <td class="c-name">Half-caf Cappucino <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="35"><span class="rk">35</span></td>
+  <td class="c-q" data-sort="38"><b>38</b></td>
+  <td class="c-sub" data-sort="29"><span class="bar"><span class="fill" style="width:29%;background:var(--steel)"></span></span><span class="num">29</span></td>
+  <td class="c-sub" data-sort="48"><span class="bar"><span class="fill" style="width:48%;background:var(--accent)"></span></span><span class="num">48</span></td>
+  <td class="c-avg" data-sort="20.6">20.6</td>
+  <td class="c-date" data-sort="2026-06-07">2026-06-07</td>
+  <td class="c-name" data-sort="half-caf cappucino">Half-caf Cappucino <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">36</span></td>
-  <td class="c-q"><b>38</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:35%;background:var(--steel)"></span></span><span class="num">35</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:40%;background:var(--accent)"></span></span><span class="num">40</span></td>
-  <td class="c-avg">21.2</td>
-  <td class="c-date">2026-06-21</td>
-  <td class="c-name">Cappuccino Fast and Slow <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="36"><span class="rk">36</span></td>
+  <td class="c-q" data-sort="38"><b>38</b></td>
+  <td class="c-sub" data-sort="35"><span class="bar"><span class="fill" style="width:35%;background:var(--steel)"></span></span><span class="num">35</span></td>
+  <td class="c-sub" data-sort="40"><span class="bar"><span class="fill" style="width:40%;background:var(--accent)"></span></span><span class="num">40</span></td>
+  <td class="c-avg" data-sort="21.2">21.2</td>
+  <td class="c-date" data-sort="2026-06-21">2026-06-21</td>
+  <td class="c-name" data-sort="cappuccino fast and slow">Cappuccino Fast and Slow <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">37</span></td>
-  <td class="c-q"><b>36</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:28%;background:var(--steel)"></span></span><span class="num">28</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:45%;background:var(--accent)"></span></span><span class="num">45</span></td>
-  <td class="c-avg">20.3</td>
-  <td class="c-date">2025-03-16</td>
-  <td class="c-name">Cappuccino + Eddington Number Hunting <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="37"><span class="rk">37</span></td>
+  <td class="c-q" data-sort="36"><b>36</b></td>
+  <td class="c-sub" data-sort="28"><span class="bar"><span class="fill" style="width:28%;background:var(--steel)"></span></span><span class="num">28</span></td>
+  <td class="c-sub" data-sort="45"><span class="bar"><span class="fill" style="width:45%;background:var(--accent)"></span></span><span class="num">45</span></td>
+  <td class="c-avg" data-sort="20.3">20.3</td>
+  <td class="c-date" data-sort="2025-03-16">2025-03-16</td>
+  <td class="c-name" data-sort="cappuccino + eddington number hunting">Cappuccino + Eddington Number Hunting <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">38</span></td>
-  <td class="c-q"><b>33</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:30%;background:var(--steel)"></span></span><span class="num">30</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:36%;background:var(--accent)"></span></span><span class="num">36</span></td>
-  <td class="c-avg">19.5</td>
-  <td class="c-date">2025-09-07</td>
-  <td class="c-name">Cappuccino del pomeriggio <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="38"><span class="rk">38</span></td>
+  <td class="c-q" data-sort="33"><b>33</b></td>
+  <td class="c-sub" data-sort="30"><span class="bar"><span class="fill" style="width:30%;background:var(--steel)"></span></span><span class="num">30</span></td>
+  <td class="c-sub" data-sort="36"><span class="bar"><span class="fill" style="width:36%;background:var(--accent)"></span></span><span class="num">36</span></td>
+  <td class="c-avg" data-sort="19.5">19.5</td>
+  <td class="c-date" data-sort="2025-09-07">2025-09-07</td>
+  <td class="c-name" data-sort="cappuccino del pomeriggio">Cappuccino del pomeriggio <span class="badge pwr">power</span></td>
 </tr>
 <tr>
-  <td class="c-rk"><span class="rk">39</span></td>
-  <td class="c-q"><b>30</b></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:13%;background:var(--steel)"></span></span><span class="num">13</span></td>
-  <td class="c-sub"><span class="bar"><span class="fill" style="width:47%;background:var(--accent)"></span></span><span class="num">47</span></td>
-  <td class="c-avg">21.0</td>
-  <td class="c-date">2025-09-21</td>
-  <td class="c-name">un cappuccino piccolo deca <span class="badge pwr">power</span></td>
+  <td class="c-rk" data-sort="39"><span class="rk">39</span></td>
+  <td class="c-q" data-sort="30"><b>30</b></td>
+  <td class="c-sub" data-sort="13"><span class="bar"><span class="fill" style="width:13%;background:var(--steel)"></span></span><span class="num">13</span></td>
+  <td class="c-sub" data-sort="47"><span class="bar"><span class="fill" style="width:47%;background:var(--accent)"></span></span><span class="num">47</span></td>
+  <td class="c-avg" data-sort="21.0">21.0</td>
+  <td class="c-date" data-sort="2025-09-21">2025-09-21</td>
+  <td class="c-name" data-sort="un cappuccino piccolo deca">un cappuccino piccolo deca <span class="badge pwr">power</span></td>
 </tr>
     </tbody>
   </table>
@@ -487,5 +495,28 @@
     spirit of the ride · <a href="https://aeyu.io/">aeyu.io</a>
   </footer>
 </div>
+<script>
+(function() {
+  var tbody = document.querySelector('tbody');
+  var headers = document.querySelectorAll('th.sortable');
+  var dir = {};
+  headers.forEach(function(th) {
+    th.addEventListener('click', function() {
+      var col = +th.dataset.col, numeric = th.dataset.type === 'num';
+      var asc = (dir[col] === undefined) ? !numeric : !dir[col];
+      dir[col] = asc;
+      var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+      rows.sort(function(a, b) {
+        var x = a.children[col].dataset.sort, y = b.children[col].dataset.sort;
+        if (numeric) { x = parseFloat(x); y = parseFloat(y); }
+        return (x < y ? -1 : x > y ? 1 : 0) * (asc ? 1 : -1);
+      });
+      rows.forEach(function(r) { tbody.appendChild(r); });
+      headers.forEach(function(h) { h.querySelector('.arr').textContent = ''; });
+      th.querySelector('.arr').textContent = asc ? ' ▲' : ' ▼';
+    });
+  });
+})();
+</script>
 </body>
 </html>
