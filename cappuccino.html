@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Cappuccino Double Paceline Quality — aeyu.io</title>
+<meta name="description" content="A for-fun leaderboard ranking how well the Cappuccino ride's double paceline actually formed, ride by ride.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Cappuccino Double Paceline Quality">
+<meta property="og:description" content="Ranking how well the double paceline formed, ride by ride. A smooth steady line scores high; a herky-jerky one that never forms scores low.">
+<meta property="og:url" content="https://aeyu.io/cappuccino.html">
+<meta property="og:image" content="https://aeyu.io/og-image.png">
+<meta name="theme-color" content="#F6F3EE">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
+<style>
+  :root {
+    --bg:#F6F3EE; --surface:#FFFFFF; --surface-hover:#FAF8F4;
+    --border:#E5DFD4; --border-light:#EDE8E0;
+    --text:#1A1610; --text-secondary:#5C5548; --text-tertiary:#8C8374;
+    --strava:#FC4C02; --accent:#B85A28; --accent-dark:#6B3518; --steel:#4A5759;
+    --font-display:'Instrument Serif',serif; --font-body:'DM Sans',sans-serif; --font-mono:'IBM Plex Mono',monospace;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:var(--font-body);
+         line-height:1.5; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:880px; margin:0 auto; padding:32px 20px 80px; }
+  header h1 { font-family:var(--font-display); font-weight:400; font-size:2.7rem;
+              line-height:1.05; margin:0 0 6px; letter-spacing:-.01em; }
+  header .tag { color:var(--accent); font-weight:600; font-size:.82rem;
+                text-transform:uppercase; letter-spacing:.08em; }
+  header p.lede { color:var(--text-secondary); font-size:1.05rem; max-width:60ch; margin:14px 0 0; }
+  .legend { display:flex; flex-wrap:wrap; gap:18px; margin:26px 0 8px;
+             padding:16px 18px; background:var(--surface); border:1px solid var(--border);
+             border-radius:14px; font-size:.9rem; }
+  .legend div { flex:1; min-width:200px; }
+  .legend b { font-family:var(--font-mono); }
+  .ind-k { color:var(--steel); } .rot-k { color:var(--accent); }
+  .podium { display:flex; gap:12px; margin:20px 0 6px; }
+  .podium .card { flex:1; background:var(--surface); border:1px solid var(--border);
+                   border-radius:14px; padding:14px 16px; }
+  .podium .card.win { border-color:var(--accent); box-shadow:0 1px 0 var(--accent) inset; }
+  .podium .lab { font-size:.72rem; text-transform:uppercase; letter-spacing:.07em;
+                  color:var(--text-tertiary); }
+  .podium .q { font-family:var(--font-mono); font-size:1.8rem; font-weight:500; }
+  .podium .nm { font-size:.85rem; color:var(--text-secondary); margin-top:2px;
+                 white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  table { width:100%; border-collapse:collapse; margin-top:18px; font-size:.92rem; }
+  thead th { text-align:left; font-size:.7rem; text-transform:uppercase; letter-spacing:.06em;
+              color:var(--text-tertiary); font-weight:600; padding:8px 8px; border-bottom:1px solid var(--border); }
+  tbody td { padding:9px 8px; border-bottom:1px solid var(--border-light); vertical-align:middle; }
+  tbody tr:hover { background:var(--surface-hover); }
+  .c-rk { width:34px; text-align:center; font-family:var(--font-mono); }
+  .c-rk .rk { color:var(--text-tertiary); font-size:.85rem; }
+  .c-q b { font-family:var(--font-mono); font-size:1.15rem; }
+  .c-sub { width:150px; }
+  .bar { display:inline-block; width:74px; height:7px; background:var(--border);
+          border-radius:4px; overflow:hidden; vertical-align:middle; margin-right:8px; }
+  .bar .fill { display:block; height:100%; border-radius:4px; }
+  .num { font-family:var(--font-mono); font-size:.85rem; color:var(--text-secondary); }
+  .c-avg { font-family:var(--font-mono); color:var(--text-secondary); }
+  .c-date { font-family:var(--font-mono); font-size:.82rem; color:var(--text-tertiary); white-space:nowrap; }
+  .c-name { color:var(--text); }
+  .badge { font-size:.62rem; text-transform:uppercase; letter-spacing:.05em; padding:2px 6px;
+            border-radius:6px; margin-left:4px; vertical-align:middle; }
+  .badge.pwr { background:#F0E7DF; color:var(--accent-dark); }
+  .badge.cad { background:var(--steel-light,#D8DBE2); color:var(--steel); }
+  .method { margin-top:34px; padding:18px 20px; background:var(--surface);
+             border:1px solid var(--border); border-radius:14px; font-size:.86rem;
+             color:var(--text-secondary); }
+  .method h3 { font-family:var(--font-display); font-weight:400; font-size:1.3rem;
+                margin:0 0 8px; color:var(--text); }
+  .method code { font-family:var(--font-mono); font-size:.8rem; background:var(--bg);
+                  padding:1px 5px; border-radius:5px; }
+  footer { margin-top:26px; font-size:.78rem; color:var(--text-tertiary); }
+  footer a { color:var(--accent); }
+  @media (max-width:620px) {
+    .c-sub { width:auto; } .bar { width:46px; }
+    .c-name .badge { display:none; }
+    header h1 { font-size:2.1rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="tag">aeyu.io · participation awards</div>
+    <h1>Cappuccino Double&nbsp;Paceline Quality</h1>
+    <p class="lede">A clean double paceline is a smooth step-wave: a ~21&nbsp;mph slow
+    line and a ~22&nbsp;mph fast line, rotating steadily. This ranks every logged
+    Cappuccino by how well that line actually <em>formed</em> — measured from the
+    long flat run up MacArthur to the base of Anglers.</p>
+  </header>
+
+  <div class="legend">
+    <div><b class="ind-k">IND</b> — <b>your own steadiness.</b> A formed line lets you
+      hold a steady pull; a broken one means constant surge-and-coast on the wheel.</div>
+    <div><b class="rot-k">ROT</b> — <b>the group's rotation.</b> Rewards a tight speed band
+      near the 21–22 target; penalises both the accordion and running too hot.</div>
+    <div><b>Q</b> — the headline, <code>(IND + ROT) / 2</code>. 100 = a beautiful
+      steady line. Low = it never came together.</div>
+  </div>
+
+  <div class="podium">
+    <div class="card win"><div class="lab">🥇 best-formed line</div>
+      <div class="q">88</div><div class="nm">2023-09-03 · One cappuccino, decaf, please</div></div>
+    <div class="card"><div class="lab">💩 most herky-jerky</div>
+      <div class="q">30</div><div class="nm">2025-09-21 · un cappuccino piccolo deca</div></div>
+  </div>
+
+  <table>
+    <thead><tr>
+      <th></th><th>Q</th><th class="ind-k">IND</th><th class="rot-k">ROT</th>
+      <th>avg&nbsp;mph</th><th>date</th><th>ride</th>
+    </tr></thead>
+    <tbody>
+<tr>
+  <td class="c-rk">🥇</td>
+  <td class="c-q"><b>88</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:88%;background:var(--steel)"></span></span><span class="num">88</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:89%;background:var(--accent)"></span></span><span class="num">89</span></td>
+  <td class="c-avg">22.0</td>
+  <td class="c-date">2023-09-03</td>
+  <td class="c-name">One cappuccino, decaf, please <span class="badge cad">cadence</span></td>
+</tr>
+<tr>
+  <td class="c-rk">🥈</td>
+  <td class="c-q"><b>85</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:85%;background:var(--steel)"></span></span><span class="num">85</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:85%;background:var(--accent)"></span></span><span class="num">85</span></td>
+  <td class="c-avg">21.5</td>
+  <td class="c-date">2025-10-26</td>
+  <td class="c-name">Cappuccino + <span class="badge cad">cadence</span></td>
+</tr>
+<tr>
+  <td class="c-rk">🥉</td>
+  <td class="c-q"><b>84</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:81%;background:var(--steel)"></span></span><span class="num">81</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:86%;background:var(--accent)"></span></span><span class="num">86</span></td>
+  <td class="c-avg">20.7</td>
+  <td class="c-date">2024-07-21</td>
+  <td class="c-name">Chill Cappuccino <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">4</span></td>
+  <td class="c-q"><b>82</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:92%;background:var(--steel)"></span></span><span class="num">92</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:71%;background:var(--accent)"></span></span><span class="num">71</span></td>
+  <td class="c-avg">21.2</td>
+  <td class="c-date">2024-10-20</td>
+  <td class="c-name">Cappuccino con Cappuccino! <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">5</span></td>
+  <td class="c-q"><b>82</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:85%;background:var(--steel)"></span></span><span class="num">85</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:79%;background:var(--accent)"></span></span><span class="num">79</span></td>
+  <td class="c-avg">21.7</td>
+  <td class="c-date">2025-11-02</td>
+  <td class="c-name">Cappuccino <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">6</span></td>
+  <td class="c-q"><b>80</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:92%;background:var(--steel)"></span></span><span class="num">92</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:69%;background:var(--accent)"></span></span><span class="num">69</span></td>
+  <td class="c-avg">19.0</td>
+  <td class="c-date">2024-02-25</td>
+  <td class="c-name">Extra-Foamy, Vanilla Bean-Infused, Oat Milk Cappuccino with a Half-Spoon of Raw Sugar, a Dash of Cinnamon, Topped with Cocoa Powder, Served at Exactly 62 Degrees Celsius in a Pre-Warmed, Hand-Painted Ceramic Cup Ride <span class="badge cad">cadence</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">7</span></td>
+  <td class="c-q"><b>80</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:69%;background:var(--steel)"></span></span><span class="num">69</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:91%;background:var(--accent)"></span></span><span class="num">91</span></td>
+  <td class="c-avg">22.9</td>
+  <td class="c-date">2026-05-10</td>
+  <td class="c-name">Mother’s Day Cappuccino Express(o) <span class="badge cad">cadence</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">8</span></td>
+  <td class="c-q"><b>79</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:76%;background:var(--steel)"></span></span><span class="num">76</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:82%;background:var(--accent)"></span></span><span class="num">82</span></td>
+  <td class="c-avg">20.2</td>
+  <td class="c-date">2024-02-18</td>
+  <td class="c-name">Cappuccino in the Afternoon <span class="badge cad">cadence</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">9</span></td>
+  <td class="c-q"><b>77</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:69%;background:var(--steel)"></span></span><span class="num">69</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:85%;background:var(--accent)"></span></span><span class="num">85</span></td>
+  <td class="c-avg">20.8</td>
+  <td class="c-date">2024-08-04</td>
+  <td class="c-name">Half-caf Cappuccino <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">10</span></td>
+  <td class="c-q"><b>76</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:53%;background:var(--steel)"></span></span><span class="num">53</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:100%;background:var(--accent)"></span></span><span class="num">100</span></td>
+  <td class="c-avg">21.7</td>
+  <td class="c-date">2024-03-03</td>
+  <td class="c-name">Cappuccino plus plus <span class="badge cad">cadence</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">11</span></td>
+  <td class="c-q"><b>76</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:69%;background:var(--steel)"></span></span><span class="num">69</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:83%;background:var(--accent)"></span></span><span class="num">83</span></td>
+  <td class="c-avg">20.5</td>
+  <td class="c-date">2025-06-22</td>
+  <td class="c-name">Cursed Cappuccino <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">12</span></td>
+  <td class="c-q"><b>76</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:67%;background:var(--steel)"></span></span><span class="num">67</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:84%;background:var(--accent)"></span></span><span class="num">84</span></td>
+  <td class="c-avg">19.7</td>
+  <td class="c-date">2026-05-03</td>
+  <td class="c-name">Cappuccinoesque <span class="badge cad">cadence</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">13</span></td>
+  <td class="c-q"><b>74</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:62%;background:var(--steel)"></span></span><span class="num">62</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:86%;background:var(--accent)"></span></span><span class="num">86</span></td>
+  <td class="c-avg">21.7</td>
+  <td class="c-date">2023-10-01</td>
+  <td class="c-name">Cappuccino- part decaf <span class="badge cad">cadence</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">14</span></td>
+  <td class="c-q"><b>73</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:74%;background:var(--steel)"></span></span><span class="num">74</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:72%;background:var(--accent)"></span></span><span class="num">72</span></td>
+  <td class="c-avg">19.9</td>
+  <td class="c-date">2024-11-24</td>
+  <td class="c-name">Cappuccino (sans park) <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">15</span></td>
+  <td class="c-q"><b>72</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:78%;background:var(--steel)"></span></span><span class="num">78</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:65%;background:var(--accent)"></span></span><span class="num">65</span></td>
+  <td class="c-avg">20.9</td>
+  <td class="c-date">2026-06-14</td>
+  <td class="c-name">Cappuccino, hot, decaf <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">16</span></td>
+  <td class="c-q"><b>70</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:83%;background:var(--steel)"></span></span><span class="num">83</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:56%;background:var(--accent)"></span></span><span class="num">56</span></td>
+  <td class="c-avg">19.8</td>
+  <td class="c-date">2025-04-27</td>
+  <td class="c-name">Decaf Cappuccino, extra foam <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">17</span></td>
+  <td class="c-q"><b>70</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:59%;background:var(--steel)"></span></span><span class="num">59</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:81%;background:var(--accent)"></span></span><span class="num">81</span></td>
+  <td class="c-avg">20.7</td>
+  <td class="c-date">2025-05-18</td>
+  <td class="c-name">Decaf Cappuccino + cooldown <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">18</span></td>
+  <td class="c-q"><b>70</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:58%;background:var(--steel)"></span></span><span class="num">58</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:82%;background:var(--accent)"></span></span><span class="num">82</span></td>
+  <td class="c-avg">21.6</td>
+  <td class="c-date">2026-03-22</td>
+  <td class="c-name">Too Early Decaf Cappuccino <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">19</span></td>
+  <td class="c-q"><b>68</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:57%;background:var(--steel)"></span></span><span class="num">57</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:80%;background:var(--accent)"></span></span><span class="num">80</span></td>
+  <td class="c-avg">22.0</td>
+  <td class="c-date">2024-06-16</td>
+  <td class="c-name">Cappuccino con grande energía <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">20</span></td>
+  <td class="c-q"><b>68</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:87%;background:var(--steel)"></span></span><span class="num">87</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:50%;background:var(--accent)"></span></span><span class="num">50</span></td>
+  <td class="c-avg">19.6</td>
+  <td class="c-date">2025-11-16</td>
+  <td class="c-name">Cappuccino foam everywhere 🍁 <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">21</span></td>
+  <td class="c-q"><b>67</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:47%;background:var(--steel)"></span></span><span class="num">47</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:87%;background:var(--accent)"></span></span><span class="num">87</span></td>
+  <td class="c-avg">21.5</td>
+  <td class="c-date">2025-09-28</td>
+  <td class="c-name">Backseat Cappuccino <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">22</span></td>
+  <td class="c-q"><b>66</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:60%;background:var(--steel)"></span></span><span class="num">60</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:71%;background:var(--accent)"></span></span><span class="num">71</span></td>
+  <td class="c-avg">22.1</td>
+  <td class="c-date">2025-09-14</td>
+  <td class="c-name">Decaf Cappuccino with 3 1/2 sugars <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">23</span></td>
+  <td class="c-q"><b>64</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:50%;background:var(--steel)"></span></span><span class="num">50</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:77%;background:var(--accent)"></span></span><span class="num">77</span></td>
+  <td class="c-avg">20.8</td>
+  <td class="c-date">2024-09-01</td>
+  <td class="c-name">Cappuccino, Cliff Notes version <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">24</span></td>
+  <td class="c-q"><b>62</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:51%;background:var(--steel)"></span></span><span class="num">51</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:72%;background:var(--accent)"></span></span><span class="num">72</span></td>
+  <td class="c-avg">19.3</td>
+  <td class="c-date">2024-01-07</td>
+  <td class="c-name">Cappuccino on the Beach <span class="badge cad">cadence</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">25</span></td>
+  <td class="c-q"><b>62</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:46%;background:var(--steel)"></span></span><span class="num">46</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:78%;background:var(--accent)"></span></span><span class="num">78</span></td>
+  <td class="c-avg">20.9</td>
+  <td class="c-date">2024-08-11</td>
+  <td class="c-name">Cappuccino + cool down <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">26</span></td>
+  <td class="c-q"><b>62</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:59%;background:var(--steel)"></span></span><span class="num">59</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:65%;background:var(--accent)"></span></span><span class="num">65</span></td>
+  <td class="c-avg">20.9</td>
+  <td class="c-date">2025-06-29</td>
+  <td class="c-name">Hot and Steamy Decaf Cappuccino <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">27</span></td>
+  <td class="c-q"><b>60</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:20%;background:var(--steel)"></span></span><span class="num">20</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:99%;background:var(--accent)"></span></span><span class="num">99</span></td>
+  <td class="c-avg">22.1</td>
+  <td class="c-date">2026-05-17</td>
+  <td class="c-name">🇳🇴 17. Mai Cappuccino med grus og litt ekstra <span class="badge cad">cadence</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">28</span></td>
+  <td class="c-q"><b>58</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:38%;background:var(--steel)"></span></span><span class="num">38</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:77%;background:var(--accent)"></span></span><span class="num">77</span></td>
+  <td class="c-avg">22.0</td>
+  <td class="c-date">2024-06-30</td>
+  <td class="c-name">🌡️Melted Cappuccino 💦 <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">29</span></td>
+  <td class="c-q"><b>56</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:79%;background:var(--steel)"></span></span><span class="num">79</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:32%;background:var(--accent)"></span></span><span class="num">32</span></td>
+  <td class="c-avg">18.8</td>
+  <td class="c-date">2026-03-08</td>
+  <td class="c-name">Cappuccino with 4hr DST adjustment <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">30</span></td>
+  <td class="c-q"><b>45</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:45%;background:var(--steel)"></span></span><span class="num">45</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:45%;background:var(--accent)"></span></span><span class="num">45</span></td>
+  <td class="c-avg">20.4</td>
+  <td class="c-date">2025-08-17</td>
+  <td class="c-name">Cappuccino sans GF <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">31</span></td>
+  <td class="c-q"><b>44</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:21%;background:var(--steel)"></span></span><span class="num">21</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:66%;background:var(--accent)"></span></span><span class="num">66</span></td>
+  <td class="c-avg">22.7</td>
+  <td class="c-date">2024-06-09</td>
+  <td class="c-name">Cappuccino — extra foamy, bad driver edition <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">32</span></td>
+  <td class="c-q"><b>44</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:5%;background:var(--steel)"></span></span><span class="num">5</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:82%;background:var(--accent)"></span></span><span class="num">82</span></td>
+  <td class="c-avg">21.6</td>
+  <td class="c-date">2025-08-31</td>
+  <td class="c-name">Cappuccino with Sir Eddington <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">33</span></td>
+  <td class="c-q"><b>42</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:12%;background:var(--steel)"></span></span><span class="num">12</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:72%;background:var(--accent)"></span></span><span class="num">72</span></td>
+  <td class="c-avg">20.9</td>
+  <td class="c-date">2025-08-24</td>
+  <td class="c-name">Cappuccino/Pancake <span class="badge cad">cadence</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">34</span></td>
+  <td class="c-q"><b>40</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:22%;background:var(--steel)"></span></span><span class="num">22</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:58%;background:var(--accent)"></span></span><span class="num">58</span></td>
+  <td class="c-avg">20.9</td>
+  <td class="c-date">2023-11-12</td>
+  <td class="c-name">Hot and Cold Cappuccino <span class="badge cad">cadence</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">35</span></td>
+  <td class="c-q"><b>38</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:29%;background:var(--steel)"></span></span><span class="num">29</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:48%;background:var(--accent)"></span></span><span class="num">48</span></td>
+  <td class="c-avg">20.6</td>
+  <td class="c-date">2026-06-07</td>
+  <td class="c-name">Half-caf Cappucino <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">36</span></td>
+  <td class="c-q"><b>38</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:35%;background:var(--steel)"></span></span><span class="num">35</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:40%;background:var(--accent)"></span></span><span class="num">40</span></td>
+  <td class="c-avg">21.2</td>
+  <td class="c-date">2026-06-21</td>
+  <td class="c-name">Cappuccino Fast and Slow <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">37</span></td>
+  <td class="c-q"><b>36</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:28%;background:var(--steel)"></span></span><span class="num">28</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:45%;background:var(--accent)"></span></span><span class="num">45</span></td>
+  <td class="c-avg">20.3</td>
+  <td class="c-date">2025-03-16</td>
+  <td class="c-name">Cappuccino + Eddington Number Hunting <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">38</span></td>
+  <td class="c-q"><b>33</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:30%;background:var(--steel)"></span></span><span class="num">30</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:36%;background:var(--accent)"></span></span><span class="num">36</span></td>
+  <td class="c-avg">19.5</td>
+  <td class="c-date">2025-09-07</td>
+  <td class="c-name">Cappuccino del pomeriggio <span class="badge pwr">power</span></td>
+</tr>
+<tr>
+  <td class="c-rk"><span class="rk">39</span></td>
+  <td class="c-q"><b>30</b></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:13%;background:var(--steel)"></span></span><span class="num">13</span></td>
+  <td class="c-sub"><span class="bar"><span class="fill" style="width:47%;background:var(--accent)"></span></span><span class="num">47</span></td>
+  <td class="c-avg">21.0</td>
+  <td class="c-date">2025-09-21</td>
+  <td class="c-name">un cappuccino piccolo deca <span class="badge pwr">power</span></td>
+</tr>
+    </tbody>
+  </table>
+
+  <div class="method">
+    <h3>How it's scored</h3>
+    <p><b>IND</b> comes from your power trace (jerk = how often watts jump &gt;50W
+    second-to-second, plus variability and coasting) — or, on rides with no power
+    meter, from cadence (which tracks the power chop closely). <b>ROT</b> comes from
+    the speed trace: how tightly it held a band, and whether that band sat near the
+    21–22&nbsp;mph social target rather than running hot. Both are scored relative to
+    the field of logged Cappuccino rides. Segment: <code>MacArthur Blvd — Walhonding to base of Anglers (~5.7 mi)</code>.</p>
+    <p>The two numbers are deliberately separate — a ride can be a steady pull through
+    a chaotic pack (high IND, low ROT) or a calm pack you personally surged all over,
+    e.g. on gravel (low IND, high ROT).</p>
+  </div>
+
+  <footer>
+    39 rides · updated 2026-06-21 · a bit of fun, take the rankings in the
+    spirit of the ride · <a href="https://aeyu.io/">aeyu.io</a>
+  </footer>
+</div>
+</body>
+</html>
