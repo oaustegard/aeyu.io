@@ -86,13 +86,13 @@ def render_html(rows, updated):
                      else '<span class="badge cad">cadence</span>')
         name = (r.get("name", "") or "").replace("<", "&lt;").replace(">", "&gt;")
         body_rows.append(f"""<tr>
-  <td class="c-rk">{medal}</td>
-  <td class="c-q"><b>{r['Q']}</b></td>
-  <td class="c-sub">{_bar(r['IND'], 'var(--steel)')}</td>
-  <td class="c-sub">{_bar(r['ROT'], 'var(--accent)')}</td>
-  <td class="c-avg">{r['avg']}</td>
-  <td class="c-date">{r['date']}</td>
-  <td class="c-name">{name} {src_badge}</td>
+  <td class="c-rk" data-sort="{i}">{medal}</td>
+  <td class="c-q" data-sort="{r['Q']}"><b>{r['Q']}</b></td>
+  <td class="c-sub" data-sort="{r['IND']}">{_bar(r['IND'], 'var(--steel)')}</td>
+  <td class="c-sub" data-sort="{r['ROT']}">{_bar(r['ROT'], 'var(--accent)')}</td>
+  <td class="c-avg" data-sort="{r['avg']}">{r['avg']}</td>
+  <td class="c-date" data-sort="{r['date']}">{r['date']}</td>
+  <td class="c-name" data-sort="{name.lower()}">{name} {src_badge}</td>
 </tr>""")
     rows_html = "\n".join(body_rows)
     return f"""<!DOCTYPE html>
@@ -146,6 +146,9 @@ def render_html(rows, updated):
   table {{ width:100%; border-collapse:collapse; margin-top:18px; font-size:.92rem; }}
   thead th {{ text-align:left; font-size:.7rem; text-transform:uppercase; letter-spacing:.06em;
               color:var(--text-tertiary); font-weight:600; padding:8px 8px; border-bottom:1px solid var(--border); }}
+  th.sortable {{ cursor:pointer; user-select:none; white-space:nowrap; }}
+  th.sortable:hover {{ color:var(--accent); }}
+  .arr {{ font-size:.65rem; }}
   tbody td {{ padding:9px 8px; border-bottom:1px solid var(--border-light); vertical-align:middle; }}
   tbody tr:hover {{ background:var(--surface-hover); }}
   .c-rk {{ width:34px; text-align:center; font-family:var(--font-mono); }}
@@ -208,8 +211,13 @@ def render_html(rows, updated):
 
   <table>
     <thead><tr>
-      <th></th><th>Q</th><th class="ind-k">IND</th><th class="rot-k">ROT</th>
-      <th>avg&nbsp;mph</th><th>date</th><th>ride</th>
+      <th class="sortable" data-col="0" data-type="num">#<span class="arr"></span></th>
+      <th class="sortable" data-col="1" data-type="num">Q<span class="arr"> \u25BC</span></th>
+      <th class="sortable ind-k" data-col="2" data-type="num">IND<span class="arr"></span></th>
+      <th class="sortable rot-k" data-col="3" data-type="num">ROT<span class="arr"></span></th>
+      <th class="sortable" data-col="4" data-type="num">avg&nbsp;mph<span class="arr"></span></th>
+      <th class="sortable" data-col="5" data-type="str">date<span class="arr"></span></th>
+      <th class="sortable" data-col="6" data-type="str">ride<span class="arr"></span></th>
     </tr></thead>
     <tbody>
 {rows_html}
@@ -234,6 +242,29 @@ def render_html(rows, updated):
     spirit of the ride \u00b7 <a href="https://aeyu.io/">aeyu.io</a>
   </footer>
 </div>
+<script>
+(function() {{
+  var tbody = document.querySelector('tbody');
+  var headers = document.querySelectorAll('th.sortable');
+  var dir = {{}};
+  headers.forEach(function(th) {{
+    th.addEventListener('click', function() {{
+      var col = +th.dataset.col, numeric = th.dataset.type === 'num';
+      var asc = (dir[col] === undefined) ? !numeric : !dir[col];
+      dir[col] = asc;
+      var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+      rows.sort(function(a, b) {{
+        var x = a.children[col].dataset.sort, y = b.children[col].dataset.sort;
+        if (numeric) {{ x = parseFloat(x); y = parseFloat(y); }}
+        return (x < y ? -1 : x > y ? 1 : 0) * (asc ? 1 : -1);
+      }});
+      rows.forEach(function(r) {{ tbody.appendChild(r); }});
+      headers.forEach(function(h) {{ h.querySelector('.arr').textContent = ''; }});
+      th.querySelector('.arr').textContent = asc ? ' \u25B2' : ' \u25BC';
+    }});
+  }});
+}})();
+</script>
 </body>
 </html>"""
 
