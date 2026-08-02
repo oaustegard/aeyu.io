@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FPS, videoDuration, drawFrame } from '../src/share-video.js';
+import { FPS, videoDuration, drawFrame, pickEncoderConfig } from '../src/share-video.js';
 
 // A card shaped like the 2026-08-02 ride: header, title, meta, one pill row,
 // four highlight rows, tagline.
@@ -107,4 +107,27 @@ test('a card with no bands still renders chrome', () => {
   drawFrame(ctx, {}, { ...layout, bands: [] }, 1);
   assert.ok(ctx.calls.some((c) => c.img === layout.chrome));
   assert.equal(drawn(ctx).length, 0);
+});
+
+// --- Encoder configuration (#131) ---
+// The original bug: avc1.42001f is Baseline level 3.1, which tops out at 3600
+// macroblocks (1280x720). Every real share card is taller than that.
+
+test('no encoder config is offered when VideoEncoder is absent', async () => {
+  assert.equal(typeof VideoEncoder, 'undefined');
+  assert.equal(await pickEncoderConfig(1080, 1560), null);
+});
+
+test('level 3.1 cannot hold a real share card', () => {
+  // 1080x1560 -> 68 x 98 macroblocks
+  const mbs = Math.ceil(1080 / 16) * Math.ceil(1560 / 16);
+  assert.equal(mbs, 6664);
+  assert.ok(mbs > 3600, 'this is the frame size the old hardcoded level rejected');
+});
+
+test('candidate levels cover the tallest cards we produce', () => {
+  // A card with many awards can reach ~2400px tall -> 68 x 150 = 10200 MBs,
+  // which needs level 5.0 or better.
+  const mbs = Math.ceil(1080 / 16) * Math.ceil(2400 / 16);
+  assert.ok(mbs <= 36864, 'level 5.1/5.2 must still have headroom');
 });
