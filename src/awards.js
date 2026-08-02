@@ -89,6 +89,7 @@ import { getSegment, getResetEvent, recordRecoveryMilestone, getUserConfig, getA
 import { formatTime, formatDistance } from "./units.js";
 import { detectRoutes, findRouteForActivity } from "./routes.js";
 import { estimateCriticalPower } from "./critical-power.js";
+import { AWARD_PRIORITY, awardScore } from "./award-config.js";
 
 /** Minimum total efforts on a segment before comparative awards apply */
 const MIN_EFFORTS_FOR_AWARDS = 3;
@@ -169,6 +170,9 @@ const RECOVERY_ZONE_THRESHOLD = 1.15;
 /** Recovery milestone thresholds (percentage of pre-injury best) */
 const RECOVERY_MILESTONES = [80, 90, 95, 100];
 
+/** Max gap to the course record that still counts as "near KOM" (#131) */
+const NEAR_KOM_MAX_GAP = 0.15;
+
 /** Award types suppressed during recovery zone (demoralizing comparisons to pre-injury data) */
 const SUPPRESSED_IN_RECOVERY = new Set([
   "year_best", "beat_median", "top_quartile", "top_decile",
@@ -191,6 +195,8 @@ const MAX_AWARDS_PER_TYPE = {
   consistency:         3,
   closing_in:          3,
   matched_pr:          3,
+  all_time_top3:       5,
+  near_kom:            3,
   monthly_best:        5,
   recent_best:         5,
   improvement_streak:  5,
@@ -209,36 +215,21 @@ const SUBSUMES = {
   year_best: ["recent_best", "monthly_best", "best_month_ever", "ytd_best_time"],
   ytd_best_time: ["best_month_ever", "monthly_best"],
   best_month_ever: ["monthly_best"],
-  matched_pr: ["closing_in"],
+  matched_pr: ["closing_in", "all_time_top3"],
+  // all_time_top3's message already carries the gap to the PR, so closing_in
+  // is redundant beside it and would otherwise eat the segment's second slot.
+  all_time_top3: ["closing_in", "top_decile", "top_quartile", "beat_median", "recent_best"],
   comeback_full: ["comeback_pb", "recovery_milestone", "comeback"],
   comeback_pb: ["comeback"],
 };
 
-/** Tier ranking (5=highest → 1=lowest) for award priority */
-const AWARD_TIER = {
-  comeback_full:      5,
-  year_best:          4,
-  top_decile:         4,
-  comeback_pb:        4,
-  closing_in:         4,
-  matched_pr:         4,
-  ytd_best_time:      3,
-  ytd_best_power:     3,
-  best_month_ever:    3,
-  improvement_streak: 3,
-  reference_best:     3,
-  consistency:        3,
-  recent_best:        2,
-  monthly_best:       2,
-  top_quartile:       2,
-  comeback:           2,
-  beat_median:        1,
-  anniversary:        1,
-  milestone:          1,
-  recovery_milestone: 1,
-  season_first:       1,
-  route_season_first_more: 1,
-};
+/**
+ * Award priority now lives in award-config.js as AWARD_PRIORITY — one table,
+ * read by both this module and the share card. The local 5→1 AWARD_TIER that
+ * used to sit here disagreed with the card's copy (it rated closing_in equal
+ * to year_best; the card rated it seven points lower), so the same two awards
+ * ranked differently depending on which screen you were looking at.
+ */
 
 /**
  * Rank and cap per-segment awards to reduce noise.
@@ -284,11 +275,11 @@ export function rankSegmentAwards(awards) {
     const regularAwards = afterSubsumption.filter((a) => !COMEBACK_MODE_TYPES.has(a.type));
 
     // 3. Sort regular awards by tier (highest first), then cap
-    regularAwards.sort((a, b) => (AWARD_TIER[b.type] || 0) - (AWARD_TIER[a.type] || 0));
+    regularAwards.sort((a, b) => awardScore(b) - awardScore(a));
     const cappedRegular = regularAwards.slice(0, MAX_AWARDS_PER_SEGMENT);
 
     // 4. Allow at most 1 comeback-mode bonus award (highest tier)
-    comebackAwards.sort((a, b) => (AWARD_TIER[b.type] || 0) - (AWARD_TIER[a.type] || 0));
+    comebackAwards.sort((a, b) => awardScore(b) - awardScore(a));
     const bonusComeback = comebackAwards.slice(0, 1);
 
     ranked.push(...cappedRegular, ...bonusComeback);
@@ -299,19 +290,19 @@ export function rankSegmentAwards(awards) {
   // When capping per type, headlines are kept preferentially.
   const segmentTopTier = new Map();
   for (const a of ranked) {
-    const tier = AWARD_TIER[a.type] || 0;
+    const tier = AWARD_PRIORITY[a.type] || 0;
     const prev = segmentTopTier.get(a.segment_id) || 0;
     if (tier > prev) segmentTopTier.set(a.segment_id, tier);
   }
   for (const a of ranked) {
-    a._isHeadline = (AWARD_TIER[a.type] || 0) === segmentTopTier.get(a.segment_id);
+    a._isHeadline = (AWARD_PRIORITY[a.type] || 0) === segmentTopTier.get(a.segment_id);
   }
 
   // 6. Per-activity type caps: limit how many awards of the same type appear.
   // Sort so headlines come first (preferred to survive the cap), then by tier.
   ranked.sort((a, b) => {
     if (a._isHeadline !== b._isHeadline) return a._isHeadline ? -1 : 1;
-    return (AWARD_TIER[b.type] || 0) - (AWARD_TIER[a.type] || 0);
+    return awardScore(b) - awardScore(a);
   });
   const typeCounts = {};
   const afterTypeCap = ranked.filter((a) => {
@@ -651,6 +642,8 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
 
   const currentYear = new Date(activity.start_date_local).getFullYear();
   const awards = [];
+  /** segment_id → standing of THIS effort, used to score award magnitude (#131) */
+  const segStats = new Map();
 
   for (const effort of activity.segment_efforts) {
     try {
@@ -659,6 +652,23 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
 
     const allEfforts = segment.efforts;
     const allTimes = allEfforts.map((e) => e.elapsed_time);
+
+    // --- Standing of this effort against the athlete's own history (#131) ---
+    // Recorded for every segment whether or not any award fires, so that award
+    // ranking can ask "how big was this?" and not just "what type was it?".
+    const segPrTime = Math.min(...allTimes);
+    const startMs = Date.parse(effort.start_date_local || effort.start_date || 0) || null;
+    segStats.set(segment.id, {
+      effort_count: allEfforts.length,
+      // Ties share the better rank: 1 + how many efforts were strictly faster.
+      all_time_rank: allTimes.filter((t) => t < effort.elapsed_time).length + 1,
+      pr_time: segPrTime,
+      pr_gap_pct: segPrTime > 0 ? (effort.elapsed_time - segPrTime) / segPrTime : null,
+      // Wall-clock span of the effort, so overlapping segments covering the
+      // same stretch of road can be collapsed downstream (#131).
+      effort_start_ms: startMs,
+      effort_end_ms: startMs != null ? startMs + effort.elapsed_time * 1000 : null,
+    });
     const thisYearEfforts = allEfforts.filter(
       (e) => new Date(e.start_date_local).getFullYear() === currentYear
     );
@@ -719,6 +729,54 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
           : `First ride on ${segment.name} this year!`,
       });
       continue; // Season first — no other awards possible
+    }
+
+    // --- All-Time Top 3 (#131) — exempt from CV filter ---
+    // Strava already knows this and tells aeyu: pr_rank is 1, 2, 3 or null on
+    // every effort, and sync.js has been storing it since #106 without anything
+    // reading it. Rank 1 is a PR, which Strava celebrates loudly; 2 and 3 get a
+    // small grey medal and no mention on the share card. Those are the ones
+    // worth a trophy. Falls back to our own history when Strava omits the field
+    // (older synced efforts, manual uploads).
+    const stravaPrRank = effort.pr_rank;
+    const ownRank = segStats.get(segment.id).all_time_rank;
+    const allTimeRank = (stravaPrRank >= 1 && stravaPrRank <= 3) ? stravaPrRank : ownRank;
+    if (allTimeRank === 2 || allTimeRank === 3) {
+      if (allEfforts.length >= MIN_EFFORTS_FOR_AWARDS) {
+        const segPr = Math.min(...allTimes);
+        awards.push({
+          type: "all_time_top3",
+          segment: segment.name,
+          segment_id: segment.id,
+          time: effort.elapsed_time,
+          power: effort.average_watts || null,
+          comparison: null,
+          delta: effort.elapsed_time - segPr,
+          message: `${ordinal(allTimeRank)}-fastest of your ${allEfforts.length} efforts on ${segment.name}! ${formatTime(effort.elapsed_time)} — ${formatTime(effort.elapsed_time - segPr)} off your PR`,
+        });
+
+        // --- Near KOM (#131) ---
+        // Only checked here, on an already-notable effort, which keeps the
+        // extra segment lookup off the hot path: sync.js fetches the course
+        // record for a segment only once it sees a personal top-3 on it.
+        if (segment.kom_time > 0) {
+          const komGap = (effort.elapsed_time - segment.kom_time) / segment.kom_time;
+          if (komGap <= NEAR_KOM_MAX_GAP) {
+            awards.push({
+              type: "near_kom",
+              segment: segment.name,
+              segment_id: segment.id,
+              time: effort.elapsed_time,
+              power: effort.average_watts || null,
+              comparison: null,
+              delta: effort.elapsed_time - segment.kom_time,
+              message: komGap <= 0
+                ? `${formatTime(effort.elapsed_time)} on ${segment.name} — at or under the course record of ${formatTime(segment.kom_time)}!`
+                : `${formatTime(effort.elapsed_time)} on ${segment.name} — within ${Math.round(komGap * 100)}% of the ${formatTime(segment.kom_time)} course record`,
+            });
+          }
+        }
+      }
     }
 
     // --- Closing In on PR / Matched PR (#28) — exempt from CV filter ---
@@ -1177,6 +1235,20 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
     } catch (err) {
       console.warn(`[aeyu] Award computation failed for segment ${effort.segment?.id} (${effort.segment?.name}):`, err);
     }
+  }
+
+  // --- Attach standing to every segment award (#131) ---
+  // awardStrength() reads these to rank two awards of the same type by how big
+  // an instance each one is. Without them, ties fall back to array order, which
+  // is ride order, which is meaningless.
+  for (const a of awards) {
+    const st = a.segment_id != null ? segStats.get(a.segment_id) : null;
+    if (!st) continue;
+    a.effort_count = st.effort_count;
+    a.all_time_rank = st.all_time_rank;
+    a.pr_gap_pct = st.pr_gap_pct;
+    a.effort_start_ms = st.effort_start_ms;
+    a.effort_end_ms = st.effort_end_ms;
   }
 
   // --- Comeback suppression (#60) ---

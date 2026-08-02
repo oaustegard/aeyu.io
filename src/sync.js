@@ -18,6 +18,8 @@ import {
   getSyncState,
   updateSyncState,
   appendEffort,
+  setSegmentKom,
+  getSegment,
   removeEffortsForActivity,
   putStravaRoutes,
   getStravaRoutes,
@@ -113,6 +115,60 @@ class RateLimitError extends Error {
   constructor(retryAfter) {
     super(`Rate limited. Retry after ${retryAfter}s`);
     this.retryAfter = retryAfter;
+  }
+}
+
+
+// --- Course records (#131) ---
+
+/** Parse Strava's xoms time strings ("1:03", "12:41", "1:02:15") into seconds. */
+export function parseXomTime(str) {
+  if (typeof str !== "string") return null;
+  const parts = str.trim().split(":").map(Number);
+  if (parts.some((n) => !Number.isFinite(n))) return null;
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 1) return parts[0];
+  return null;
+}
+
+/**
+ * Fetch and cache the course record for segments where the athlete just put
+ * down an all-time top-3 effort.
+ *
+ * The segment detail endpoint is the only place Strava exposes any public
+ * standing at all (`xoms`) — the leaderboard itself is not in the API. Fetching
+ * it for every segment on every ride would be dozens of extra calls per
+ * activity for data that matters on a handful of them, so the gate is
+ * `pr_rank <= 3`: ask how you stand against the course record only once you are
+ * near your own ceiling. Each segment is fetched at most once.
+ *
+ * Failures are swallowed — a missing KOM suppresses one optional award and
+ * must never take down a sync.
+ */
+async function enrichCourseRecords(efforts) {
+  const candidates = [
+    ...new Set(
+      efforts
+        .filter((e) => e.pr_rank >= 1 && e.pr_rank <= 3)
+        .map((e) => e.segment?.id)
+        .filter(Boolean)
+    ),
+  ];
+
+  for (const segmentId of candidates) {
+    try {
+      const existing = await getSegment(segmentId);
+      if (!existing || existing.kom_time != null) continue;
+      const detail = await stravaFetch(`/segments/${segmentId}`);
+      const kom = parseXomTime(detail?.xoms?.overall || detail?.xoms?.kom);
+      if (kom != null) {
+        await setSegmentKom(segmentId, kom, detail.athlete_count ?? null);
+      }
+    } catch (err) {
+      if (err instanceof RateLimitError) throw err;
+      console.warn(`[aeyu] Could not fetch course record for segment ${segmentId}:`, err);
+    }
   }
 }
 
@@ -360,6 +416,8 @@ async function fetchActivityDetails() {
           average_cadence: effort.average_cadence,
         });
       }
+
+      await enrichCourseRecords(efforts);
 
       detailed.push(updated);
       batchCount++;
@@ -1193,6 +1251,8 @@ export async function resyncActivity(activityId) {
       average_cadence: effort.average_cadence,
     });
   }
+
+  await enrichCourseRecords(efforts);
 
   return updated;
 }

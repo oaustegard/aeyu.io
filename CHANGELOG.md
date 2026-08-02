@@ -4,6 +4,20 @@ All merged pull requests for [aeyu.io](https://aeyu.io), a Strava-powered cyclin
 
 -----
 
+## 2026-08-02
+
+### Fixes
+
+- **Award ranking now reflects how big the effort was, not where it fell in the ride** — Award priority lived in two tables that disagreed (`AWARD_TIER` in `awards.js` and a private `TIER` in `ActivityDetail.js`); the share card used the copy that ranked Closing In seven points below Year Best. Both now read a single `AWARD_PRIORITY` in `award-config.js`, reordered so all-time standing outranks calendar-window standing. A new `awardStrength()` scores magnitude within each band from all-time rank percentile and PR proximity, so two Year Bests no longer tie and fall back to array order — a 2nd-of-49 effort one second off a PR now outranks a 12th-of-54 effort that happens to be this year's fastest.
+- **Overlapping segments no longer eat the share card** — Highlight dedupe keyed on `segment_id`, but Strava segments nest: three segments covering one climb each earned an award and between them consumed three of four slots. Efforts with intersecting wall-clock spans now collapse to their best award.
+
+### Features
+
+- **All-Time Top 3 award** — Strava has been sending `pr_rank` on every effort and `sync.js` has been storing it since #106 with nothing reading it. A 2nd- or 3rd-fastest-ever effort gets a small grey medal from Strava and no mention anywhere else; it now gets a trophy, with the gap to the PR in the message.
+- **Near KOM award** — Fires when an effort lands within 15% of the segment's course record. Checked only on efforts that are already a personal top 3, so it costs a handful of extra API calls rather than one per segment per ride. The segment leaderboard itself is not in the Strava API; `xoms` on the segment detail endpoint is the only public standing available.
+
+-----
+
 ## 2026-05-25
 
 ### Features

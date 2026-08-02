@@ -21,6 +21,8 @@ export const AWARD_LABELS = {
   best_month_ever:    { label: "Best Month Ever",    tip: "Fastest time in this calendar month across all years", dot: "#8C7A30", bg: "#F4EEDA", text: "#5C5018", border: "#DCD4A8" },
   closing_in:         { label: "Closing In",         tip: "Within 5% of your all-time PR", dot: "#A04880", bg: "#F2E0EC", text: "#6A2858", border: "#D8B8D0" },
   matched_pr:         { label: "Matched PR",         tip: "Tied your all-time personal record", dot: "#C84040", bg: "#F8E0E0", text: "#7A2020", border: "#E4B0B0" },
+  all_time_top3:      { label: "All-Time Top 3",     tip: "2nd or 3rd fastest you have ever ridden this segment", dot: "#C84040", bg: "#F8E0E0", text: "#7A2020", border: "#E4B0B0" },
+  near_kom:           { label: "Near KOM",           tip: "Within 15% of the segment's all-time course record", dot: "#7A2E8A", bg: "#F0E2F4", text: "#4A1858", border: "#D4B8DC" },
   anniversary:        { label: "Anniversary",        tip: "Rode this segment on the same date in a previous year", dot: "#6B5CA0", bg: "#E8E4F4", text: "#3E3070", border: "#C4BCD8" },
   distance_record:    { label: "Longest Ride",       tip: "Longest ride of the year by distance", dot: "#4882A8", bg: "#E4EEF6", text: "#2A5470", border: "#B8D0E4" },
   elevation_record:   { label: "Most Climbing",      tip: "Most elevation gain in a single ride this year", dot: "#6B6260", bg: "#ECEAE6", text: "#3E3A36", border: "#D4D0C8" },
@@ -72,6 +74,123 @@ export const AWARD_COLORS = Object.fromEntries(
   Object.entries(AWARD_LABELS).map(([k, v]) => [k, { bg: v.bg, text: v.text, accent: v.dot, border: v.border }])
 );
 
+/**
+ * Award priority — the SINGLE source of truth for "which award matters more".
+ *
+ * Higher wins. Previously this lived in two places that disagreed: `AWARD_TIER`
+ * in awards.js (5→1 buckets, where closing_in tied year_best) and a private
+ * `TIER` map in ActivityDetail.js (20→3, where year_best outranked closing_in
+ * by seven points). The share card used the second one, so a near-PR effort
+ * lost its slot to a merely-best-this-year effort on a segment ridden three
+ * times. Both consumers now read this table.
+ *
+ * Ordering principle: all-time standing beats calendar-window standing. Being
+ * one second off a PR is a bigger deal than being the fastest you have gone
+ * since January.
+ */
+export const AWARD_PRIORITY = {
+  // All-time standing on a segment
+  matched_pr:           96,
+  all_time_top3:        94,
+  // Above closing_in deliberately: being near the course record is rarer and
+  // says something closing_in cannot, and MAX_AWARDS_PER_SEGMENT is 2 — at
+  // 86 it was capped out of every segment where it fired (caught by the
+  // harness audit, #131).
+  near_kom:             92,
+  closing_in:           90,
+  curve_all_time:       88,
+  comeback_full:        88,
+  // Season / calendar-window bests
+  route_season_first:   80,
+  year_best:            78,
+  ytd_best_time:        74,
+  ytd_best_power:       74,
+  np_year_best:         72,
+  peak_power:           72,
+  curve_year_best:      72,
+  best_month_ever:      68,
+  top_decile:           66,
+  distance_record:      66,
+  elevation_record:     64,
+  ftp_milestone:        64,
+  cp_milestone:         64,
+  endurance_record:     62,
+  work_year_best:       60,
+  comeback_pb:          60,
+  improvement_streak:   58,
+  recovery_milestone:   56,
+  route_season_first_more: 56,
+  watt_milestone:       54,
+  top_quartile:         52,
+  comeback:             50,
+  kj_milestone:         50,
+  indoor_np_year_best:  50,
+  recent_best:          48,
+  np_recent_best:       48,
+  indoor_work_year_best: 46,
+  monthly_best:         44,
+  work_recent_best:     44,
+  peak_power_recent:    44,
+  power_progression:    42,
+  trainer_streak:       40,
+  beat_median:          38,
+  indoor_vs_outdoor:    36,
+  season_first:         34,
+  season_first_power:   34,
+  comeback_distance:    34,
+  comeback_elevation:   34,
+  comeback_endurance:   34,
+  reference_best:       32,
+  consistency:          30,
+  power_consistency:    30,
+  weekly_streak:        30,
+  milestone:            20,
+  group_consistency:    18,
+  anniversary:          16,
+  segment_count:        14,
+};
+
+/** Efforts within this fraction of the PR count as "essentially a PR" for strength. */
+const STRENGTH_PR_WINDOW = 0.10;
+
+/**
+ * How big an instance of an award this is, in [0, 1).
+ *
+ * Award type alone says what KIND of thing happened; it says nothing about
+ * magnitude. "Year Best" on a segment ridden 3 times and "Year Best" that is
+ * also your 2nd-fastest of 49 attempts were previously indistinguishable, and
+ * ties broke on array order — i.e. on where the segment fell in the ride.
+ *
+ * Strength is derived from two independent readings of the same effort, and
+ * takes the more flattering:
+ *   - all-time rank percentile among your own efforts on that segment
+ *   - proximity to your PR (linear over a 10% window)
+ *
+ * Segment awards get these fields annotated by computeAwards; ride-level
+ * awards have none and score 0, which only ever affects tie-breaks within
+ * their own priority band.
+ */
+export function awardStrength(award) {
+  if (!award) return 0;
+  let s = 0;
+  if (award.all_time_rank > 0 && award.effort_count > 0) {
+    s = Math.max(s, 1 - (award.all_time_rank - 1) / award.effort_count);
+  }
+  if (award.pr_gap_pct != null && award.pr_gap_pct >= 0) {
+    s = Math.max(s, 1 - award.pr_gap_pct / STRENGTH_PR_WINDOW);
+  }
+  return Math.min(Math.max(s, 0), 1) * 0.999;
+}
+
+/**
+ * Sortable score: priority band, then magnitude within the band.
+ * Strength is capped below 1 so it can never promote an award past the next
+ * band up — a huge Beat Median stays a Beat Median.
+ */
+export function awardScore(award) {
+  return (AWARD_PRIORITY[award?.type] || 0) + awardStrength(award);
+}
+
 // Grouped award types for settings toggles — each group can be toggled as a unit
 // or individual types within can be toggled. Descriptions match FAQ.
 export const AWARD_GROUPS = [
@@ -92,6 +211,8 @@ export const AWARD_GROUPS = [
       { type: "comeback", desc: "Beat your median after 3+ slower efforts in a row." },
       { type: "closing_in", desc: "Within 5% of your all-time PR on a segment — you're close to a personal best." },
       { type: "matched_pr", desc: "Tied your all-time PR on a segment. Strava doesn't give you a trophy for ties — aeyu does." },
+      { type: "all_time_top3", desc: "2nd or 3rd fastest effort you have ever put out on a segment. Strava shows this as a small silver or bronze medal and nothing else." },
+      { type: "near_kom", desc: "Within 15% of the segment's course record. Only checked when the effort is already one of your all-time top 3." },
       { type: "best_month_ever", desc: "Fastest time in this calendar month across all years — your best March ever, for example." },
       { type: "milestone", desc: "Round-number attempt on a segment (10th, 25th, 50th, 100th, etc.)." },
       { type: "anniversary", desc: "Rode this segment on the same date in a previous year." },

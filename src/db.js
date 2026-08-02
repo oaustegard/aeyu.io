@@ -329,6 +329,38 @@ export async function appendEffort(segmentId, segmentData, effort) {
 }
 
 /**
+ * Store a segment's course record time (#131).
+ * Fetched lazily by sync.js, only for segments where the athlete has put down
+ * an all-time top-3 effort, so this is a rare write on a small subset.
+ * No-op if the segment record does not exist yet.
+ *
+ * @param {number} segmentId
+ * @param {number} komSeconds — course record in seconds
+ * @param {number|null} athleteCount — how many athletes have ridden it
+ */
+export async function setSegmentKom(segmentId, komSeconds, athleteCount = null) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("segments", "readwrite");
+    const store = tx.objectStore("segments");
+    const req = store.get(segmentId);
+
+    req.onsuccess = () => {
+      const existing = req.result;
+      if (existing) {
+        existing.kom_time = komSeconds;
+        existing.kom_checked_at = new Date().toISOString();
+        if (athleteCount != null) existing.athlete_count = athleteCount;
+        store.put(existing);
+      }
+    };
+
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/**
  * Remove all efforts for a given activity from the segments store.
  * Used before re-appending updated efforts during activity resync.
  */
