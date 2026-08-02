@@ -266,7 +266,7 @@ function drawLogoWatermark(ctx, W, H, cardY, cardH, pad) {
 
 // ── Canvas Share Card ─────────────────────────────────────────────
 
-async function renderShareCard(canvas, act, awardsList) {
+async function renderShareCard(canvas, act, awardsList, { maxHighlights = SHARE_CARD_HIGHLIGHTS } = {}) {
   const W = 1080;
   const borderW = 8; // steel blue border at image edge
   const innerPad = 44; // content padding inside body
@@ -296,7 +296,7 @@ async function renderShareCard(canvas, act, awardsList) {
   const metaText = metaParts.join("  ·  ");
   const metaLines = wrapText(tmpCtx, metaText, maxTextW);
 
-  const highlightAwards = buildShareCardHighlights(awardsList);
+  const highlightAwards = buildShareCardHighlights(awardsList, maxHighlights);
 
   const counts = {};
   const pillOrder = ["route_season_first", "route_season_first_more", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record", "season_first_power", "np_year_best", "np_recent_best", "work_year_best", "work_recent_best", "peak_power", "peak_power_recent", "watt_milestone", "kj_milestone", "power_progression", "power_consistency", "ftp_milestone", "cp_milestone", "curve_year_best", "curve_all_time", "indoor_np_year_best", "indoor_work_year_best", "trainer_streak", "indoor_vs_outdoor", "weekly_streak", "group_consistency", "reference_best", "comeback_pb", "recovery_milestone", "comeback_full", "comeback_distance", "comeback_elevation", "comeback_endurance"];
@@ -369,19 +369,6 @@ async function renderShareCard(canvas, act, awardsList) {
   // Logo watermark on body area
   drawLogoWatermark(ctx, W, H, bodyTop, bodyBottom - bodyTop, borderW);
 
-  // Snapshot the chrome — border, paper, topo texture, watermark — before any
-  // content lands on it. The animated card (#131) composites content bands over
-  // this rather than trying to reproduce the background, so the texture and
-  // watermark stay defined in exactly one place.
-  const chrome = document.createElement("canvas");
-  chrome.width = W;
-  chrome.height = H;
-  chrome.getContext("2d").drawImage(canvas, 0, 0);
-
-  /** Vertical slices of content, in reveal order (#131). */
-  const bands = [];
-  const band = (y0, y1) => { if (y1 > y0) bands.push({ y0: Math.max(0, Math.round(y0)), y1: Math.min(H, Math.round(y1)) }); };
-
   // Header text on steel cap — vertically centered
   let y = headerCapH / 2 + 10;
   ctx.font = '500 30px "IBM Plex Mono", monospace';
@@ -394,11 +381,9 @@ async function renderShareCard(canvas, act, awardsList) {
   ctx.textAlign = "right";
   ctx.fillText("Participation Awards", rightEdge, y);
   ctx.textAlign = "left";
-  band(0, headerCapH);
   y = headerCapH + 72; // generous gap between header and title
 
   // Activity name — larger
-  const titleTop = y - 64;
   ctx.font = '400 64px "Instrument Serif", serif';
   ctx.fillStyle = "#1A1610";
   for (const line of nameLines) {
@@ -406,10 +391,8 @@ async function renderShareCard(canvas, act, awardsList) {
     y += 74;
   }
   y += 8;
-  band(titleTop, y - 8);
 
   // Meta
-  const metaTop = y - 34;
   ctx.font = '400 34px "IBM Plex Mono", monospace';
   ctx.fillStyle = "#4A4438";
   for (const line of metaLines) {
@@ -417,7 +400,6 @@ async function renderShareCard(canvas, act, awardsList) {
     y += 42;
   }
   y += 24;
-  band(metaTop, y - 24);
 
   // Awards
   if (awardsList.length > 0) {
@@ -446,7 +428,6 @@ async function renderShareCard(canvas, act, awardsList) {
         ctx.font = '600 30px "DM Sans", sans-serif';
         ctx.fillText(pill.label, pill.x + 14 + iconSize + iconPad, y);
       }
-      band(y - 32, y + 22);
       y += 56;
     }
     y += 16;
@@ -491,16 +472,14 @@ async function renderShareCard(canvas, act, awardsList) {
         ctx.fillStyle = "#7A7164";
         ctx.fillText(`${formatTime(award.delta)} faster`, left + 32, y + 32);
       }
-      band(y - 30, y + ((award.delta && award.delta > 0) ? 44 : 16));
       y += (award.delta && award.delta > 0) ? 68 : 52;
     }
 
-    const remaining = awardsList.length - highlightAwards.length;
+    const remaining = Number.isFinite(maxHighlights) ? awardsList.length - highlightAwards.length : 0;
     if (remaining > 0) {
       ctx.font = '400 26px "DM Sans", sans-serif';
       ctx.fillStyle = "#7A7164";
       ctx.fillText(`+ ${remaining} more awards`, left, y + 8);
-      band(y - 18, y + 18);
     }
   }
 
@@ -512,10 +491,9 @@ async function renderShareCard(canvas, act, awardsList) {
   ctx.fillText("It's just you and your efforts", W / 2, H - borderW - 16);
   ctx.globalAlpha = 1.0;
   ctx.textAlign = "left";
-  band(H - borderW - 46, H - borderW);
 
   // Layout metadata for the animated card (#131). Harmless to ignore.
-  return { width: W, height: H, chrome, bands };
+  return { width: W, height: H };
 }
 
 // ── Segment Share Card ────────────────────────────────────────────
@@ -794,19 +772,6 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   // Logo watermark on body area
   drawLogoWatermark(ctx, W, H, bodyTop, bodyBottom - bodyTop, borderW);
 
-  // Snapshot the chrome — border, paper, topo texture, watermark — before any
-  // content lands on it. The animated card (#131) composites content bands over
-  // this rather than trying to reproduce the background, so the texture and
-  // watermark stay defined in exactly one place.
-  const chrome = document.createElement("canvas");
-  chrome.width = W;
-  chrome.height = H;
-  chrome.getContext("2d").drawImage(canvas, 0, 0);
-
-  /** Vertical slices of content, in reveal order (#131). */
-  const bands = [];
-  const band = (y0, y1) => { if (y1 > y0) bands.push({ y0: Math.max(0, Math.round(y0)), y1: Math.min(H, Math.round(y1)) }); };
-
   // Header text on steel cap — vertically centered
   let y = headerCapH / 2 + 10;
   ctx.font = '500 30px "IBM Plex Mono", monospace';
@@ -819,11 +784,9 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   ctx.textAlign = "right";
   ctx.fillText("Segment Awards", rightEdge, y);
   ctx.textAlign = "left";
-  band(0, headerCapH);
   y = headerCapH + 72; // generous gap between header and title
 
   // Segment name — larger
-  const titleTop = y - 64;
   ctx.font = '400 64px "Instrument Serif", serif';
   ctx.fillStyle = "#1A1610";
   for (const line of nameLines) {
@@ -831,10 +794,8 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
     y += 74;
   }
   y += 8;
-  band(titleTop, y - 8);
 
   // Meta
-  const metaTop = y - 34;
   ctx.font = '400 34px "IBM Plex Mono", monospace';
   ctx.fillStyle = "#4A4438";
   for (const line of metaLines) {
@@ -842,15 +803,12 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
     y += 42;
   }
   y += 24;
-  band(metaTop, y - 24);
 
   // Performance chart
   if (hasChart) {
-    const chartTop = y;
     const chartW = rightEdge - left;
     drawPerformanceChart(ctx, segment, effort.id, left, y, chartW, chartH);
     y += chartH + chartStatsH + 28;
-    band(chartTop, y - 28);
   }
 
   // Awards
@@ -880,7 +838,6 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
         ctx.font = '600 30px "DM Sans", sans-serif';
         ctx.fillText(pill.label, pill.x + 14 + iconSize + iconPad, y);
       }
-      band(y - 32, y + 22);
       y += 56;
     }
     y += 16;
@@ -900,7 +857,6 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
       const colors = AWARD_COLORS[award.type];
       if (!colors) continue;
       const msgLines = wrappedAwardMsgs[i];
-      const msgTop = y - 22;
 
       drawIcon(ctx, award.type, left, y - 14, 22, colors.accent, 2);
 
@@ -910,7 +866,6 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
         ctx.fillText(line, left + 32, y + 4);
         y += 36;
       }
-      band(msgTop, y);
       y += 16;
     }
 
@@ -919,7 +874,6 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
       ctx.font = '400 26px "DM Sans", sans-serif';
       ctx.fillStyle = "#7A7164";
       ctx.fillText(`+ ${remaining} more awards`, left, y + 8);
-      band(y - 18, y + 18);
     }
   }
 
@@ -946,10 +900,9 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   ctx.fillText("It's just you and your efforts", W / 2, H - borderW - 16);
   ctx.globalAlpha = 1.0;
   ctx.textAlign = "left";
-  band(H - borderW - 46, H - borderW);
 
   // Layout metadata for the animated card (#131). Harmless to ignore.
-  return { width: W, height: H, chrome, bands };
+  return { width: W, height: H };
 }
 
 
@@ -977,7 +930,7 @@ const SHARE_CARD_HIGHLIGHTS = 4;
  *     them eating three of four slots. Efforts whose wall-clock spans overlap
  *     are now collapsed to their best award.
  */
-function buildShareCardHighlights(awardsList) {
+function buildShareCardHighlights(awardsList, slots = SHARE_CARD_HIGHLIGHTS) {
   // Best award per segment
   const bySegment = new Map();
   for (const a of awardsList) {
@@ -1004,7 +957,7 @@ function buildShareCardHighlights(awardsList) {
 
   return [...kept, ...rideAwards]
     .sort((a, b) => awardScore(b) - awardScore(a))
-    .slice(0, SHARE_CARD_HIGHLIGHTS);
+    .slice(0, slots);
 }
 
 /**
@@ -1368,7 +1321,9 @@ export function ActivityDetail({ id }) {
             const segAwards = awards.value.filter((a) => a.segment_id === effort.segment.id);
             return renderSegmentShareCard(canvas, act, effort, segAwards, seg);
           }
-          return renderShareCard(canvas, act, awards.value);
+          // No highlight cap: the point of the video is to show the awards the
+          // still card has to truncate into "+ N more".
+          return renderShareCard(canvas, act, awards.value, { maxHighlights: Infinity });
         },
         { onProgress: (p) => { videoBusy.value = Math.max(1, Math.round(p * 100)); } }
       );
