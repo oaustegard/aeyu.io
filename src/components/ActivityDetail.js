@@ -26,6 +26,7 @@ import {
 } from "../units.js";
 import { renderIconSVG, drawIcon } from "../icons.js";
 import { AWARD_LABELS, AWARD_COLORS, awardScore } from "../award-config.js";
+import { renderShareVideo } from "../share-video.js";
 import { StickyHeader } from "./StickyHeader.js";
 import { SegmentSparkline } from "./SegmentSparkline.js";
 import { TrendChart } from "./TrendChart.js";
@@ -39,6 +40,8 @@ const segmentHistory = signal(new Map());
 const loading = signal(true);
 const copied = signal(false);
 const cardGenerated = signal(false);
+const videoBusy = signal(0);      // 0 = idle, else 1..100 percent (#131)
+const videoError = signal(null);
 const segmentCardGenerated = signal(null); // segment_id or null
 const resyncing = signal(false);
 const resyncError = signal(null);
@@ -366,6 +369,19 @@ async function renderShareCard(canvas, act, awardsList) {
   // Logo watermark on body area
   drawLogoWatermark(ctx, W, H, bodyTop, bodyBottom - bodyTop, borderW);
 
+  // Snapshot the chrome — border, paper, topo texture, watermark — before any
+  // content lands on it. The animated card (#131) composites content bands over
+  // this rather than trying to reproduce the background, so the texture and
+  // watermark stay defined in exactly one place.
+  const chrome = document.createElement("canvas");
+  chrome.width = W;
+  chrome.height = H;
+  chrome.getContext("2d").drawImage(canvas, 0, 0);
+
+  /** Vertical slices of content, in reveal order (#131). */
+  const bands = [];
+  const band = (y0, y1) => { if (y1 > y0) bands.push({ y0: Math.max(0, Math.round(y0)), y1: Math.min(H, Math.round(y1)) }); };
+
   // Header text on steel cap — vertically centered
   let y = headerCapH / 2 + 10;
   ctx.font = '500 30px "IBM Plex Mono", monospace';
@@ -378,9 +394,11 @@ async function renderShareCard(canvas, act, awardsList) {
   ctx.textAlign = "right";
   ctx.fillText("Participation Awards", rightEdge, y);
   ctx.textAlign = "left";
+  band(0, headerCapH);
   y = headerCapH + 72; // generous gap between header and title
 
   // Activity name — larger
+  const titleTop = y - 64;
   ctx.font = '400 64px "Instrument Serif", serif';
   ctx.fillStyle = "#1A1610";
   for (const line of nameLines) {
@@ -388,8 +406,10 @@ async function renderShareCard(canvas, act, awardsList) {
     y += 74;
   }
   y += 8;
+  band(titleTop, y - 8);
 
   // Meta
+  const metaTop = y - 34;
   ctx.font = '400 34px "IBM Plex Mono", monospace';
   ctx.fillStyle = "#4A4438";
   for (const line of metaLines) {
@@ -397,6 +417,7 @@ async function renderShareCard(canvas, act, awardsList) {
     y += 42;
   }
   y += 24;
+  band(metaTop, y - 24);
 
   // Awards
   if (awardsList.length > 0) {
@@ -425,6 +446,7 @@ async function renderShareCard(canvas, act, awardsList) {
         ctx.font = '600 30px "DM Sans", sans-serif';
         ctx.fillText(pill.label, pill.x + 14 + iconSize + iconPad, y);
       }
+      band(y - 32, y + 22);
       y += 56;
     }
     y += 16;
@@ -469,6 +491,7 @@ async function renderShareCard(canvas, act, awardsList) {
         ctx.fillStyle = "#7A7164";
         ctx.fillText(`${formatTime(award.delta)} faster`, left + 32, y + 32);
       }
+      band(y - 30, y + ((award.delta && award.delta > 0) ? 44 : 16));
       y += (award.delta && award.delta > 0) ? 68 : 52;
     }
 
@@ -477,6 +500,7 @@ async function renderShareCard(canvas, act, awardsList) {
       ctx.font = '400 26px "DM Sans", sans-serif';
       ctx.fillStyle = "#7A7164";
       ctx.fillText(`+ ${remaining} more awards`, left, y + 8);
+      band(y - 18, y + 18);
     }
   }
 
@@ -488,6 +512,10 @@ async function renderShareCard(canvas, act, awardsList) {
   ctx.fillText("It's just you and your efforts", W / 2, H - borderW - 16);
   ctx.globalAlpha = 1.0;
   ctx.textAlign = "left";
+  band(H - borderW - 46, H - borderW);
+
+  // Layout metadata for the animated card (#131). Harmless to ignore.
+  return { width: W, height: H, chrome, bands };
 }
 
 // ── Segment Share Card ────────────────────────────────────────────
@@ -766,6 +794,19 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   // Logo watermark on body area
   drawLogoWatermark(ctx, W, H, bodyTop, bodyBottom - bodyTop, borderW);
 
+  // Snapshot the chrome — border, paper, topo texture, watermark — before any
+  // content lands on it. The animated card (#131) composites content bands over
+  // this rather than trying to reproduce the background, so the texture and
+  // watermark stay defined in exactly one place.
+  const chrome = document.createElement("canvas");
+  chrome.width = W;
+  chrome.height = H;
+  chrome.getContext("2d").drawImage(canvas, 0, 0);
+
+  /** Vertical slices of content, in reveal order (#131). */
+  const bands = [];
+  const band = (y0, y1) => { if (y1 > y0) bands.push({ y0: Math.max(0, Math.round(y0)), y1: Math.min(H, Math.round(y1)) }); };
+
   // Header text on steel cap — vertically centered
   let y = headerCapH / 2 + 10;
   ctx.font = '500 30px "IBM Plex Mono", monospace';
@@ -778,9 +819,11 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   ctx.textAlign = "right";
   ctx.fillText("Segment Awards", rightEdge, y);
   ctx.textAlign = "left";
+  band(0, headerCapH);
   y = headerCapH + 72; // generous gap between header and title
 
   // Segment name — larger
+  const titleTop = y - 64;
   ctx.font = '400 64px "Instrument Serif", serif';
   ctx.fillStyle = "#1A1610";
   for (const line of nameLines) {
@@ -788,8 +831,10 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
     y += 74;
   }
   y += 8;
+  band(titleTop, y - 8);
 
   // Meta
+  const metaTop = y - 34;
   ctx.font = '400 34px "IBM Plex Mono", monospace';
   ctx.fillStyle = "#4A4438";
   for (const line of metaLines) {
@@ -797,12 +842,15 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
     y += 42;
   }
   y += 24;
+  band(metaTop, y - 24);
 
   // Performance chart
   if (hasChart) {
+    const chartTop = y;
     const chartW = rightEdge - left;
     drawPerformanceChart(ctx, segment, effort.id, left, y, chartW, chartH);
     y += chartH + chartStatsH + 28;
+    band(chartTop, y - 28);
   }
 
   // Awards
@@ -832,6 +880,7 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
         ctx.font = '600 30px "DM Sans", sans-serif';
         ctx.fillText(pill.label, pill.x + 14 + iconSize + iconPad, y);
       }
+      band(y - 32, y + 22);
       y += 56;
     }
     y += 16;
@@ -851,6 +900,7 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
       const colors = AWARD_COLORS[award.type];
       if (!colors) continue;
       const msgLines = wrappedAwardMsgs[i];
+      const msgTop = y - 22;
 
       drawIcon(ctx, award.type, left, y - 14, 22, colors.accent, 2);
 
@@ -860,6 +910,7 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
         ctx.fillText(line, left + 32, y + 4);
         y += 36;
       }
+      band(msgTop, y);
       y += 16;
     }
 
@@ -868,6 +919,7 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
       ctx.font = '400 26px "DM Sans", sans-serif';
       ctx.fillStyle = "#7A7164";
       ctx.fillText(`+ ${remaining} more awards`, left, y + 8);
+      band(y - 18, y + 18);
     }
   }
 
@@ -894,6 +946,10 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
   ctx.fillText("It's just you and your efforts", W / 2, H - borderW - 16);
   ctx.globalAlpha = 1.0;
   ctx.textAlign = "left";
+  band(H - borderW - 46, H - borderW);
+
+  // Layout metadata for the animated card (#131). Harmless to ignore.
+  return { width: W, height: H, chrome, bands };
 }
 
 
@@ -1291,6 +1347,48 @@ export function ActivityDetail({ id }) {
     }, "image/png");
   }
 
+  /**
+   * Render the currently-shown card as a short video and hand it to the share
+   * sheet (#131). Re-renders the still into an offscreen canvas rather than
+   * reusing the visible one, so the on-screen card is untouched while encoding.
+   */
+  async function handleShareVideo() {
+    if (videoBusy.value) return;
+    videoError.value = null;
+    videoBusy.value = 1;
+    try {
+      const segId = segmentCardGenerated.value;
+      const effort = segId ? act.segment_efforts?.find((e) => e.segment.id === segId) : null;
+      const baseName = effort ? effort.segment.name : act.name;
+
+      const { blob, type, extension } = await renderShareVideo(
+        async (canvas) => {
+          if (effort) {
+            const seg = segmentHistory.value.get(effort.segment.id);
+            const segAwards = awards.value.filter((a) => a.segment_id === effort.segment.id);
+            return renderSegmentShareCard(canvas, act, effort, segAwards, seg);
+          }
+          return renderShareCard(canvas, act, awards.value);
+        },
+        { onProgress: (p) => { videoBusy.value = Math.max(1, Math.round(p * 100)); } }
+      );
+
+      const filename = `${baseName.replace(/[^a-z0-9]/gi, "-")}-awards.${extension}`;
+      const file = new File([blob], filename, { type });
+      // WebM gets rejected by most share targets, so only MP4 goes to the sheet.
+      if (type === "video/mp4" && navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file] }).catch(() => downloadBlob(blob, filename));
+      } else {
+        downloadBlob(blob, filename);
+      }
+    } catch (err) {
+      console.warn("[aeyu] Share video failed:", err);
+      videoError.value = err?.message || "Could not create the video";
+    } finally {
+      videoBusy.value = 0;
+    }
+  }
+
   function handleSaveImage() {
     const segId = segmentCardGenerated.value;
     if (segId) {
@@ -1500,6 +1598,17 @@ export function ActivityDetail({ id }) {
                     Save / Share
                   </button>
                   <button
+                    onClick=${handleShareVideo}
+                    disabled=${videoBusy.value > 0}
+                    class="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors"
+                    style="border: 1px solid var(--border); color: var(--text-secondary); font-family: var(--font-body); opacity: ${videoBusy.value > 0 ? 0.6 : 1};"
+                  >
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                    ${videoBusy.value > 0 ? `Rendering ${videoBusy.value}%` : "Share Video"}
+                  </button>
+                  <button
                     onClick=${copyCanvasToClipboard}
                     class="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors"
                     style="border: 1px solid var(--border); color: var(--text-secondary); font-family: var(--font-body);"
@@ -1510,6 +1619,9 @@ export function ActivityDetail({ id }) {
                     ${copied.value ? "Copied!" : "Copy Image"}
                   </button>
                 </div>
+              `}
+              ${videoError.value && html`
+                <p class="mt-2 text-sm" style="color: var(--text-secondary); font-family: var(--font-body);">${videoError.value}</p>
               `}
 
             </div>
