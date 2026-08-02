@@ -4,7 +4,7 @@
  * All Strava data lives in IndexedDB — SW just needs to serve the app offline.
  */
 
-const CACHE_NAME = "aeyu-v13";
+const CACHE_NAME = "aeyu-v14";
 
 const APP_SHELL = [
   "/",
@@ -17,6 +17,7 @@ const APP_SHELL = [
   "/src/app.js",
   "/src/auth.js",
   "/src/awards.js",
+  "/src/share-video.js",
   "/src/config.js",
   "/src/db.js",
   "/src/sync.js",
@@ -38,6 +39,7 @@ const APP_SHELL = [
   "/vendor/signals-core.mjs",
   "/vendor/htm.mjs",
   "/vendor/htm-preact.mjs",
+  "/vendor/mp4-muxer.mjs",
   "/vendor/tailwind.css",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
