@@ -65,18 +65,54 @@ export function drawFrame(ctx, still, layout, t) {
   ctx.globalAlpha = 1;
 }
 
-/** True when the browser can produce a real MP4. */
-export async function canEncodeMp4() {
-  if (typeof VideoEncoder === "undefined") return false;
-  try {
-    const { supported } = await VideoEncoder.isConfigSupported({
-      codec: "avc1.42001f", width: 1080, height: 1080,
-      bitrate: 6_000_000, framerate: FPS,
-    });
-    return !!supported;
-  } catch {
-    return false;
+/**
+ * Max frame size in macroblocks per H.264 level (Table A-1).
+ * The old code hardcoded `avc1.42001f` — Baseline level 3.1, which caps at
+ * 3600 macroblocks, i.e. 1280x720. Share cards are 1080 wide and commonly
+ * 1400-2400 tall, so every real card was over the level's limit. Chrome's
+ * isConfigSupported() does not check dimensions against the level, so it
+ * answered `true` and the encoder then died at runtime with the useless
+ * "Encoding task failed" (#131).
+ */
+const H264_LEVELS = [
+  ["1e", 1620], ["1f", 3600], ["20", 5120], ["28", 8192],
+  ["2a", 8704], ["32", 22080], ["33", 36864], ["34", 36864],
+];
+
+/** Codec strings that can hold a frame this size, weakest profile first. */
+function codecCandidates(width, height) {
+  const mbs = Math.ceil(width / 16) * Math.ceil(height / 16);
+  const out = [];
+  for (const [lvl, maxFs] of H264_LEVELS) {
+    if (maxFs < mbs) continue;
+    out.push(`avc1.4200${lvl}`, `avc1.4d00${lvl}`, `avc1.6400${lvl}`);
   }
+  return out;
+}
+
+/**
+ * Find a config this browser will actually accept for these dimensions.
+ * Probes at the real frame size — the previous check asked about 1080x1080
+ * regardless of the card's actual height, so it was answering a different
+ * question from the one that mattered.
+ */
+export async function pickEncoderConfig(width, height) {
+  if (typeof VideoEncoder === "undefined") return null;
+  for (const codec of codecCandidates(width, height)) {
+    for (const hardwareAcceleration of ["no-preference", "prefer-software"]) {
+      const config = {
+        codec, width, height, bitrate: 6_000_000, framerate: FPS,
+        avc: { format: "avc" }, hardwareAcceleration,
+      };
+      try {
+        const { supported } = await VideoEncoder.isConfigSupported(config);
+        if (supported) return config;
+      } catch {
+        // Malformed codec string for this browser; try the next.
+      }
+    }
+  }
+  return null;
 }
 
 /**
@@ -106,13 +142,20 @@ export async function renderShareVideo(drawStill, { onProgress } = {}) {
   const duration = videoDuration(layout.bands.length);
   const total = Math.round(duration * FPS);
 
-  if (await canEncodeMp4()) {
-    return encodeMp4(frame, ctx, still, layout, total, onProgress);
+  // isConfigSupported() is advisory — encoders still fail at runtime — so a
+  // failed MP4 attempt degrades to WebM rather than surfacing to the user.
+  const config = await pickEncoderConfig(W, H);
+  if (config) {
+    try {
+      return await encodeMp4(frame, ctx, still, layout, total, onProgress, config);
+    } catch (err) {
+      console.warn("[aeyu] MP4 encode failed, falling back to WebM:", err);
+    }
   }
   return recordWebm(frame, ctx, still, layout, total, onProgress);
 }
 
-async function encodeMp4(frame, ctx, still, layout, total, onProgress) {
+async function encodeMp4(frame, ctx, still, layout, total, onProgress, config) {
   // Loaded on demand: 69 KB of muxer that only matters once someone actually
   // asks for a video, and keeping it out of the static graph lets the pure
   // animation functions above be tested without a browser.
@@ -129,11 +172,7 @@ async function encodeMp4(frame, ctx, still, layout, total, onProgress) {
     output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
     error: (e) => { encodeError = e; },
   });
-  encoder.configure({
-    codec: "avc1.42001f", width: W, height: H,
-    bitrate: 6_000_000, framerate: FPS,
-    avc: { format: "avc" },
-  });
+  encoder.configure(config);
 
   try {
     for (let i = 0; i < total; i++) {
@@ -146,8 +185,12 @@ async function encodeMp4(frame, ctx, still, layout, total, onProgress) {
       // Keyframe up front, then roughly every second, so scrubbing works.
       encoder.encode(vf, { keyFrame: i % FPS === 0 });
       vf.close();
-      // Let the encoder drain instead of queueing every frame at once.
-      if (encoder.encodeQueueSize > 8) await encoder.flush();
+      // Wait for the queue to drain rather than calling flush() mid-stream —
+      // a mid-stream flush resets some encoders and is itself a plausible
+      // source of "Encoding task failed".
+      while (encoder.encodeQueueSize > 8 && !encodeError) {
+        await new Promise((r) => setTimeout(r, 4));
+      }
       onProgress?.((i + 1) / total);
     }
     await encoder.flush();
