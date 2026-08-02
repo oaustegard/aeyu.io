@@ -1,9 +1,8 @@
 # aeyu.io/
-*Files: 17 | Subdirectories: 4*
+*Files: 17 | Subdirectories: 3*
 
 ## Subdirectories
 
-- [lat.md/](./lat.md/_MAP.md)
 - [src/](./src/_MAP.md)
 - [test/](./test/_MAP.md)
 - [worker/](./worker/_MAP.md)
@@ -32,11 +31,6 @@
 - Development Patterns `h2` :90
 - Common Tasks `h2` :113
 - Gotchas `h2` :133
-- Before starting work `h1` :153
-- Post-task checklist (REQUIRED — do not skip) `h1` :158
-- What is lat.md? `h1` :168
-- lat.md Commands `h1` :172
-- lat.md Syntax `h1` :182
 
 ### README.md
 - aeyu.io — Participation Awards `h1` :5
