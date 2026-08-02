@@ -9,7 +9,7 @@ into IndexedDB via Playwright, runs an awards audit, and takes screenshots.
 Award coverage (34 types):
   Segment-level: year_best, season_first, recent_best, beat_median,
     top_quartile, top_decile, consistency, monthly_best, improvement_streak,
-    comeback, milestone, best_month_ever, closing_in, anniversary,
+    comeback, milestone, best_month_ever, closing_in, all_time_top3, near_kom, anniversary,
     ytd_best_time, ytd_best_power
   Route-level (#59): route_season_first, route_season_first_more
   Comeback: comeback_pb, recovery_milestone, comeback_full
@@ -204,6 +204,8 @@ def generate_mock_data(seed=42):
     """Generate mock data with random history + deterministic scenarios."""
     random.seed(seed)
     activities = []
+    # Course records per segment, keyed by segment id (#131)
+    kom_times = {}
     seg_efforts = {s["id"]: [] for s in SEGMENTS}
 
     # ─── Phase 1: Random history (2021–2026 Feb) ─────────────────
@@ -418,6 +420,26 @@ def generate_mock_data(seed=42):
                            device_watts=True, avg_watts=225)
         activities.append(act)
 
+    # --- Scenario G: All-Time Top 3 + Near KOM ---
+    # Not a PR — deliberately one notch behind it, which is exactly the case
+    # Strava marks with a small grey medal and nothing else (#131). Needs a
+    # segment whose two fastest times differ by 2s or more, or there is no
+    # room to slot an effort into second place without tying the PR.
+    top3_seg, top3_time = None, None
+    for cand in SEGMENTS:
+        times = sorted(e["elapsed_time"] for e in seg_efforts.get(cand["id"], []))
+        if len(times) >= 3 and times[1] - times[0] >= 2:
+            top3_seg, top3_time = cand, times[0] + 1
+            break
+    if top3_seg:
+        dt = datetime(2026, 3, 7, 9, 15)
+        act, _ = make_ride(dt, [(top3_seg, top3_time, True, 300)],
+                           seg_efforts, name="Second-Best Ever",
+                           device_watts=True, avg_watts=250)
+        activities.append(act)
+        # Course record close enough that the effort lands inside NEAR_KOM_MAX_GAP
+        kom_times[top3_seg["id"]] = int((top3_time - 1) * 0.90)
+
     # --- Big Combo: March 8 2026 ---
     # Triggers: anniversary, micro-comeback, milestone, ride-level records
     # Include many segments for segment_count record
@@ -457,12 +479,30 @@ def generate_mock_data(seed=42):
                     for ae in a.get("segment_efforts", []):
                         if ae["id"] == e.get("effort_id", e.get("id")):
                             ae["pr_rank"] = 1
-        segments.append({
+        # Strava reports pr_rank 1, 2 or 3 on an effort. The loop above marks
+        # every effort that was a PR when it happened; ranks 2 and 3 are the
+        # standing of the remaining efforts today, which is what all_time_top3
+        # reads (#131).
+        by_time = sorted(effs, key=lambda e: e["elapsed_time"])
+        for rank, e in enumerate(by_time[:3], 1):
+            if e.get("pr_rank") == 1 and rank == 1:
+                continue
+            e["pr_rank"] = rank
+            for a in activities:
+                for ae in a.get("segment_efforts", []):
+                    if ae["id"] == e.get("effort_id", e.get("id")):
+                        ae["pr_rank"] = rank
+
+        seg_record = {
             "id": seg["id"], "name": seg["name"], "distance": seg["distance"],
             "average_grade": seg["average_grade"], "elevation_high": seg["elevation_high"],
             "elevation_low": seg["elevation_low"], "climb_category": seg["climb_category"],
             "efforts": effs,
-        })
+        }
+        if seg["id"] in kom_times:
+            seg_record["kom_time"] = kom_times[seg["id"]]
+            seg_record["kom_checked_at"] = "2026-08-02T00:00:00.000Z"
+        segments.append(seg_record)
 
     activities.sort(key=lambda a: a["start_date_local"], reverse=True)
 
@@ -609,7 +649,7 @@ AUDIT_JS = """(async () => {
         "year_best", "season_first", "recent_best", "beat_median",
         "top_quartile", "top_decile", "consistency", "monthly_best",
         "improvement_streak", "comeback", "milestone",
-        "best_month_ever", "closing_in", "anniversary",
+        "best_month_ever", "closing_in", "matched_pr", "all_time_top3", "near_kom", "anniversary",
         "ytd_best_time", "ytd_best_power",
         "route_season_first", "route_season_first_more",
         "comeback_pb", "recovery_milestone", "comeback_full",

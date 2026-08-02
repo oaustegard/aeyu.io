@@ -25,7 +25,7 @@ import {
   formatPower,
 } from "../units.js";
 import { renderIconSVG, drawIcon } from "../icons.js";
-import { AWARD_LABELS, AWARD_COLORS } from "../award-config.js";
+import { AWARD_LABELS, AWARD_COLORS, awardScore } from "../award-config.js";
 import { StickyHeader } from "./StickyHeader.js";
 import { SegmentSparkline } from "./SegmentSparkline.js";
 import { TrendChart } from "./TrendChart.js";
@@ -902,36 +902,53 @@ async function renderSegmentShareCard(canvas, act, effort, segAwards, segment) {
  * Deduplicates segments — picks the highest-tier award for each.
  * Includes ride-level awards (no segment) too.
  */
+/** How many highlight slots the share card has. */
+const SHARE_CARD_HIGHLIGHTS = 4;
+
+/**
+ * Pick the awards that make it onto the share card.
+ *
+ * Three things used to go wrong here, all visible on the same ride (#131):
+ *
+ *  1. Priority lived in a private TIER map that disagreed with awards.js.
+ *     It now reads AWARD_PRIORITY from award-config.js like everything else.
+ *  2. Every award of a type scored identically, so four segments could tie at
+ *     the top and the sort — being stable — resolved them by ride order. An
+ *     effort at mile 24 lost its slot to one at mile 18 for no reason related
+ *     to merit. awardScore() adds magnitude within the band.
+ *  3. Dedupe keyed on segment_id, but Strava segments overlap: three separate
+ *     segments can cover the same climb, each earning its own award, between
+ *     them eating three of four slots. Efforts whose wall-clock spans overlap
+ *     are now collapsed to their best award.
+ */
 function buildShareCardHighlights(awardsList) {
-  const TIER = {
-    route_season_first: 20, route_season_first_more: 15, year_best: 18, ytd_best_time: 17, ytd_best_power: 17,
-    np_year_best: 16, peak_power: 16, best_month_ever: 15, top_decile: 14,
-    work_year_best: 13, improvement_streak: 12, comeback: 12, closing_in: 11,
-    top_quartile: 10, recent_best: 9, np_recent_best: 9, monthly_best: 8,
-    work_recent_best: 8, peak_power_recent: 8, beat_median: 7, season_first: 6,
-    consistency: 5, milestone: 4, anniversary: 3, distance_record: 15,
-    elevation_record: 14, segment_count: 3, endurance_record: 13,
-    season_first_power: 12, watt_milestone: 11, kj_milestone: 10, power_progression: 9,
-    power_consistency: 5, ftp_milestone: 14, cp_milestone: 14, curve_year_best: 16, curve_all_time: 18,
-    indoor_np_year_best: 14, indoor_work_year_best: 13,
-    trainer_streak: 10, indoor_vs_outdoor: 8, weekly_streak: 10, group_consistency: 5,
-    comeback_pb: 12, recovery_milestone: 11,
-    comeback_full: 15, comeback_distance: 10, comeback_elevation: 10, comeback_endurance: 10,
-    reference_best: 6,
-  };
-  // Best award per segment (or per unique ride-level type)
+  // Best award per segment
   const bySegment = new Map();
   for (const a of awardsList) {
     const key = a.segment_id != null ? `seg:${a.segment_id}` : `ride:${a.type}`;
-    const tier = TIER[a.type] || 0;
-    if (!bySegment.has(key) || tier > (TIER[bySegment.get(key).type] || 0)) {
-      bySegment.set(key, a);
-    }
+    const prev = bySegment.get(key);
+    if (!prev || awardScore(a) > awardScore(prev)) bySegment.set(key, a);
   }
-  // Sort by tier descending, take top 4
-  return [...bySegment.values()]
-    .sort((a, b) => (TIER[b.type] || 0) - (TIER[a.type] || 0))
-    .slice(0, 4);
+
+  // Collapse overlapping segments — same stretch of road, one slot
+  const segmentAwards = [...bySegment.values()]
+    .filter((a) => a.segment_id != null && a.effort_start_ms != null)
+    .sort((a, b) => awardScore(b) - awardScore(a));
+  const rideAwards = [...bySegment.values()]
+    .filter((a) => a.segment_id == null || a.effort_start_ms == null);
+
+  const kept = [];
+  for (const a of segmentAwards) {
+    // Sorted best-first, so the first award covering a span wins it.
+    const overlaps = kept.some(
+      (k) => a.effort_start_ms < k.effort_end_ms && k.effort_start_ms < a.effort_end_ms
+    );
+    if (!overlaps) kept.push(a);
+  }
+
+  return [...kept, ...rideAwards]
+    .sort((a, b) => awardScore(b) - awardScore(a))
+    .slice(0, SHARE_CARD_HIGHLIGHTS);
 }
 
 /**

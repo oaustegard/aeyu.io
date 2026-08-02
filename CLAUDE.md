@@ -115,9 +115,10 @@ Loads `demo-data.json` into IndexedDB with a fake auth session (athlete ID 99999
 **Add a new award type:**
 1. Add computation logic in `awards.js` (in `computeAwards` for segment-level, `computeRideLevelAwards` for ride-level)
 2. Add label/color in `AWARD_LABELS` in `src/award-config.js` (single source of truth for both Dashboard and ActivityDetail)
-3. Add tier ranking in `AWARD_TIER` in `awards.js` (for segment award ranking)
+3. Add a priority in `AWARD_PRIORITY` in `src/award-config.js` — the single table read by both `rankSegmentAwards` and the share card (the old `AWARD_TIER` in `awards.js` is gone; two tables disagreed, see CHANGELOG 2026-08-02)
 4. Add FAQ entry in Dashboard.js FAQ section (both the "What do the awards mean?" list and a dedicated entry if the feature is complex)
-5. Add to test harness scenario in `test/harness.py`
+5. Add to test harness scenario in `test/harness.py` and to `ALL_TYPES` in its audit list
+6. Add a case to `test/award-priority.test.js` if the type changes ranking behavior
 
 **Add any new user-facing feature:**
 1. Add an FAQ entry in the Dashboard.js FAQ modal explaining what it does and how to use it

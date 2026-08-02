@@ -28,6 +28,8 @@ Per-effort awards comparing against the athlete's history on a specific segment.
 
 **Statistical**: Beat Median, Top Quartile, Top 10% — only the highest tier is awarded (superseding hierarchy). Requires ≥5 efforts for statistical significance.
 
+**All-time standing**: All-Time Top 3 (2nd or 3rd fastest effort ever on a segment, read from Strava's own `pr_rank` where present, else recomputed from local history), Near KOM (within 15% of the course record, checked only on efforts that are already a personal top 3).
+
 **Patterns**: Consistency/Metronome (CV < 0.03 across 8+ recent efforts), Improvement Streak (3+ consecutively faster times), Comeback (beat median after 3+ sub-median efforts).
 
 **Milestones**: Round-number attempt counts, Anniversary (same segment on same calendar date N years later), Best Month Ever (best effort this month across all years), Closing In (within 5% of all-time PR).
@@ -60,6 +62,32 @@ Weekly streaks support a mulligan (one missed week doesn't break the streak). Gr
 
 ## Award Ranking
 
-[[src/awards.js#rankSegmentAwards]] sorts awards by tier (defined in `AWARD_TIER`) and marks headline awards per segment. Comeback awards are ranked separately from regular awards to avoid tier comparison across contexts.
+Priority is one table — `AWARD_PRIORITY` in [[src/award-config.js]] — read by both [[src/awards.js#rankSegmentAwards]] and the share card.
 
-Display labels and colors are defined in [[src/award-config.js]] as the single source of truth for both Dashboard and ActivityDetail rendering.
+It replaced two tables that disagreed: a 5→1 `AWARD_TIER` in awards.js that rated Closing In equal to Year Best, and a private 20→3 map inside ActivityDetail that rated it seven points lower. The card used the second, so a near-PR effort could lose its slot to a merely-best-this-year one.
+
+Ordering principle: **all-time standing beats calendar-window standing.** One second off a PR outranks the fastest you have gone since January.
+
+Priority alone still says nothing about magnitude, so [[src/award-config.js#awardStrength]] scores how big an instance an award is, in [0,1), from the effort's all-time rank percentile and its proximity to the PR (whichever reads higher). [[src/award-config.js#awardScore]] adds the two. Strength is capped below 1 so it can never promote an award past the next priority band — a large Beat Median stays a Beat Median.
+
+The standing fields strength reads (`all_time_rank`, `effort_count`, `pr_gap_pct`) are annotated onto every segment award by [[src/awards.js#computeAwards]] after the effort loop, along with the effort's wall-clock span.
+
+[[src/awards.js#rankSegmentAwards]] marks headline awards per segment. Comeback awards are ranked separately from regular awards to avoid comparison across contexts.
+
+Display labels and colors are also defined in [[src/award-config.js]], the single source of truth for Dashboard and ActivityDetail rendering.
+
+## Share Card Selection
+
+The card has four highlight slots, filled by `buildShareCardHighlights` in [[src/components/ActivityDetail.js]]:
+
+1. Best award per segment, by `awardScore`.
+2. **Overlapping efforts collapse.** Strava segments nest and overlap — three separate segments can cover one climb, each earning its own award, between them consuming three of four slots. Efforts whose wall-clock spans intersect are reduced to their best award. Dedupe used to key on `segment_id` alone, which does not catch this.
+3. Sort by `awardScore`, take four. Ties are broken by magnitude rather than, as before, by array order — which was ride order, so an effort late in a ride lost to an earlier one for reasons unrelated to merit.
+
+## Course Records
+
+Strava does not expose segment leaderboards through its API. The only public standing available is `xoms` on the segment detail endpoint — the KOM, QOM and overall times.
+
+[[src/sync.js#enrichCourseRecords]] fetches it lazily and caches via [[src/db.js#setSegmentKom]], gated on `pr_rank <= 3`: the question "how do I stand against the course record" is only asked once an effort is near the athlete's own ceiling, which keeps this to a handful of extra API calls rather than dozens per activity.
+
+Failures are swallowed — a missing KOM suppresses one optional award and never fails a sync.

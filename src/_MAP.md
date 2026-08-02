@@ -24,11 +24,14 @@
 
 ### award-config.js
 - **AWARD_LABELS** (variable) :9
-- **AWARD_COLORS** (variable) :71
-- **AWARD_GROUPS** (variable) :77
+- **AWARD_COLORS** (variable) :73
+- **AWARD_PRIORITY** (variable) :91
+- **awardStrength** (f) `(award)` :169
+- **awardScore** (f) `(award)` :186
+- **AWARD_GROUPS** (variable) :192
 
 ### awards.js
-> Imports: `db.js, units.js, routes.js, critical-power.js`
+> Imports: `db.js, units.js, routes.js, critical-power.js, award-config.js`
 - **rankSegmentAwards** (f) `(awards)` :252
 - **computeAwards** (f) `(activity, resetEvent = null, referencePoints = [])` :647
 - **computeRideLevelAwards** (f) `(activity, allActivities, resetEvent = null)` :1232
@@ -74,6 +77,7 @@
 - **getSegment** (f) `(id)` :274
 - **getAllSegments** (f) `()` :284
 - **appendEffort** (f) `(segmentId, segmentData, effort)` :294
+- **setSegmentKom** (f) `(segmentId, komSeconds, athleteCount)` :341
 - **removeEffortsForActivity** (f) `(activityId)` :335
 - **getResetEvent** (f) `()` :371
 - **setResetEvent** (f) `(event)` :381
@@ -150,14 +154,15 @@
 - **syncProgress** (variable) :29
 - **rateLimitStatus** (variable) :38
 - **isSyncing** (variable) :45
-- **syncRoutes** (f) `()` :590
-- **startBackfill** (f) `(onProgress)` :759
-- **incrementalSync** (f) `()` :881
-- **updateSyncWindow** (f) `(newEpoch)` :956
-- **manualSync** (f) `(onProgress)` :981
-- **startAutoSync** (f) `(onComplete)` :1007
-- **stopAutoSync** (f) `()` :1016
-- **resyncActivity** (f) `(activityId)` :1083
+- **parseXomTime** (f) `(str)` :125
+- **syncRoutes** (f) `()` :659
+- **startBackfill** (f) `(onProgress)` :828
+- **incrementalSync** (f) `()` :950
+- **updateSyncWindow** (f) `(newEpoch)` :1025
+- **manualSync** (f) `(onProgress)` :1050
+- **startAutoSync** (f) `(onComplete)` :1076
+- **stopAutoSync** (f) `()` :1085
+- **resyncActivity** (f) `(activityId)` :1152
 
 ### touch-tooltip.js
 - **initTouchTooltips** (f) `()` :69
