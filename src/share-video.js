@@ -1,11 +1,16 @@
 /**
- * Animated share cards (#131).
+ * Share card slideshow (#131).
  *
- * The still card can only fit four highlight rows before it has to fall back to
- * "+ N more awards". That truncation is the whole reason to make a video: the
- * card is rendered with NO highlight limit, however tall that makes it, and the
- * video pans down through it. A video that merely faded in the same four rows
- * would carry no information the PNG does not already carry.
+ * The still card fits four highlight rows and then has to say "+ N more
+ * awards". That truncation is the only reason the video exists: it steps
+ * through card-sized pages of awards, one slide at a time, at the card's own
+ * dimensions. Every frame is a complete, screenshot-able card.
+ *
+ * Deliberately not: a fade-in of the same four rows (no information the PNG
+ * lacks), and not a scroll through one very tall card (the card is usually
+ * shorter than a 9:16 frame, so it fits, letterboxes, and never moves).
+ *
+ * A single page produces no video at all — callers check `slideCount` first.
  *
  * Why not ffmpeg.wasm: the core WASM bundle is 31–32 MB and its multithreaded
  * build needs SharedArrayBuffer, which needs COOP/COEP response headers. aeyu
@@ -21,74 +26,71 @@
  * offered as a download rather than a share since social targets reject WebM.
  */
 
-export const FPS = 30;
-/** Story-native 9:16 viewport. Constant regardless of how tall the card is. */
-export const VIEW_W = 1080;
-export const VIEW_H = 1920;
-/** Seconds held on the top of the card before the pan starts. */
-const HOLD_TOP = 0.9;
-/** Seconds held on the bottom after the pan finishes. */
-const HOLD_END = 1.5;
-/** Reading pace, canvas px per second. */
-const SCROLL_SPEED = 430;
-/** Never produce anything longer than this, however many awards there are. */
+/**
+ * Frames per second. Low on purpose: this is a slideshow, not motion, and 10fps
+ * is the floor that players and social uploads handle without complaint.
+ */
+export const FPS = 10;
+/** Seconds each slide is held. */
+const SLIDE_HOLD = 2.4;
+/** Seconds of crossfade between slides. */
+const SLIDE_FADE = 0.4;
+/** Never produce anything longer than this. */
 const MAX_DURATION = 30;
-/** A card shorter than the viewport does not scroll; it just holds. */
-const STATIC_DURATION = 3;
 
-const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const clamp01 = (t) => (t < 0 ? 0 : t > 1 ? 1 : t);
+const even16 = (n) => Math.max(16, Math.ceil(n / 16) * 16);
 
-/** How far the card has to travel for all of it to be seen. */
-export function maxScroll(cardHeight, viewH = VIEW_H) {
-  return Math.max(0, cardHeight - viewH);
-}
+/** Seconds one slide occupies, including its crossfade into the next. */
+const SLIDE_PERIOD = SLIDE_HOLD + SLIDE_FADE;
 
-/** Total duration in seconds for a card of this height. */
-export function videoDuration(cardHeight, viewH = VIEW_H) {
-  const travel = maxScroll(cardHeight, viewH);
-  if (travel === 0) return STATIC_DURATION;
-  const panning = travel / SCROLL_SPEED;
-  return +Math.min(MAX_DURATION, HOLD_TOP + panning + HOLD_END).toFixed(3);
+/** Total duration for a deck of this many slides. */
+export function videoDuration(slideCount) {
+  const n = Math.max(1, slideCount);
+  return +Math.min(MAX_DURATION, n * SLIDE_PERIOD - SLIDE_FADE).toFixed(3);
 }
 
 /**
- * Scroll offset in canvas px at time t. Holds at the top, eases through the
- * pan so it does not start and stop abruptly, then holds on the last frame so
- * the final awards stay readable.
+ * Which slides are on screen at time t, and how far the crossfade has got.
+ * Returns the outgoing slide index and the incoming one's opacity.
  */
-export function scrollAt(t, cardHeight, viewH = VIEW_H) {
-  const travel = maxScroll(cardHeight, viewH);
-  if (travel === 0) return 0;
-  const duration = videoDuration(cardHeight, viewH);
-  const panning = Math.max(0.001, duration - HOLD_TOP - HOLD_END);
-  return travel * easeInOut(clamp01((t - HOLD_TOP) / panning));
+export function slideAt(t, slideCount) {
+  const n = Math.max(1, slideCount);
+  const i = Math.min(n - 1, Math.floor(t / SLIDE_PERIOD));
+  const within = t - i * SLIDE_PERIOD;
+  const fade = within <= SLIDE_HOLD || i >= n - 1
+    ? 0
+    : clamp01((within - SLIDE_HOLD) / SLIDE_FADE);
+  return { index: i, next: Math.min(n - 1, i + 1), fade };
 }
 
 /**
- * Draw one frame: the card, offset upward by the current scroll.
- * Areas above or below the card are filled with its own background colour so
- * short cards letterbox cleanly instead of showing black.
+ * Draw one frame. Slides may differ slightly in height — the last page carries
+ * fewer rows — so each is drawn against a matte at the deck's common size.
  */
-export function drawFrame(ctx, still, layout, t) {
-  const viewH = layout.viewH ?? VIEW_H;
-  const viewW = layout.viewW ?? VIEW_W;
+export function drawFrame(ctx, slides, layout, t) {
+  const { width: W, height: H } = layout;
+  const { index, next, fade } = slideAt(t, slides.length);
+
+  ctx.globalAlpha = 1;
   ctx.fillStyle = layout.matte || "#4A5759";
-  ctx.fillRect(0, 0, viewW, viewH);
+  ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(slides[index], 0, 0);
 
-  const y = -scrollAt(t, layout.height, viewH);
-  // Centre a card shorter than the viewport rather than pinning it to the top.
-  const offset = layout.height < viewH ? (viewH - layout.height) / 2 : y;
-  ctx.drawImage(still, 0, offset, layout.width, layout.height);
+  if (fade > 0 && next !== index) {
+    ctx.globalAlpha = fade;
+    ctx.drawImage(slides[next], 0, 0);
+    ctx.globalAlpha = 1;
+  }
 }
 
 /**
  * Sample the card's own border colour so letterboxing matches it. Falls back to
  * the steel blue the card uses if the canvas cannot be read.
  */
-function matteColor(still) {
+function matteColor(canvas) {
   try {
-    const [r, g, b] = still.getContext("2d").getImageData(1, 1, 1, 1).data;
+    const [r, g, b] = canvas.getContext("2d").getImageData(1, 1, 1, 1).data;
     return `rgb(${r}, ${g}, ${b})`;
   } catch {
     return "#4A5759";
@@ -146,46 +148,61 @@ export async function pickEncoderConfig(width, height) {
 }
 
 /**
- * Render an animated share card.
+ * Render a slideshow of share cards.
  *
- * @param {(canvas: HTMLCanvasElement) => Promise<object>} drawStill — renders
- *   the still card and returns its layout metadata. Passed in rather than
- *   imported so this module stays independent of the card's own drawing code.
- * @returns {Promise<{blob: Blob, type: string, extension: string}>}
+ * @param {Array<(canvas: HTMLCanvasElement) => Promise<{width:number,height:number}>>} drawSlides
+ *   One draw function per page, each rendering a complete card. Passed in
+ *   rather than imported so this module stays independent of the card's own
+ *   drawing code.
+ * @returns {Promise<{blob: Blob, type: string, extension: string, slides: number}>}
  */
-export async function renderShareVideo(drawStill, { onProgress } = {}) {
-  const still = document.createElement("canvas");
-  const drawn = await drawStill(still);
-  if (!drawn || !drawn.height) throw new Error("drawStill returned no layout metadata");
+export async function renderShareVideo(drawSlides, { onProgress } = {}) {
+  const draws = Array.isArray(drawSlides) ? drawSlides : [drawSlides];
+  if (draws.length < 2) {
+    throw new Error("Nothing to animate — these awards all fit on one card");
+  }
 
-  // The frame is a fixed 9:16 viewport whatever the card's height. That keeps
-  // the output share-ready, and it keeps the encoder config constant instead of
-  // scaling with the number of awards.
-  const W = VIEW_W;
-  const H = VIEW_H;
-  const layout = { ...drawn, viewW: W, viewH: H, matte: matteColor(still) };
+  const slides = [];
+  let W = 0, H = 0;
+  for (const draw of draws) {
+    const canvas = document.createElement("canvas");
+    const drawn = await draw(canvas);
+    if (!drawn || !drawn.height) throw new Error("A slide returned no layout metadata");
+    slides.push(canvas);
+    W = Math.max(W, drawn.width);
+    H = Math.max(H, drawn.height);
+  }
+
+  // The deck's frame is the card's own dimensions — the tallest page, since
+  // the last one usually carries fewer rows. Rounded up to a macroblock so
+  // encoders do not have to cope with a ragged edge.
+  W = even16(W);
+  H = even16(H);
+  const layout = { width: W, height: H, matte: matteColor(slides[0]) };
 
   const frame = document.createElement("canvas");
   frame.width = W;
   frame.height = H;
   const ctx = frame.getContext("2d");
 
-  const total = Math.round(videoDuration(layout.height, H) * FPS);
+  const total = Math.round(videoDuration(slides.length) * FPS);
 
   // isConfigSupported() is advisory — encoders still fail at runtime — so a
   // failed MP4 attempt degrades to WebM rather than surfacing to the user.
   const config = await pickEncoderConfig(W, H);
   if (config) {
     try {
-      return await encodeMp4(frame, ctx, still, layout, total, onProgress, config);
+      const out = await encodeMp4(frame, ctx, slides, layout, total, onProgress, config);
+      return { ...out, slides: slides.length };
     } catch (err) {
       console.warn("[aeyu] MP4 encode failed, falling back to WebM:", err);
     }
   }
-  return recordWebm(frame, ctx, still, layout, total, onProgress);
+  const out = await recordWebm(frame, ctx, slides, layout, total, onProgress);
+  return { ...out, slides: slides.length };
 }
 
-async function encodeMp4(frame, ctx, still, layout, total, onProgress, config) {
+async function encodeMp4(frame, ctx, slides, layout, total, onProgress, config) {
   // Loaded on demand: 69 KB of muxer that only matters once someone actually
   // asks for a video, and keeping it out of the static graph lets the pure
   // animation functions above be tested without a browser.
@@ -207,7 +224,7 @@ async function encodeMp4(frame, ctx, still, layout, total, onProgress, config) {
   try {
     for (let i = 0; i < total; i++) {
       if (encodeError) throw encodeError;
-      drawFrame(ctx, still, layout, i / FPS);
+      drawFrame(ctx, slides, layout, i / FPS);
       const vf = new VideoFrame(frame, {
         timestamp: Math.round((i / FPS) * 1e6),
         duration: Math.round(1e6 / FPS),
@@ -240,7 +257,7 @@ async function encodeMp4(frame, ctx, still, layout, total, onProgress, config) {
  * Fallback for browsers without VideoEncoder. Produces WebM, which most social
  * targets will not accept — callers should offer this as a download.
  */
-async function recordWebm(frame, ctx, still, layout, total, onProgress) {
+async function recordWebm(frame, ctx, slides, layout, total, onProgress) {
   if (typeof MediaRecorder === "undefined" || !frame.captureStream) {
     throw new Error("This browser cannot record video");
   }
@@ -260,7 +277,7 @@ async function recordWebm(frame, ctx, still, layout, total, onProgress) {
 
   recorder.start();
   for (let i = 0; i < total; i++) {
-    drawFrame(ctx, still, layout, i / FPS);
+    drawFrame(ctx, slides, layout, i / FPS);
     onProgress?.((i + 1) / total);
     // captureStream samples in real time, so this has to play out at wall clock.
     await new Promise((r) => setTimeout(r, 1000 / FPS));

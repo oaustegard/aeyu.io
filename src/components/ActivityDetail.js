@@ -266,7 +266,12 @@ function drawLogoWatermark(ctx, W, H, cardY, cardH, pad) {
 
 // ── Canvas Share Card ─────────────────────────────────────────────
 
-async function renderShareCard(canvas, act, awardsList, { maxHighlights = SHARE_CARD_HIGHLIGHTS } = {}) {
+/**
+ * @param {object} opts
+ * @param {number} opts.page — which page of highlights to show. Page 0 is the
+ *   card as it has always looked; later pages are what the video steps through.
+ */
+async function renderShareCard(canvas, act, awardsList, { page = 0 } = {}) {
   const W = 1080;
   const borderW = 8; // steel blue border at image edge
   const innerPad = 44; // content padding inside body
@@ -296,7 +301,7 @@ async function renderShareCard(canvas, act, awardsList, { maxHighlights = SHARE_
   const metaText = metaParts.join("  ·  ");
   const metaLines = wrapText(tmpCtx, metaText, maxTextW);
 
-  const highlightAwards = buildShareCardHighlights(awardsList, maxHighlights);
+  const highlightAwards = buildShareCardHighlights(awardsList, SHARE_CARD_HIGHLIGHTS, page * SHARE_CARD_HIGHLIGHTS);
 
   const counts = {};
   const pillOrder = ["route_season_first", "route_season_first_more", "season_first", "year_best", "ytd_best_time", "ytd_best_power", "best_month_ever", "monthly_best", "recent_best", "improvement_streak", "comeback", "closing_in", "top_decile", "top_quartile", "beat_median", "consistency", "milestone", "anniversary", "distance_record", "elevation_record", "segment_count", "endurance_record", "season_first_power", "np_year_best", "np_recent_best", "work_year_best", "work_recent_best", "peak_power", "peak_power_recent", "watt_milestone", "kj_milestone", "power_progression", "power_consistency", "ftp_milestone", "cp_milestone", "curve_year_best", "curve_all_time", "indoor_np_year_best", "indoor_work_year_best", "trainer_streak", "indoor_vs_outdoor", "weekly_streak", "group_consistency", "reference_best", "comeback_pb", "recovery_milestone", "comeback_full", "comeback_distance", "comeback_elevation", "comeback_endurance"];
@@ -475,7 +480,9 @@ async function renderShareCard(canvas, act, awardsList, { maxHighlights = SHARE_
       y += (award.delta && award.delta > 0) ? 68 : 52;
     }
 
-    const remaining = Number.isFinite(maxHighlights) ? awardsList.length - highlightAwards.length : 0;
+    // Only the still card advertises what it is withholding; the video shows
+    // the rest on the following slides instead.
+    const remaining = page === 0 ? awardsList.length - highlightAwards.length : 0;
     if (remaining > 0) {
       ctx.font = '400 26px "DM Sans", sans-serif';
       ctx.fillStyle = "#7A7164";
@@ -930,7 +937,7 @@ const SHARE_CARD_HIGHLIGHTS = 4;
  *     them eating three of four slots. Efforts whose wall-clock spans overlap
  *     are now collapsed to their best award.
  */
-function buildShareCardHighlights(awardsList, slots = SHARE_CARD_HIGHLIGHTS) {
+function buildShareCardHighlights(awardsList, slots = SHARE_CARD_HIGHLIGHTS, offset = 0) {
   // Best award per segment
   const bySegment = new Map();
   for (const a of awardsList) {
@@ -957,7 +964,17 @@ function buildShareCardHighlights(awardsList, slots = SHARE_CARD_HIGHLIGHTS) {
 
   return [...kept, ...rideAwards]
     .sort((a, b) => awardScore(b) - awardScore(a))
-    .slice(0, slots);
+    .slice(offset, offset + slots);
+}
+
+/** How many highlight rows exist in total, across all pages (#131). */
+function countShareCardHighlights(awardsList) {
+  return buildShareCardHighlights(awardsList, Infinity).length;
+}
+
+/** Number of card-sized pages the highlights fill. */
+function shareCardPages(awardsList) {
+  return Math.max(1, Math.ceil(countShareCardHighlights(awardsList) / SHARE_CARD_HIGHLIGHTS));
 }
 
 /**
@@ -1310,25 +1327,18 @@ export function ActivityDetail({ id }) {
     videoError.value = null;
     videoBusy.value = 1;
     try {
-      const segId = segmentCardGenerated.value;
-      const effort = segId ? act.segment_efforts?.find((e) => e.segment.id === segId) : null;
-      const baseName = effort ? effort.segment.name : act.name;
-
-      const { blob, type, extension } = await renderShareVideo(
-        async (canvas) => {
-          if (effort) {
-            const seg = segmentHistory.value.get(effort.segment.id);
-            const segAwards = awards.value.filter((a) => a.segment_id === effort.segment.id);
-            return renderSegmentShareCard(canvas, act, effort, segAwards, seg);
-          }
-          // No highlight cap: the point of the video is to show the awards the
-          // still card has to truncate into "+ N more".
-          return renderShareCard(canvas, act, awards.value, { maxHighlights: Infinity });
-        },
-        { onProgress: (p) => { videoBusy.value = Math.max(1, Math.round(p * 100)); } }
+      const pages = shareCardPages(awards.value);
+      // One page of awards means the still card already shows everything, and
+      // a video of a card that never changes is just a slower PNG.
+      const slides = Array.from({ length: pages }, (_, page) =>
+        (canvas) => renderShareCard(canvas, act, awards.value, { page })
       );
 
-      const filename = `${baseName.replace(/[^a-z0-9]/gi, "-")}-awards.${extension}`;
+      const { blob, type, extension } = await renderShareVideo(slides, {
+        onProgress: (p) => { videoBusy.value = Math.max(1, Math.round(p * 100)); },
+      });
+
+      const filename = `${act.name.replace(/[^a-z0-9]/gi, "-")}-awards.${extension}`;
       const file = new File([blob], filename, { type });
       // WebM gets rejected by most share targets, so only MP4 goes to the sheet.
       if (type === "video/mp4" && navigator.share && navigator.canShare?.({ files: [file] })) {
@@ -1552,6 +1562,7 @@ export function ActivityDetail({ id }) {
                     </svg>
                     Save / Share
                   </button>
+                  ${!segmentCardGenerated.value && shareCardPages(awards.value) > 1 && html`
                   <button
                     onClick=${handleShareVideo}
                     disabled=${videoBusy.value > 0}
@@ -1563,6 +1574,7 @@ export function ActivityDetail({ id }) {
                     </svg>
                     ${videoBusy.value > 0 ? `Rendering ${videoBusy.value}%` : "Share Video"}
                   </button>
+                  `}
                   <button
                     onClick=${copyCanvasToClipboard}
                     class="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors"
