@@ -1,8 +1,11 @@
 /**
  * Animated share cards (#131).
  *
- * Encodes the existing canvas share card into a short MP4 by rendering it once
- * to an offscreen canvas and then revealing its bands over time.
+ * The still card can only fit four highlight rows before it has to fall back to
+ * "+ N more awards". That truncation is the whole reason to make a video: the
+ * card is rendered with NO highlight limit, however tall that makes it, and the
+ * video pans down through it. A video that merely faded in the same four rows
+ * would carry no information the PNG does not already carry.
  *
  * Why not ffmpeg.wasm: the core WASM bundle is 31–32 MB and its multithreaded
  * build needs SharedArrayBuffer, which needs COOP/COEP response headers. aeyu
@@ -19,50 +22,77 @@
  */
 
 export const FPS = 30;
-/** Seconds each band takes to ease in. */
-const BAND_FADE = 0.45;
-/** Seconds between successive bands starting. */
-const BAND_STAGGER = 0.18;
-/** Seconds the finished card holds before the video ends. */
-const HOLD = 1.6;
-/** How far a band slides up as it fades in, in canvas px. */
-const SLIDE = 18;
+/** Story-native 9:16 viewport. Constant regardless of how tall the card is. */
+export const VIEW_W = 1080;
+export const VIEW_H = 1920;
+/** Seconds held on the top of the card before the pan starts. */
+const HOLD_TOP = 0.9;
+/** Seconds held on the bottom after the pan finishes. */
+const HOLD_END = 1.5;
+/** Reading pace, canvas px per second. */
+const SCROLL_SPEED = 430;
+/** Never produce anything longer than this, however many awards there are. */
+const MAX_DURATION = 30;
+/** A card shorter than the viewport does not scroll; it just holds. */
+const STATIC_DURATION = 3;
 
-const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const clamp01 = (t) => (t < 0 ? 0 : t > 1 ? 1 : t);
 
-/** Total duration in seconds for a card with this many bands. */
-export function videoDuration(bandCount) {
-  const last = Math.max(0, bandCount - 1) * BAND_STAGGER + BAND_FADE;
-  return +(last + HOLD).toFixed(3);
+/** How far the card has to travel for all of it to be seen. */
+export function maxScroll(cardHeight, viewH = VIEW_H) {
+  return Math.max(0, cardHeight - viewH);
+}
+
+/** Total duration in seconds for a card of this height. */
+export function videoDuration(cardHeight, viewH = VIEW_H) {
+  const travel = maxScroll(cardHeight, viewH);
+  if (travel === 0) return STATIC_DURATION;
+  const panning = travel / SCROLL_SPEED;
+  return +Math.min(MAX_DURATION, HOLD_TOP + panning + HOLD_END).toFixed(3);
 }
 
 /**
- * Per-band progress at time t. Bands enter in document order, which is the
- * order awards were ranked — so on a well-scored card the reveal reads as a
- * countdown to the thing that mattered most.
+ * Scroll offset in canvas px at time t. Holds at the top, eases through the
+ * pan so it does not start and stop abruptly, then holds on the last frame so
+ * the final awards stay readable.
  */
-function bandProgress(index, t) {
-  return easeOut(clamp01((t - index * BAND_STAGGER) / BAND_FADE));
+export function scrollAt(t, cardHeight, viewH = VIEW_H) {
+  const travel = maxScroll(cardHeight, viewH);
+  if (travel === 0) return 0;
+  const duration = videoDuration(cardHeight, viewH);
+  const panning = Math.max(0.001, duration - HOLD_TOP - HOLD_END);
+  return travel * easeInOut(clamp01((t - HOLD_TOP) / panning));
 }
 
-/** Draw one frame of the animation into ctx. */
+/**
+ * Draw one frame: the card, offset upward by the current scroll.
+ * Areas above or below the card are filled with its own background colour so
+ * short cards letterbox cleanly instead of showing black.
+ */
 export function drawFrame(ctx, still, layout, t) {
-  const { width: W, height: H } = layout;
-  ctx.clearRect(0, 0, W, H);
-  // Chrome first — border, paper, topo texture, watermark — captured by the
-  // card renderer before any content was drawn on it.
-  ctx.drawImage(layout.chrome, 0, 0);
+  const viewH = layout.viewH ?? VIEW_H;
+  const viewW = layout.viewW ?? VIEW_W;
+  ctx.fillStyle = layout.matte || "#4A5759";
+  ctx.fillRect(0, 0, viewW, viewH);
 
-  layout.bands.forEach((b, i) => {
-    const p = bandProgress(i, t);
-    if (p <= 0) return;
-    const h = b.y1 - b.y0;
-    if (h <= 0) return;
-    ctx.globalAlpha = p;
-    ctx.drawImage(still, 0, b.y0, W, h, 0, b.y0 + (1 - p) * SLIDE, W, h);
-  });
-  ctx.globalAlpha = 1;
+  const y = -scrollAt(t, layout.height, viewH);
+  // Centre a card shorter than the viewport rather than pinning it to the top.
+  const offset = layout.height < viewH ? (viewH - layout.height) / 2 : y;
+  ctx.drawImage(still, 0, offset, layout.width, layout.height);
+}
+
+/**
+ * Sample the card's own border colour so letterboxing matches it. Falls back to
+ * the steel blue the card uses if the canvas cannot be read.
+ */
+function matteColor(still) {
+  try {
+    const [r, g, b] = still.getContext("2d").getImageData(1, 1, 1, 1).data;
+    return `rgb(${r}, ${g}, ${b})`;
+  } catch {
+    return "#4A5759";
+  }
 }
 
 /**
@@ -125,22 +155,22 @@ export async function pickEncoderConfig(width, height) {
  */
 export async function renderShareVideo(drawStill, { onProgress } = {}) {
   const still = document.createElement("canvas");
-  const layout = await drawStill(still);
-  if (!layout || !layout.bands || !layout.chrome) {
-    throw new Error("drawStill returned no layout metadata");
-  }
+  const drawn = await drawStill(still);
+  if (!drawn || !drawn.height) throw new Error("drawStill returned no layout metadata");
 
-  // H.264 requires even dimensions; pad rather than scale so nothing softens.
-  const W = still.width + (still.width % 2);
-  const H = still.height + (still.height % 2);
+  // The frame is a fixed 9:16 viewport whatever the card's height. That keeps
+  // the output share-ready, and it keeps the encoder config constant instead of
+  // scaling with the number of awards.
+  const W = VIEW_W;
+  const H = VIEW_H;
+  const layout = { ...drawn, viewW: W, viewH: H, matte: matteColor(still) };
 
   const frame = document.createElement("canvas");
   frame.width = W;
   frame.height = H;
   const ctx = frame.getContext("2d");
 
-  const duration = videoDuration(layout.bands.length);
-  const total = Math.round(duration * FPS);
+  const total = Math.round(videoDuration(layout.height, H) * FPS);
 
   // isConfigSupported() is advisory — encoders still fail at runtime — so a
   // failed MP4 attempt degrades to WebM rather than surfacing to the user.

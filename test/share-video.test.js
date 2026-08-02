@@ -1,133 +1,106 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { FPS, videoDuration, drawFrame, pickEncoderConfig } from '../src/share-video.js';
+import { FPS, VIEW_H, VIEW_W, videoDuration, maxScroll, scrollAt, drawFrame, pickEncoderConfig }
+  from '../src/share-video.js';
 
-// A card shaped like the 2026-08-02 ride: header, title, meta, one pill row,
-// four highlight rows, tagline.
-const layout = {
-  width: 1080,
-  height: 1400,
-  chrome: { __chrome: true },
-  bands: [
-    { y0: 0, y1: 96 },
-    { y0: 168, y1: 250 },
-    { y0: 258, y1: 300 },
-    { y0: 320, y1: 376 },
-    { y0: 400, y1: 446 },
-    { y0: 452, y1: 498 },
-    { y0: 504, y1: 550 },
-    { y0: 556, y1: 602 },
-    { y0: 1340, y1: 1386 },
-  ],
-};
+// A card with every award shown rather than the still card's four — the whole
+// reason the video exists. Roughly what a 12-award ride produces.
+const TALL = { width: VIEW_W, height: 4200 };
+const SHORT = { width: VIEW_W, height: 1200 };
+const layoutFor = (card) => ({ ...card, viewW: VIEW_W, viewH: VIEW_H, matte: '#4A5759' });
 
-/** Minimal 2D context recorder — no DOM needed. */
 function fakeCtx() {
   const calls = [];
   return {
-    calls,
-    globalAlpha: 1,
-    clearRect: (...a) => calls.push({ op: 'clear', a }),
-    drawImage(...a) {
-      calls.push({ op: 'draw', img: a[0], args: a.slice(1), alpha: this.globalAlpha });
-    },
+    calls, fillStyle: '',
+    fillRect: (...a) => calls.push({ op: 'fill', a }),
+    drawImage: (...a) => calls.push({ op: 'draw', a }),
   };
 }
+const lastDraw = (ctx) => ctx.calls.filter((c) => c.op === 'draw').at(-1);
 
-const drawn = (ctx) => ctx.calls.filter((c) => c.op === 'draw' && c.img !== layout.chrome);
-
-test('duration scales with band count and includes the hold', () => {
-  const short = videoDuration(1);
-  const long = videoDuration(9);
-  assert.ok(long > short);
-  assert.ok(short >= 1.6, 'even a one-band card holds on the finished frame');
-  assert.ok(long < 5, 'a full card stays short enough to share');
+test('a card taller than the viewport scrolls the whole way', () => {
+  assert.equal(maxScroll(TALL.height), TALL.height - VIEW_H);
+  assert.equal(scrollAt(0, TALL.height), 0);
+  const end = videoDuration(TALL.height);
+  assert.ok(Math.abs(scrollAt(end, TALL.height) - maxScroll(TALL.height)) < 1e-6,
+    'the last frame must show the bottom of the card');
 });
 
-test('frame count is a whole number of frames', () => {
-  const total = Math.round(videoDuration(layout.bands.length) * FPS);
-  assert.ok(Number.isInteger(total));
-  assert.ok(total > 0);
+test('a card shorter than the viewport does not scroll', () => {
+  assert.equal(maxScroll(SHORT.height), 0);
+  assert.equal(scrollAt(2, SHORT.height), 0);
+  assert.equal(videoDuration(SHORT.height), 3);
 });
 
-test('chrome is painted on every frame, including the first', () => {
-  for (const t of [0, 0.5, 2, videoDuration(layout.bands.length)]) {
-    const ctx = fakeCtx();
-    drawFrame(ctx, {}, layout, t);
-    assert.ok(ctx.calls.some((c) => c.op === 'draw' && c.img === layout.chrome),
-      `chrome missing at t=${t}`);
+test('duration grows with the number of awards but stays bounded', () => {
+  assert.ok(videoDuration(4200) > videoDuration(2400));
+  assert.ok(videoDuration(2400) > videoDuration(1200));
+  assert.ok(videoDuration(40000) <= 30, 'a pathological card must not run forever');
+});
+
+test('scroll holds at the top before moving', () => {
+  assert.equal(scrollAt(0.5, TALL.height), 0, 'still holding at 0.5s');
+  assert.ok(scrollAt(1.6, TALL.height) > 0, 'moving by 1.6s');
+});
+
+test('scroll is monotonic — never jumps backwards', () => {
+  const end = videoDuration(TALL.height);
+  let prev = -1;
+  for (let t = 0; t <= end; t += 1 / FPS) {
+    const y = scrollAt(t, TALL.height);
+    assert.ok(y >= prev - 1e-9, `went backwards at t=${t}`);
+    prev = y;
   }
 });
 
-test('nothing but chrome is visible at t=0', () => {
-  const ctx = fakeCtx();
-  drawFrame(ctx, {}, layout, 0);
-  assert.equal(drawn(ctx).length, 0);
+test('the frame is a fixed 9:16 viewport whatever the card height', () => {
+  assert.equal(VIEW_W / VIEW_H, 1080 / 1920);
+  for (const card of [SHORT, TALL, { width: VIEW_W, height: 12000 }]) {
+    const ctx = fakeCtx();
+    drawFrame(ctx, {}, layoutFor(card), 1);
+    const fill = ctx.calls.find((c) => c.op === 'fill');
+    assert.deepEqual(fill.a, [0, 0, VIEW_W, VIEW_H]);
+  }
 });
 
-test('bands arrive in order', () => {
+test('a short card is centred, not pinned to the top', () => {
   const ctx = fakeCtx();
-  drawFrame(ctx, {}, layout, 0.3);
-  const visible = drawn(ctx);
-  assert.ok(visible.length > 0 && visible.length < layout.bands.length,
-    'a mid-reveal frame shows some but not all bands');
-  // Whatever is visible must be a prefix of the band list
-  visible.forEach((c, i) => assert.equal(c.args[1], layout.bands[i].y0));
+  drawFrame(ctx, {}, layoutFor(SHORT), 1);
+  assert.equal(lastDraw(ctx).a[2], (VIEW_H - SHORT.height) / 2);
 });
 
-test('every band is fully opaque and in place by the end', () => {
+test('a tall card is drawn at the current scroll offset', () => {
   const ctx = fakeCtx();
-  drawFrame(ctx, {}, layout, videoDuration(layout.bands.length));
-  const visible = drawn(ctx);
-  assert.equal(visible.length, layout.bands.length);
-  visible.forEach((c, i) => {
-    assert.ok(Math.abs(c.alpha - 1) < 1e-9, `band ${i} not opaque`);
-    // destination y equals source y once settled
-    assert.ok(Math.abs(c.args[5] - layout.bands[i].y0) < 1e-6, `band ${i} not settled`);
-  });
+  drawFrame(ctx, {}, layoutFor(TALL), 2.5);
+  assert.equal(lastDraw(ctx).a[2], -scrollAt(2.5, TALL.height));
 });
 
-test('a band slides up as it fades in', () => {
+test('the matte is painted before the card so short cards letterbox', () => {
   const ctx = fakeCtx();
-  drawFrame(ctx, {}, layout, 0.15);
-  const first = drawn(ctx)[0];
-  assert.ok(first.alpha > 0 && first.alpha < 1);
-  assert.ok(first.args[5] > layout.bands[0].y0, 'mid-fade band should be offset downward');
-});
-
-test('zero-height bands are skipped rather than drawn', () => {
-  const degenerate = { ...layout, bands: [{ y0: 100, y1: 100 }, { y0: 200, y1: 240 }] };
-  const ctx = fakeCtx();
-  drawFrame(ctx, {}, degenerate, 99);
-  assert.equal(drawn(ctx).length, 1);
-});
-
-test('a card with no bands still renders chrome', () => {
-  const ctx = fakeCtx();
-  drawFrame(ctx, {}, { ...layout, bands: [] }, 1);
-  assert.ok(ctx.calls.some((c) => c.img === layout.chrome));
-  assert.equal(drawn(ctx).length, 0);
+  drawFrame(ctx, {}, layoutFor(SHORT), 0);
+  assert.equal(ctx.calls[0].op, 'fill');
 });
 
 // --- Encoder configuration (#131) ---
-// The original bug: avc1.42001f is Baseline level 3.1, which tops out at 3600
-// macroblocks (1280x720). Every real share card is taller than that.
+// avc1.42001f is Baseline level 3.1 — 3600 macroblocks, or 1280x720. The fixed
+// 1080x1920 viewport is 8160, so the level must be derived, not hardcoded.
 
 test('no encoder config is offered when VideoEncoder is absent', async () => {
   assert.equal(typeof VideoEncoder, 'undefined');
-  assert.equal(await pickEncoderConfig(1080, 1560), null);
+  assert.equal(await pickEncoderConfig(VIEW_W, VIEW_H), null);
 });
 
-test('level 3.1 cannot hold a real share card', () => {
-  // 1080x1560 -> 68 x 98 macroblocks
-  const mbs = Math.ceil(1080 / 16) * Math.ceil(1560 / 16);
-  assert.equal(mbs, 6664);
-  assert.ok(mbs > 3600, 'this is the frame size the old hardcoded level rejected');
+test('the viewport exceeds the level that used to be hardcoded', () => {
+  const mbs = Math.ceil(VIEW_W / 16) * Math.ceil(VIEW_H / 16);
+  assert.equal(mbs, 8160);
+  assert.ok(mbs > 3600, 'level 3.1 could never have encoded this');
+  assert.ok(mbs <= 8192, 'level 4.0 can');
 });
 
-test('candidate levels cover the tallest cards we produce', () => {
-  // A card with many awards can reach ~2400px tall -> 68 x 150 = 10200 MBs,
-  // which needs level 5.0 or better.
-  const mbs = Math.ceil(1080 / 16) * Math.ceil(2400 / 16);
-  assert.ok(mbs <= 36864, 'level 5.1/5.2 must still have headroom');
+test('the encoder frame size no longer varies with award count', () => {
+  // Whatever the card height, the video is always the same dimensions — so the
+  // encoder config is chosen once and cannot drift out of level range.
+  assert.equal(VIEW_W, 1080);
+  assert.equal(VIEW_H, 1920);
 });
