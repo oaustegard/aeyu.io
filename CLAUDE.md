@@ -115,9 +115,10 @@ Loads `demo-data.json` into IndexedDB with a fake auth session (athlete ID 99999
 **Add a new award type:**
 1. Add computation logic in `awards.js` (in `computeAwards` for segment-level, `computeRideLevelAwards` for ride-level)
 2. Add label/color in `AWARD_LABELS` in `src/award-config.js` (single source of truth for both Dashboard and ActivityDetail)
-3. Add tier ranking in `AWARD_TIER` in `awards.js` (for segment award ranking)
+3. Add a priority in `AWARD_PRIORITY` in `src/award-config.js` — the single table read by both `rankSegmentAwards` and the share card (the old `AWARD_TIER` in `awards.js` is gone; two tables disagreed, see CHANGELOG 2026-08-02)
 4. Add FAQ entry in Dashboard.js FAQ section (both the "What do the awards mean?" list and a dedicated entry if the feature is complex)
-5. Add to test harness scenario in `test/harness.py`
+5. Add to test harness scenario in `test/harness.py` and to `ALL_TYPES` in its audit list
+6. Add a case to `test/award-priority.test.js` if the type changes ranking behavior
 
 **Add any new user-facing feature:**
 1. Add an FAQ entry in the Dashboard.js FAQ modal explaining what it does and how to use it
@@ -148,41 +149,3 @@ Push to `main` → GitHub Pages auto-deploys. Worker changes need `wrangler depl
 - CV filter: segments with coefficient of variation > 0.5 suppress most awards
 - `fixture-real.json` contains real user data — never commit changes that expose PII
 - **Demo data must stay in sync with the app.** Demo mode loads `demo-data.json` into an isolated IndexedDB — it uses the same code paths as real data, just with canned activities/segments. When adding new features that depend on data structure (new fields on activities, segments, or efforts), update `demo-data.json` to include those fields so demo mode exercises the same functionality as real usage. The demo is NOT a separate code path — it's the same app with fake auth and pre-loaded data.
-
-%% lat:begin %%
-# Before starting work
-
-- Run `lat search` to find sections relevant to your task. Read them to understand the design intent before writing code.
-- Run `lat expand` on user prompts to expand any `[[refs]]` — this resolves section names to file locations and provides context.
-
-# Post-task checklist (REQUIRED — do not skip)
-
-After EVERY task, before responding to the user:
-
-- [ ] Update `lat.md/` if you added or changed any functionality, architecture, tests, or behavior
-- [ ] Run `lat check` — all wiki links and code refs must pass
-- [ ] Do not skip these steps. Do not consider your task done until both are complete.
-
----
-
-# What is lat.md?
-
-This project uses [lat.md](https://www.npmjs.com/package/lat.md) to maintain a structured knowledge graph of its architecture, design decisions, and test specs in the `lat.md/` directory. It is a set of cross-linked markdown files that describe **what** this project does and **why** — the domain concepts, key design decisions, business logic, and test specifications. Use it to ground your work in the actual architecture rather than guessing.
-
-# lat.md Commands
-
-```bash
-lat locate "Section Name"      # find a section by name (exact, fuzzy)
-lat refs "file#Section"        # find what references a section
-lat search "natural language"  # semantic search across all sections
-lat expand "user prompt text"  # expand [[refs]] to resolved locations
-lat check                      # validate all links and code refs
-```
-
-# lat.md Syntax
-
-- **Wiki links**: `[[target]]` or `[[target|alias]]` — cross-references between sections or into source code
-- **Source code links**: `[[src/auth.js#getValidToken]]`, `[[src/awards.js#computeAwards]]`
-- **Code refs**: `// @lat: [[section-id]]` ties source code back to lat.md sections
-- **Section structure**: every section needs a leading paragraph ≤250 chars
-%% lat:end %%
