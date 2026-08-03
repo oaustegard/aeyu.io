@@ -270,8 +270,10 @@ function drawLogoWatermark(ctx, W, H, cardY, cardH, pad) {
  * @param {object} opts
  * @param {number} opts.page — which page of highlights to show. Page 0 is the
  *   card as it has always looked; later pages are what the video steps through.
+ * @param {number|null} opts.height — force the card to at least this tall, so
+ *   every slide in a deck is the same size. Ignored if shorter than natural.
  */
-async function renderShareCard(canvas, act, awardsList, { page = 0 } = {}) {
+async function renderShareCard(canvas, act, awardsList, { page = 0, height = null } = {}) {
   const W = 1080;
   const borderW = 8; // steel blue border at image edge
   const innerPad = 44; // content padding inside body
@@ -329,7 +331,11 @@ async function renderShareCard(canvas, act, awardsList, { page = 0 } = {}) {
   bodyH += 24; // tighter bottom padding before tagline
 
   const taglineH = 48;
-  const H = headerCapH + bodyH + taglineH + borderW; // border at edge, no matting
+  // The deck forces every page to a common height so the card does not appear
+  // to change size between slides (#131). Extra height becomes empty paper
+  // below the last row; the tagline stays pinned to the bottom edge.
+  const naturalH = headerCapH + bodyH + taglineH + borderW; // border at edge, no matting
+  const H = Math.max(naturalH, height || 0);
 
   canvas.width = W;
   canvas.height = H;
@@ -1331,7 +1337,9 @@ export function ActivityDetail({ id }) {
       // One page of awards means the still card already shows everything, and
       // a video of a card that never changes is just a slower PNG.
       const slides = Array.from({ length: pages }, (_, page) =>
-        (canvas) => renderShareCard(canvas, act, awards.value, { page })
+        // The second argument carries the deck's common height on the second
+        // pass, so every slide renders the card at the same size.
+        (canvas, opts) => renderShareCard(canvas, act, awards.value, { page, ...opts })
       );
 
       const { blob, type, extension } = await renderShareVideo(slides, {

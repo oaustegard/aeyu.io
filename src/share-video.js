@@ -39,7 +39,7 @@ const SLIDE_FADE = 0.4;
 const MAX_DURATION = 30;
 
 const clamp01 = (t) => (t < 0 ? 0 : t > 1 ? 1 : t);
-const even16 = (n) => Math.max(16, Math.ceil(n / 16) * 16);
+const even = (n) => n + (n % 2);
 
 /** Seconds one slide occupies, including its crossfade into the next. */
 const SLIDE_PERIOD = SLIDE_HOLD + SLIDE_FADE;
@@ -162,22 +162,32 @@ export async function renderShareVideo(drawSlides, { onProgress } = {}) {
     throw new Error("Nothing to animate — these awards all fit on one card");
   }
 
+  // Two passes. The first measures — the last page carries fewer rows, so pages
+  // differ in natural height. The second re-renders every page at the tallest,
+  // so the card is the same object on every slide rather than something that
+  // visibly resizes as the deck advances.
+  let cardH = 0;
+  for (const draw of draws) {
+    const probe = document.createElement("canvas");
+    const drawn = await draw(probe);
+    if (!drawn || !drawn.height) throw new Error("A slide returned no layout metadata");
+    cardH = Math.max(cardH, drawn.height);
+  }
+  cardH = even(cardH);
+
   const slides = [];
-  let W = 0, H = 0;
+  let W = 0;
   for (const draw of draws) {
     const canvas = document.createElement("canvas");
-    const drawn = await draw(canvas);
-    if (!drawn || !drawn.height) throw new Error("A slide returned no layout metadata");
+    const drawn = await draw(canvas, { height: cardH });
     slides.push(canvas);
     W = Math.max(W, drawn.width);
-    H = Math.max(H, drawn.height);
   }
 
-  // The deck's frame is the card's own dimensions — the tallest page, since
-  // the last one usually carries fewer rows. Rounded up to a macroblock so
-  // encoders do not have to cope with a ragged edge.
-  W = even16(W);
-  H = even16(H);
+  // H.264 needs even dimensions, nothing more — rounding to a macroblock would
+  // leave a visible strip of matte down one edge of a 1080-wide card.
+  W = even(W);
+  const H = cardH;
   const layout = { width: W, height: H, matte: matteColor(slides[0]) };
 
   const frame = document.createElement("canvas");
