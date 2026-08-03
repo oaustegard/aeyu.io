@@ -110,3 +110,43 @@ test('a card-sized frame exceeds the level that used to be hardcoded', () => {
   assert.equal(mbs, 6800);
   assert.ok(mbs > 3600, 'level 3.1 could never have encoded this');
 });
+
+// --- Uniform slide size (#131) ---
+
+test('every slide is rendered at the deck\'s common height', async () => {
+  const { renderShareVideo } = await import('../src/share-video.js');
+  // Minimal DOM: the module only needs canvases it can hand to the draw
+  // functions. Encoding fails afterwards, which is fine — both render passes
+  // have already run by then.
+  globalThis.document = {
+    createElement: () => ({
+      width: 0, height: 0,
+      getContext: () => ({
+        fillRect() {}, drawImage() {}, fillStyle: '', globalAlpha: 1,
+        getImageData() { throw new Error('no pixels in node'); },
+      }),
+    }),
+  };
+  const naturals = [1600, 1600, 1180];   // last page carries fewer rows
+  const asked = [];
+  const draws = naturals.map((natural, i) => async (canvas, opts) => {
+    asked[i] = opts?.height ?? null;
+    canvas.width = 1080;
+    canvas.height = Math.max(natural, opts?.height || 0);
+    return { width: 1080, height: canvas.height };
+  });
+  // No document in node, so this throws before encoding — the measure/render
+  // passes still run and record what each slide was asked for.
+  try {
+    await renderShareVideo(draws);
+  } catch {
+    // expected: no encoder and no MediaRecorder in node
+  } finally {
+    delete globalThis.document;
+  }
+  assert.equal(asked.length, 3);
+  const forced = asked.filter((h) => h != null);
+  assert.equal(forced.length, 3, 'every slide gets a forced height on pass two');
+  assert.equal(new Set(forced).size, 1, 'and they all get the same one');
+  assert.equal(forced[0], 1600, 'which is the tallest natural height, made even');
+});
