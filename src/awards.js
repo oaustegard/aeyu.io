@@ -89,7 +89,7 @@ import { getSegment, getResetEvent, recordRecoveryMilestone, getUserConfig, getA
 import { formatTime, formatDistance } from "./units.js";
 import { detectRoutes, findRouteForActivity } from "./routes.js";
 import { estimateCriticalPower } from "./critical-power.js";
-import { AWARD_PRIORITY, awardScore } from "./award-config.js";
+import { AWARD_PRIORITY, awardScore, isCapReinstatable } from "./award-config.js";
 
 /** Minimum total efforts on a segment before comparative awards apply */
 const MIN_EFFORTS_FOR_AWARDS = 3;
@@ -312,10 +312,23 @@ export function rankSegmentAwards(awards) {
     return typeCounts[a.type] <= cap;
   });
 
-  // Clean up internal tags
-  for (const a of afterTypeCap) delete a._isHeadline;
+  // 7. The type cap ranks instances across segments, so it can strip a segment
+  // of everything it earned. A segment with no awards disappears from the ride
+  // entirely, so put back the headline of any segment the cap emptied.
+  const survivors = new Set(afterTypeCap.map((a) => a.segment_id));
+  const reinstated = [];
+  const seen = new Set();
+  for (const a of ranked) {
+    if (survivors.has(a.segment_id) || seen.has(a.segment_id)) continue;
+    if (!isCapReinstatable(a)) continue;
+    reinstated.push(a);
+    seen.add(a.segment_id);
+  }
 
-  return [...afterTypeCap, ...rideLevelAwards];
+  const final = [...afterTypeCap, ...reinstated];
+  for (const a of final) delete a._isHeadline;
+
+  return [...final, ...rideLevelAwards];
 }
 
 function formatDate(isoString) {
