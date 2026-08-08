@@ -150,6 +150,38 @@ export const AWARD_PRIORITY = {
   segment_count:        14,
 };
 
+/**
+ * Lower bound of the all-time-standing band at the top of AWARD_PRIORITY —
+ * matched_pr through comeback_full. Everything below 88 is calendar-window
+ * standing (best this year, this month, since January).
+ */
+export const ALL_TIME_PRIORITY_FLOOR = 88;
+
+/**
+ * Whether an award must be reinstated after the per-activity cap on its type
+ * has run (#131 follow-up).
+ *
+ * The type cap keeps one award type from flooding a ride, and it ranks
+ * instances globally across segments. On a long ride that means a segment can
+ * lose EVERY award it earned because other segments happened to earn stronger
+ * instances of the same types — and a segment with zero awards is dropped from
+ * the activity view, the share card and the LLM export entirely, with nothing
+ * logged. Measured on 2026-08-08 "N ½": "1 Ln Bridge to Store" was the
+ * athlete's 3rd-fastest of 39 efforts and vanished, because it ranked 6th of 6
+ * all_time_top3 (cap 5) and 4th of 4 ytd_best_power (cap 3).
+ *
+ * The invariant: the type cap may thin a segment's awards but must not erase
+ * the segment. Reinstatement is deliberately narrow — only the segment's
+ * headline, and only in the all-time-standing band. Exempting every headline
+ * would refloat a dozen overlapping segments covering the same stretch of road
+ * on a ride like that one; exempting nothing is the bug. Calendar-window
+ * awards (year_best and below) stay capped, which is what the cap is for.
+ */
+export function isCapReinstatable(award) {
+  if (!award || !award._isHeadline) return false;
+  return (AWARD_PRIORITY[award.type] || 0) >= ALL_TIME_PRIORITY_FLOOR;
+}
+
 /** Efforts within this fraction of the PR count as "essentially a PR" for strength. */
 const STRENGTH_PR_WINDOW = 0.10;
 
