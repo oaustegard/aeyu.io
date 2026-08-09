@@ -10,6 +10,9 @@ paceline either forms or doesn't):
                        = a steady pull; a failed one = constant surge/coast on
                        the wheel. From power jerk/CV/coasting (real power meter)
                        or cadence jerk/CV/freewheel (cadence-only rides).
+  Speed features are computed from the DISTANCE stream, not velocity_smooth,
+  and the target is scored on CRUISE speed (stops + their ramps removed).
+
   ROT  (Rotation)    — how well the GROUP held a tight, on-target rotation.
                        A good double paceline is a smooth step-wave between a
                        ~21 slow line and ~22 fast line. ROT rewards a tight
@@ -49,6 +52,15 @@ def _norm_factory(key, pool):
     return lambda x: None if x is None else float(np.clip((x - lo) / (hi - lo + 1e-9), 0, 1))
 
 def _true_avg(r):
+    """CRUISE speed: distance/time with stop events and their decel/accel ramps
+    removed. There are 4+ stoplights on this stretch of MacArthur, and the
+    elapsed average conflates 'the rotation was slow' with 'we caught a red' --
+    they correlate only r=0.75. The 20-22 target was always defined on the
+    rotation's cruising speed, so scoring it against a stop-contaminated average
+    was a units mismatch. Measured effect of the switch: +0.2 Q per stop, i.e.
+    it removes an unjust penalty without creating a reward for stopping."""
+    if r.get("cruise_mph"):
+        return r["cruise_mph"]
     s, e = r["seg"]
     return r["dist_mi"] / ((e - s) / 3600.0)
 
@@ -110,6 +122,9 @@ def render_html(rows, updated):
         src_badge = ('<span class="badge pwr">power</span>' if r["src"] == "power"
                      else '<span class="badge cad">cadence</span>')
         name = (r.get("name", "") or "").replace("<", "&lt;").replace(">", "&gt;")
+        st_n = r.get("stops_n")
+        avg_title = (f' title="{st_n} stop{"" if st_n == 1 else "s"} removed"'
+                     if st_n else "")
         sn = r.get("surge_n")
         surge_txt = "&mdash;" if sn is None else str(sn)
         surge_sort = -1 if sn is None else sn
@@ -119,7 +134,7 @@ def render_html(rows, updated):
   <td class="c-sub" data-sort="{r['IND']}">{_bar(r['IND'], 'var(--steel)')}</td>
   <td class="c-sub" data-sort="{r['ROT']}">{_bar(r['ROT'], 'var(--accent)')}</td>
   <td class="c-avg" data-sort="{surge_sort}">{surge_txt}</td>
-  <td class="c-avg" data-sort="{r['avg']}">{r['avg']}</td>
+  <td class="c-avg" data-sort="{r['avg']}"{avg_title}>{r['avg']}</td>
   <td class="c-date" data-sort="{r['date']}">{r['date']}</td>
   <td class="c-name" data-sort="{name.lower()}">{name} {src_badge}</td>
 </tr>""")
@@ -227,6 +242,8 @@ def render_html(rows, updated):
       hold a steady pull; a broken one means constant surge-and-coast on the wheel.</div>
     <div><b class="rot-k">ROT</b> \u2014 <b>the group's rotation.</b> Rewards a tight speed band
       near the 21\u201322 target; penalises the accordion, running too hot, and forced surges.</div>
+    <div><b>cruise mph</b> \u2014 <b>speed while actually rolling.</b> Stop events and the
+      decel/accel around them are cut out, so a red light is not scored as a slow paceline.</div>
     <div><b>surges</b> \u2014 <b>how often the line made you chase.</b> Runs of 20&nbsp;s or more
       above 1.6\u00d7 your segment-mean power. Zero is a line that rotated.</div>
     <div><b>Q</b> \u2014 the headline, <code>(IND + ROT) / 2</code>. 100 = a beautiful
@@ -247,7 +264,7 @@ def render_html(rows, updated):
       <th class="sortable ind-k" data-col="2" data-type="num">IND<span class="arr"></span></th>
       <th class="sortable rot-k" data-col="3" data-type="num">ROT<span class="arr"></span></th>
       <th class="sortable" data-col="4" data-type="num" title="forced re-accelerations: runs of 20s+ above 1.6x segment mean power">surges<span class="arr"></span></th>
-      <th class="sortable" data-col="5" data-type="num">avg&nbsp;mph<span class="arr"></span></th>
+      <th class="sortable" data-col="5" data-type="num" title="cruise speed: stop events and their decel/accel ramps removed">cruise&nbsp;mph<span class="arr"></span></th>
       <th class="sortable" data-col="6" data-type="str">date<span class="arr"></span></th>
       <th class="sortable" data-col="7" data-type="str">ride<span class="arr"></span></th>
     </tr></thead>
@@ -267,6 +284,15 @@ def render_html(rows, updated):
     <p>The two numbers are deliberately separate \u2014 a ride can be a steady pull through
     a chaotic pack (high IND, low ROT) or a calm pack you personally surged all over,
     e.g. on gravel (low IND, high ROT).</p>
+    <p><b>Cruise speed</b> (added 2026-08-09). MacArthur has 4+ stoplights, so the
+    elapsed average answers "how long did that take", not "how fast was the rotation" \u2014
+    the two correlate only <code>r&nbsp;=&nbsp;0.75</code>, and one ride shifted 3.3&nbsp;mph.
+    The 20\u201322 target was always defined on the rotation's cruising speed, so it is now
+    scored against cruise. The accordion is deliberately <em>not</em> stop-masked: masking a
+    dispersion measure removes the highest-variance seconds for free and was measured at
+    <b>+5.8&nbsp;Q per red light</b>. Instead it uses a robust spread (p75\u2013p25 of
+    distance-derived speed over the whole segment), which is 5.5&times; less stop-sensitive
+    than p90\u2013p10 and cannot be gamed because nothing is removed.</p>
     <p><b>Surges</b> (added 2026-08-09). A badly-rotating group is invisible to the speed
     trace: the bunch holds a tight band while positions churn, so the accordion reads
     normal and the whole cost of the chop lands on IND \u2014 on <em>you</em>. So forced
