@@ -39,6 +39,24 @@ def _nearest(ll, target, lo=0, hi=None):
     return lo + i, float(np.sqrt(d[i])) * 111000  # metres, approx
 
 
+def _surges(w, win=20, mult=1.6):
+    """Maximal runs where the `win`-second rolling mean exceeds mult x mean."""
+    if len(w) <= win or np.mean(w) <= 0:
+        return 0, []
+    roll = np.convolve(w, np.ones(win) / win, mode="valid") > mult * np.mean(w)
+    spans, i = [], 0
+    while i < len(roll):
+        if roll[i]:
+            j = i
+            while j < len(roll) and roll[j]:
+                j += 1
+            spans.append((i, j + win - 1))
+            i = j
+        else:
+            i += 1
+    return len(spans), spans
+
+
 def feats(aid):
     d = _get(f"/activities/{aid}")
     st = _get(f"/activities/{aid}/streams",
@@ -76,6 +94,22 @@ def feats(aid):
     r["has_pwr"] = has_pwr
     if w is not None:
         ws = w[s:e + 1]
+        # forced surges: runs of >=20s whose rolling mean exceeds 1.6x the
+        # segment mean. Relative, not a fixed 300W cut -- an absolute cut just
+        # measures how strong the day was (r=0.18 against this across 29 rides).
+        # IND is then computed with these windows MASKED OUT, so chop the group
+        # forced belongs to ROT and only your own residual chop lands on IND.
+        n_s, spans = _surges(ws)
+        r["surge_n"] = n_s
+        keep = np.ones(len(ws), dtype=bool)
+        for a, b in spans:
+            keep[a:min(b, len(ws))] = False
+        r["surge_time_pct"] = round(float(100 * (1 - keep.mean())), 1)
+        if keep.sum() > 60:
+            wm = ws[keep]
+            r["p_cv_m"] = round(float(np.std(wm) / np.mean(wm)), 3)
+            r["p_jerk_m"] = round(float(np.mean(np.abs(np.diff(wm)) > 50) * 100), 1)
+            r["p_coast_m"] = round(float(np.mean(wm < 5) * 100), 1)
         r["p_mean"] = round(float(np.mean(ws)), 1)
         r["p_cv"] = round(float(np.std(ws) / np.mean(ws)), 3)
         r["p_jerk_pct"] = round(float(np.mean(np.abs(np.diff(ws)) > 50) * 100), 1)
