@@ -13,8 +13,10 @@ paceline either forms or doesn't):
   ROT  (Rotation)    — how well the GROUP held a tight, on-target rotation.
                        A good double paceline is a smooth step-wave between a
                        ~21 slow line and ~22 fast line. ROT rewards a tight
-                       speed band near that 21-22 target and penalises both
-                       chaos (the accordion) and running too hot.
+                       speed band near that 21-22 target and penalises chaos
+                       (the accordion), running too hot, and FORCED SURGES —
+                       the >=20 s re-accelerations a broken rotation makes you
+                       do to hold the wheel.
   Q    = (IND + ROT) / 2, the headline leaderboard number.
 
 All scores are 0-100, relative to the population of logged Cappuccino rides
@@ -29,6 +31,15 @@ import json, sys
 import numpy as np
 
 SEGMENT = "MacArthur Blvd — Walhonding to base of Anglers (~5.7 mi)"
+
+# ROT weights. SURGE added 2026-08-09: a group that repeatedly forces you to
+# re-accelerate is a badly-rotating group, and the accordion feature cannot
+# see it — bunch SPEED stays in a tight band while POSITION churns.
+W_ACCORDION, W_TARGET, W_SURGE = 0.45, 0.30, 0.25
+
+# A "surge" = a run of >=20 s whose rolling mean power exceeds 1.6x the
+# segment mean. Relative, not absolute: a 300 W cut just measures how strong
+# the day was (r = 0.18 against the relative count across the 29 power rides).
 
 # ---- scoring -----------------------------------------------------------------
 
@@ -50,18 +61,32 @@ def _target_pen(v):
 def score_rides(rows):
     rows = [r for r in rows if r.get("seg")]
     pw = [r for r in rows if r.get("has_pwr") and r.get("p_jerk_pct") is not None]
-    npj, npcv, npco = (_norm_factory(k, pw) for k in ("p_jerk_pct", "p_cv", "p_coast_pct"))
+    # IND is computed on the SURGE-MASKED trace where available: chop the group
+    # forced on you belongs to ROT, not to your own steadiness. Rides gathered
+    # before 2026-08-09 that lack the masked fields fall back to the raw ones.
+    has_masked = [r for r in pw if r.get("p_cv_m") is not None]
+    use_masked = len(has_masked) == len(pw) and pw
+    IK = ("p_jerk_m", "p_cv_m", "p_coast_m") if use_masked else ("p_jerk_pct", "p_cv", "p_coast_pct")
+    npj, npcv, npco = (_norm_factory(k, pw) for k in IK)
     ncj, nccv, ncfw = (_norm_factory(k, rows) for k in ("cad_jerk_pct", "cad_cv", "cad_freewheel_pct"))
     nacc = _norm_factory("spd_accordion", rows)
+    nsur = _norm_factory("surge_time_pct", pw) if pw and pw[0].get("surge_time_pct") is not None else None
+    # cadence-only rides get a NEUTRAL surge term: the speed trace carries no
+    # usable surge signal (measured r = -0.00 against the power-based rate on
+    # the 29 power rides), so imputing the field median beats inventing one.
+    sur_med = (float(np.median([nsur(r["surge_time_pct"]) for r in pw]))
+               if nsur else 0.0)
     for r in rows:
-        if r.get("has_pwr") and r.get("p_jerk_pct") is not None:
-            ind = np.mean([npj(r["p_jerk_pct"]), npcv(r["p_cv"]), npco(r["p_coast_pct"])])
+        if r.get("has_pwr") and r.get(IK[0]) is not None:
+            ind = np.mean([npj(r[IK[0]]), npcv(r[IK[1]]), npco(r[IK[2]])])
             r["src"] = "power"
+            sur = nsur(r["surge_time_pct"]) if nsur and r.get("surge_time_pct") is not None else sur_med
         else:
             ind = np.mean([ncj(r["cad_jerk_pct"]), nccv(r["cad_cv"]), ncfw(r["cad_freewheel_pct"])])
             r["src"] = "cadence"
+            sur = sur_med
         ta = _true_avg(r)
-        rot = 0.6 * nacc(r["spd_accordion"]) + 0.4 * _target_pen(ta)
+        rot = W_ACCORDION * nacc(r["spd_accordion"]) + W_TARGET * _target_pen(ta) + W_SURGE * sur
         r["avg"] = round(ta, 1)
         r["IND"] = int(round(100 * (1 - ind)))
         r["ROT"] = int(round(100 * (1 - rot)))
@@ -85,11 +110,15 @@ def render_html(rows, updated):
         src_badge = ('<span class="badge pwr">power</span>' if r["src"] == "power"
                      else '<span class="badge cad">cadence</span>')
         name = (r.get("name", "") or "").replace("<", "&lt;").replace(">", "&gt;")
+        sn = r.get("surge_n")
+        surge_txt = "&mdash;" if sn is None else str(sn)
+        surge_sort = -1 if sn is None else sn
         body_rows.append(f"""<tr>
   <td class="c-rk" data-sort="{i}">{medal}</td>
   <td class="c-q" data-sort="{r['Q']}"><b>{r['Q']}</b></td>
   <td class="c-sub" data-sort="{r['IND']}">{_bar(r['IND'], 'var(--steel)')}</td>
   <td class="c-sub" data-sort="{r['ROT']}">{_bar(r['ROT'], 'var(--accent)')}</td>
+  <td class="c-avg" data-sort="{surge_sort}">{surge_txt}</td>
   <td class="c-avg" data-sort="{r['avg']}">{r['avg']}</td>
   <td class="c-date" data-sort="{r['date']}">{r['date']}</td>
   <td class="c-name" data-sort="{name.lower()}">{name} {src_badge}</td>
@@ -197,7 +226,9 @@ def render_html(rows, updated):
     <div><b class="ind-k">IND</b> \u2014 <b>your own steadiness.</b> A formed line lets you
       hold a steady pull; a broken one means constant surge-and-coast on the wheel.</div>
     <div><b class="rot-k">ROT</b> \u2014 <b>the group's rotation.</b> Rewards a tight speed band
-      near the 21\u201322 target; penalises both the accordion and running too hot.</div>
+      near the 21\u201322 target; penalises the accordion, running too hot, and forced surges.</div>
+    <div><b>surges</b> \u2014 <b>how often the line made you chase.</b> Runs of 20&nbsp;s or more
+      above 1.6\u00d7 your segment-mean power. Zero is a line that rotated.</div>
     <div><b>Q</b> \u2014 the headline, <code>(IND + ROT) / 2</code>. 100 = a beautiful
       steady line. Low = it never came together.</div>
   </div>
@@ -215,9 +246,10 @@ def render_html(rows, updated):
       <th class="sortable" data-col="1" data-type="num">Q<span class="arr"> \u25BC</span></th>
       <th class="sortable ind-k" data-col="2" data-type="num">IND<span class="arr"></span></th>
       <th class="sortable rot-k" data-col="3" data-type="num">ROT<span class="arr"></span></th>
-      <th class="sortable" data-col="4" data-type="num">avg&nbsp;mph<span class="arr"></span></th>
-      <th class="sortable" data-col="5" data-type="str">date<span class="arr"></span></th>
-      <th class="sortable" data-col="6" data-type="str">ride<span class="arr"></span></th>
+      <th class="sortable" data-col="4" data-type="num" title="forced re-accelerations: runs of 20s+ above 1.6x segment mean power">surges<span class="arr"></span></th>
+      <th class="sortable" data-col="5" data-type="num">avg&nbsp;mph<span class="arr"></span></th>
+      <th class="sortable" data-col="6" data-type="str">date<span class="arr"></span></th>
+      <th class="sortable" data-col="7" data-type="str">ride<span class="arr"></span></th>
     </tr></thead>
     <tbody>
 {rows_html}
@@ -235,6 +267,14 @@ def render_html(rows, updated):
     <p>The two numbers are deliberately separate \u2014 a ride can be a steady pull through
     a chaotic pack (high IND, low ROT) or a calm pack you personally surged all over,
     e.g. on gravel (low IND, high ROT).</p>
+    <p><b>Surges</b> (added 2026-08-09). A badly-rotating group is invisible to the speed
+    trace: the bunch holds a tight band while positions churn, so the accordion reads
+    normal and the whole cost of the chop lands on IND \u2014 on <em>you</em>. So forced
+    re-accelerations are now counted directly (runs of 20&nbsp;s+ above 1.6&times; segment-mean
+    power) and charged to ROT, and IND is computed with those windows masked out: your
+    steadiness is judged on the stretches where the line let you be steady. Rides with no
+    power meter get the field-median surge term \u2014 the speed trace carries no usable
+    surge signal at all (correlation with the power-based count: <code>-0.00</code>).</p>
   </div>
 
   <footer>
