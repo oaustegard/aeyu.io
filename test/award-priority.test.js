@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { AWARD_PRIORITY, AWARD_LABELS, awardStrength, awardScore } from '../src/award-config.js';
+import { AWARD_PRIORITY, AWARD_LABELS, awardStrength, awardScore, isCapReinstatable, ALL_TIME_PRIORITY_FLOOR } from '../src/award-config.js';
 
 // Fixture: the 2026-08-02 ride that surfaced all of this (#131).
 // Four segments tied at year_best; three of them cover the same Kendale climb.
@@ -124,4 +124,37 @@ test('ride order does not decide ties', () => {
   const late = { ...KENDALE_CLIMB, effort_start_ms: s(9000), effort_end_ms: s(9068) };
   assert.equal(selectHighlights([early, late])[0].segment, 'Kendale Climb');
   assert.equal(selectHighlights([late, early])[0].segment, 'Kendale Climb');
+});
+
+// The per-activity type cap emptied a segment on 2026-08-08 "N ½": "1 Ln Bridge
+// to Store", 3rd-fastest of 39 efforts, ranked 6th of 6 all_time_top3 (cap 5)
+// and 4th of 4 ytd_best_power (cap 3), so it vanished from the ride entirely.
+const STRANDED_TOP3 = {
+  type: 'all_time_top3', segment: '1 Ln Bridge to Store', segment_id: 648837,
+  time: 557, all_time_rank: 3, effort_count: 39, pr_gap_pct: 13 / 544,
+  _isHeadline: true,
+};
+
+test('a headline all-time standing is reinstated when the type cap empties its segment', () => {
+  assert.equal(isCapReinstatable(STRANDED_TOP3), true);
+});
+
+test('a calendar-window headline stays capped', () => {
+  for (const type of ['year_best', 'beat_median', 'top_quartile', 'monthly_best']) {
+    assert.ok(AWARD_PRIORITY[type] < ALL_TIME_PRIORITY_FLOOR, `${type} is not all-time standing`);
+    assert.equal(isCapReinstatable({ ...STRANDED_TOP3, type }), false, type);
+  }
+});
+
+test('only the headline is reinstated, never a second award on the same segment', () => {
+  const secondary = { ...STRANDED_TOP3, type: 'ytd_best_power', _isHeadline: false };
+  assert.equal(isCapReinstatable(secondary), false);
+});
+
+test('the all-time band is exactly the top of the priority table', () => {
+  const allTime = Object.entries(AWARD_PRIORITY)
+    .filter(([, p]) => p >= ALL_TIME_PRIORITY_FLOOR)
+    .map(([t]) => t)
+    .sort();
+  assert.deepEqual(allTime, ['all_time_top3', 'closing_in', 'comeback_full', 'curve_all_time', 'matched_pr', 'near_kom']);
 });
