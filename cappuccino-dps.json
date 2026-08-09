@@ -11,12 +11,16 @@
   "dist_mi": 5.75,
   "spd_mean": 22.0,
   "spd_cv": 0.105,
-  "spd_accordion": 0.162,
+  "spd_accordion": 0.091,
   "cad_mean": 72.1,
   "cad_cv": 0.263,
   "cad_freewheel_pct": 4.6,
   "cad_pedaling_cv": 0.131,
-  "cad_jerk_pct": 6.2
+  "cad_jerk_pct": 6.2,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 22.02,
+  "spd_accordion_p9010": 0.162
  },
  "9956679565": {
   "id": 9956679565,
@@ -30,12 +34,16 @@
   "dist_mi": 5.71,
   "spd_mean": 21.7,
   "spd_cv": 0.14,
-  "spd_accordion": 0.199,
+  "spd_accordion": 0.124,
   "cad_mean": 68.0,
   "cad_cv": 0.336,
   "cad_freewheel_pct": 7.8,
   "cad_pedaling_cv": 0.142,
-  "cad_jerk_pct": 9.1
+  "cad_jerk_pct": 9.1,
+  "stops_n": 1,
+  "stop_s": 4,
+  "cruise_mph": 22.16,
+  "spd_accordion_p9010": 0.199
  },
  "10206875818": {
   "id": 10206875818,
@@ -49,12 +57,16 @@
   "dist_mi": 5.67,
   "spd_mean": 20.8,
   "spd_cv": 0.152,
-  "spd_accordion": 0.262,
+  "spd_accordion": 0.099,
   "cad_mean": 59.7,
   "cad_cv": 0.426,
   "cad_freewheel_pct": 11.0,
   "cad_pedaling_cv": 0.184,
-  "cad_jerk_pct": 16.4
+  "cad_jerk_pct": 16.4,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 20.05,
+  "spd_accordion_p9010": 0.262
  },
  "10513947465": {
   "id": 10513947465,
@@ -68,12 +80,16 @@
   "dist_mi": 5.7,
   "spd_mean": 19.3,
   "spd_cv": 0.129,
-  "spd_accordion": 0.209,
+  "spd_accordion": 0.098,
   "cad_mean": 64.9,
   "cad_cv": 0.356,
   "cad_freewheel_pct": 8.5,
   "cad_pedaling_cv": 0.14,
-  "cad_jerk_pct": 11.7
+  "cad_jerk_pct": 11.7,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 19.32,
+  "spd_accordion_p9010": 0.209
  },
  "10789662031": {
   "id": 10789662031,
@@ -87,12 +103,16 @@
   "dist_mi": 5.72,
   "spd_mean": 20.2,
   "spd_cv": 0.135,
-  "spd_accordion": 0.23,
+  "spd_accordion": 0.116,
   "cad_mean": 68.0,
   "cad_cv": 0.302,
   "cad_freewheel_pct": 6.2,
   "cad_pedaling_cv": 0.134,
-  "cad_jerk_pct": 7.3
+  "cad_jerk_pct": 7.3,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 19.74,
+  "spd_accordion_p9010": 0.23
  },
  "10836862761": {
   "id": 10836862761,
@@ -106,12 +126,16 @@
   "dist_mi": 5.73,
   "spd_mean": 19.0,
   "spd_cv": 0.144,
-  "spd_accordion": 0.234,
+  "spd_accordion": 0.102,
   "cad_mean": 70.3,
   "cad_cv": 0.238,
   "cad_freewheel_pct": 4.3,
   "cad_pedaling_cv": 0.088,
-  "cad_jerk_pct": 2.9
+  "cad_jerk_pct": 2.9,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 18.23,
+  "spd_accordion_p9010": 0.234
  },
  "10883207303": {
   "id": 10883207303,
@@ -125,12 +149,16 @@
   "dist_mi": 5.7,
   "spd_mean": 21.6,
   "spd_cv": 0.16,
-  "spd_accordion": 0.152,
+  "spd_accordion": 0.079,
   "cad_mean": 65.8,
   "cad_cv": 0.352,
   "cad_freewheel_pct": 8.2,
   "cad_pedaling_cv": 0.131,
-  "cad_jerk_pct": 11.2
+  "cad_jerk_pct": 11.2,
+  "stops_n": 1,
+  "stop_s": 3,
+  "cruise_mph": 21.27,
+  "spd_accordion_p9010": 0.152
  },
  "11612819628": {
   "id": 11612819628,
@@ -144,7 +172,7 @@
   "dist_mi": 5.75,
   "spd_mean": 22.6,
   "spd_cv": 0.108,
-  "spd_accordion": 0.202,
+  "spd_accordion": 0.094,
   "cad_mean": 64.1,
   "cad_cv": 0.313,
   "cad_freewheel_pct": 3.6,
@@ -160,7 +188,11 @@
   "surge_time_pct": 15.2,
   "p_cv_m": 0.646,
   "p_jerk_m": 37.3,
-  "p_coast_m": 4.8
+  "p_coast_m": 4.8,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 22.55,
+  "spd_accordion_p9010": 0.202
  },
  "11666758313": {
   "id": 11666758313,
@@ -174,7 +206,7 @@
   "dist_mi": 5.76,
   "spd_mean": 22.0,
   "spd_cv": 0.1,
-  "spd_accordion": 0.202,
+  "spd_accordion": 0.099,
   "cad_mean": 66.6,
   "cad_cv": 0.218,
   "cad_freewheel_pct": 1.5,
@@ -190,7 +222,11 @@
   "surge_time_pct": 3.0,
   "p_cv_m": 0.517,
   "p_jerk_m": 34.1,
-  "p_coast_m": 3.1
+  "p_coast_m": 3.1,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 22.0,
+  "spd_accordion_p9010": 0.202
  },
  "11775841183": {
   "id": 11775841183,
@@ -204,7 +240,7 @@
   "dist_mi": 5.7,
   "spd_mean": 22.0,
   "spd_cv": 0.135,
-  "spd_accordion": 0.195,
+  "spd_accordion": 0.083,
   "cad_mean": 61.0,
   "cad_cv": 0.301,
   "cad_freewheel_pct": 4.5,
@@ -220,7 +256,11 @@
   "surge_time_pct": 5.4,
   "p_cv_m": 0.593,
   "p_jerk_m": 27.4,
-  "p_coast_m": 5.9
+  "p_coast_m": 5.9,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 21.7,
+  "spd_accordion_p9010": 0.195
  },
  "11944894314": {
   "id": 11944894314,
@@ -234,7 +274,7 @@
   "dist_mi": 5.74,
   "spd_mean": 20.7,
   "spd_cv": 0.127,
-  "spd_accordion": 0.18,
+  "spd_accordion": 0.089,
   "cad_mean": 61.9,
   "cad_cv": 0.331,
   "cad_freewheel_pct": 7.6,
@@ -250,7 +290,11 @@
   "surge_time_pct": 0.0,
   "p_cv_m": 0.48,
   "p_jerk_m": 20.6,
-  "p_coast_m": 4.2
+  "p_coast_m": 4.2,
+  "stops_n": 1,
+  "stop_s": 5,
+  "cruise_mph": 21.11,
+  "spd_accordion_p9010": 0.18
  },
  "12061499218": {
   "id": 12061499218,
@@ -264,7 +308,7 @@
   "dist_mi": 5.7,
   "spd_mean": 20.8,
   "spd_cv": 0.128,
-  "spd_accordion": 0.176,
+  "spd_accordion": 0.091,
   "cad_mean": 62.3,
   "cad_cv": 0.289,
   "cad_freewheel_pct": 5.0,
@@ -280,7 +324,11 @@
   "surge_time_pct": 0.0,
   "p_cv_m": 0.48,
   "p_jerk_m": 21.6,
-  "p_coast_m": 5.8
+  "p_coast_m": 5.8,
+  "stops_n": 1,
+  "stop_s": 4,
+  "cruise_mph": 21.21,
+  "spd_accordion_p9010": 0.176
  },
  "12121171429": {
   "id": 12121171429,
@@ -294,7 +342,7 @@
   "dist_mi": 5.73,
   "spd_mean": 20.9,
   "spd_cv": 0.199,
-  "spd_accordion": 0.257,
+  "spd_accordion": 0.1,
   "cad_mean": 62.8,
   "cad_cv": 0.344,
   "cad_freewheel_pct": 7.6,
@@ -310,7 +358,11 @@
   "surge_time_pct": 14.7,
   "p_cv_m": 0.566,
   "p_jerk_m": 23.3,
-  "p_coast_m": 7.0
+  "p_coast_m": 7.0,
+  "stops_n": 2,
+  "stop_s": 15,
+  "cruise_mph": 21.88,
+  "spd_accordion_p9010": 0.257
  },
  "12299484458": {
   "id": 12299484458,
@@ -324,7 +376,7 @@
   "dist_mi": 5.72,
   "spd_mean": 20.7,
   "spd_cv": 0.162,
-  "spd_accordion": 0.257,
+  "spd_accordion": 0.128,
   "cad_mean": 66.7,
   "cad_cv": 0.288,
   "cad_freewheel_pct": 4.0,
@@ -340,7 +392,11 @@
   "surge_time_pct": 7.6,
   "p_cv_m": 0.562,
   "p_jerk_m": 24.9,
-  "p_coast_m": 6.1
+  "p_coast_m": 6.1,
+  "stops_n": 1,
+  "stop_s": 4,
+  "cruise_mph": 21.08,
+  "spd_accordion_p9010": 0.257
  },
  "12702681284": {
   "id": 12702681284,
@@ -354,7 +410,7 @@
   "dist_mi": 5.73,
   "spd_mean": 21.2,
   "spd_cv": 0.158,
-  "spd_accordion": 0.279,
+  "spd_accordion": 0.147,
   "cad_mean": 64.9,
   "cad_cv": 0.301,
   "cad_freewheel_pct": 6.0,
@@ -370,7 +426,11 @@
   "surge_time_pct": 8.6,
   "p_cv_m": 0.467,
   "p_jerk_m": 16.8,
-  "p_coast_m": 4.4
+  "p_coast_m": 4.4,
+  "stops_n": 1,
+  "stop_s": 7,
+  "cruise_mph": 21.64,
+  "spd_accordion_p9010": 0.279
  },
  "12974205592": {
   "id": 12974205592,
@@ -384,7 +444,7 @@
   "dist_mi": 5.73,
   "spd_mean": 19.8,
   "spd_cv": 0.094,
-  "spd_accordion": 0.188,
+  "spd_accordion": 0.094,
   "cad_mean": 63.7,
   "cad_cv": 0.273,
   "cad_freewheel_pct": 4.8,
@@ -400,7 +460,11 @@
   "surge_time_pct": 3.2,
   "p_cv_m": 0.506,
   "p_jerk_m": 23.3,
-  "p_coast_m": 4.2
+  "p_coast_m": 4.2,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 19.84,
+  "spd_accordion_p9010": 0.188
  },
  "13900060124": {
   "id": 13900060124,
@@ -414,7 +478,7 @@
   "dist_mi": 5.73,
   "spd_mean": 20.3,
   "spd_cv": 0.189,
-  "spd_accordion": 0.315,
+  "spd_accordion": 0.104,
   "cad_mean": 66.4,
   "cad_cv": 0.284,
   "cad_freewheel_pct": 2.9,
@@ -430,7 +494,11 @@
   "surge_time_pct": 7.5,
   "p_cv_m": 0.579,
   "p_jerk_m": 24.0,
-  "p_coast_m": 8.2
+  "p_coast_m": 8.2,
+  "stops_n": 1,
+  "stop_s": 6,
+  "cruise_mph": 20.65,
+  "spd_accordion_p9010": 0.315
  },
  "14303565493": {
   "id": 14303565493,
@@ -444,7 +512,7 @@
   "dist_mi": 5.72,
   "spd_mean": 19.8,
   "spd_cv": 0.134,
-  "spd_accordion": 0.28,
+  "spd_accordion": 0.101,
   "cad_mean": 66.9,
   "cad_cv": 0.297,
   "cad_freewheel_pct": 5.5,
@@ -460,7 +528,11 @@
   "surge_time_pct": 5.9,
   "p_cv_m": 0.435,
   "p_jerk_m": 21.6,
-  "p_coast_m": 3.1
+  "p_coast_m": 3.1,
+  "stops_n": 1,
+  "stop_s": 3,
+  "cruise_mph": 20.05,
+  "spd_accordion_p9010": 0.28
  },
  "14379753775": {
   "id": 14379753775,
@@ -480,7 +552,7 @@
   "dist_mi": 5.72,
   "spd_mean": 20.7,
   "spd_cv": 0.081,
-  "spd_accordion": 0.174,
+  "spd_accordion": 0.092,
   "cad_mean": 64.8,
   "cad_cv": 0.267,
   "cad_freewheel_pct": 2.2,
@@ -496,7 +568,11 @@
   "surge_time_pct": 8.4,
   "p_cv_m": 0.586,
   "p_jerk_m": 28.5,
-  "p_coast_m": 2.7
+  "p_coast_m": 2.7,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 20.65,
+  "spd_accordion_p9010": 0.174
  },
  "14882396853": {
   "id": 14882396853,
@@ -510,7 +586,7 @@
   "dist_mi": 5.72,
   "spd_mean": 20.4,
   "spd_cv": 0.17,
-  "spd_accordion": 0.218,
+  "spd_accordion": 0.092,
   "cad_mean": 64.9,
   "cad_cv": 0.251,
   "cad_freewheel_pct": 2.8,
@@ -526,7 +602,11 @@
   "surge_time_pct": 2.0,
   "p_cv_m": 0.508,
   "p_jerk_m": 20.6,
-  "p_coast_m": 5.6
+  "p_coast_m": 5.6,
+  "stops_n": 2,
+  "stop_s": 10,
+  "cruise_mph": 21.28,
+  "spd_accordion_p9010": 0.218
  },
  "14954049172": {
   "id": 14954049172,
@@ -540,7 +620,7 @@
   "dist_mi": 5.72,
   "spd_mean": 20.9,
   "spd_cv": 0.158,
-  "spd_accordion": 0.287,
+  "spd_accordion": 0.129,
   "cad_mean": 61.2,
   "cad_cv": 0.316,
   "cad_freewheel_pct": 3.6,
@@ -556,7 +636,11 @@
   "surge_time_pct": 6.6,
   "p_cv_m": 0.536,
   "p_jerk_m": 12.3,
-  "p_coast_m": 7.2
+  "p_coast_m": 7.2,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 20.88,
+  "spd_accordion_p9010": 0.287
  },
  "15491270416": {
   "id": 15491270416,
@@ -570,7 +654,7 @@
   "dist_mi": 5.75,
   "spd_mean": 20.4,
   "spd_cv": 0.223,
-  "spd_accordion": 0.361,
+  "spd_accordion": 0.098,
   "cad_mean": 61.5,
   "cad_cv": 0.381,
   "cad_freewheel_pct": 9.6,
@@ -586,7 +670,11 @@
   "surge_time_pct": 10.1,
   "p_cv_m": 0.55,
   "p_jerk_m": 20.5,
-  "p_coast_m": 8.4
+  "p_coast_m": 8.4,
+  "stops_n": 3,
+  "stop_s": 18,
+  "cruise_mph": 21.59,
+  "spd_accordion_p9010": 0.361
  },
  "15571350878": {
   "id": 15571350878,
@@ -600,12 +688,16 @@
   "dist_mi": 5.71,
   "spd_mean": 20.8,
   "spd_cv": 0.217,
-  "spd_accordion": 0.311,
+  "spd_accordion": 0.087,
   "cad_mean": 57.7,
   "cad_cv": 0.471,
   "cad_freewheel_pct": 14.8,
   "cad_pedaling_cv": 0.157,
-  "cad_jerk_pct": 14.3
+  "cad_jerk_pct": 14.3,
+  "stops_n": 3,
+  "stop_s": 15,
+  "cruise_mph": 21.97,
+  "spd_accordion_p9010": 0.311
  },
  "15650741722": {
   "id": 15650741722,
@@ -619,7 +711,7 @@
   "dist_mi": 5.73,
   "spd_mean": 21.6,
   "spd_cv": 0.165,
-  "spd_accordion": 0.241,
+  "spd_accordion": 0.108,
   "cad_mean": 63.0,
   "cad_cv": 0.518,
   "cad_freewheel_pct": 16.5,
@@ -635,7 +727,11 @@
   "surge_time_pct": 6.2,
   "p_cv_m": 0.642,
   "p_jerk_m": 29.8,
-  "p_coast_m": 11.6
+  "p_coast_m": 11.6,
+  "stops_n": 1,
+  "stop_s": 5,
+  "cruise_mph": 22.22,
+  "spd_accordion_p9010": 0.241
  },
  "15733713834": {
   "id": 15733713834,
@@ -649,7 +745,7 @@
   "dist_mi": 5.71,
   "spd_mean": 19.5,
   "spd_cv": 0.175,
-  "spd_accordion": 0.342,
+  "spd_accordion": 0.169,
   "cad_mean": 62.8,
   "cad_cv": 0.306,
   "cad_freewheel_pct": 4.8,
@@ -665,7 +761,11 @@
   "surge_time_pct": 10.0,
   "p_cv_m": 0.587,
   "p_jerk_m": 25.3,
-  "p_coast_m": 8.5
+  "p_coast_m": 8.5,
+  "stops_n": 1,
+  "stop_s": 4,
+  "cruise_mph": 19.79,
+  "spd_accordion_p9010": 0.342
  },
  "15810847888": {
   "id": 15810847888,
@@ -679,7 +779,7 @@
   "dist_mi": 5.7,
   "spd_mean": 22.1,
   "spd_cv": 0.109,
-  "spd_accordion": 0.208,
+  "spd_accordion": 0.092,
   "cad_mean": 59.6,
   "cad_cv": 0.361,
   "cad_freewheel_pct": 7.6,
@@ -695,7 +795,11 @@
   "surge_time_pct": 0.0,
   "p_cv_m": 0.524,
   "p_jerk_m": 28.4,
-  "p_coast_m": 3.9
+  "p_coast_m": 3.9,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 22.13,
+  "spd_accordion_p9010": 0.208
  },
  "15889715186": {
   "id": 15889715186,
@@ -709,7 +813,7 @@
   "dist_mi": 5.7,
   "spd_mean": 21.0,
   "spd_cv": 0.233,
-  "spd_accordion": 0.431,
+  "spd_accordion": 0.141,
   "cad_mean": 60.1,
   "cad_cv": 0.46,
   "cad_freewheel_pct": 14.3,
@@ -725,7 +829,11 @@
   "surge_time_pct": 13.3,
   "p_cv_m": 0.584,
   "p_jerk_m": 26.9,
-  "p_coast_m": 9.2
+  "p_coast_m": 9.2,
+  "stops_n": 1,
+  "stop_s": 4,
+  "cruise_mph": 20.66,
+  "spd_accordion_p9010": 0.431
  },
  "15966438443": {
   "id": 15966438443,
@@ -739,7 +847,7 @@
   "dist_mi": 5.7,
   "spd_mean": 21.5,
   "spd_cv": 0.144,
-  "spd_accordion": 0.178,
+  "spd_accordion": 0.084,
   "cad_mean": 52.6,
   "cad_cv": 0.519,
   "cad_freewheel_pct": 16.6,
@@ -755,7 +863,11 @@
   "surge_time_pct": 15.2,
   "p_cv_m": 0.578,
   "p_jerk_m": 17.6,
-  "p_coast_m": 9.5
+  "p_coast_m": 9.5,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 21.32,
+  "spd_accordion_p9010": 0.178
  },
  "16263875899": {
   "id": 16263875899,
@@ -769,12 +881,16 @@
   "dist_mi": 5.71,
   "spd_mean": 21.5,
   "spd_cv": 0.132,
-  "spd_accordion": 0.174,
+  "spd_accordion": 0.088,
   "cad_mean": 67.9,
   "cad_cv": 0.251,
   "cad_freewheel_pct": 3.9,
   "cad_pedaling_cv": 0.132,
-  "cad_jerk_pct": 8.7
+  "cad_jerk_pct": 8.7,
+  "stops_n": 1,
+  "stop_s": 4,
+  "cruise_mph": 21.93,
+  "spd_accordion_p9010": 0.174
  },
  "16333867946": {
   "id": 16333867946,
@@ -788,7 +904,7 @@
   "dist_mi": 5.74,
   "spd_mean": 21.7,
   "spd_cv": 0.155,
-  "spd_accordion": 0.221,
+  "spd_accordion": 0.102,
   "cad_mean": 69.6,
   "cad_cv": 0.232,
   "cad_freewheel_pct": 1.6,
@@ -804,7 +920,11 @@
   "surge_time_pct": 0.0,
   "p_cv_m": 0.479,
   "p_jerk_m": 16.9,
-  "p_coast_m": 4.8
+  "p_coast_m": 4.8,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 21.72,
+  "spd_accordion_p9010": 0.221
  },
  "16477590611": {
   "id": 16477590611,
@@ -818,7 +938,7 @@
   "dist_mi": 5.72,
   "spd_mean": 19.6,
   "spd_cv": 0.13,
-  "spd_accordion": 0.216,
+  "spd_accordion": 0.112,
   "cad_mean": 69.0,
   "cad_cv": 0.27,
   "cad_freewheel_pct": 4.9,
@@ -834,7 +954,11 @@
   "surge_time_pct": 0.0,
   "p_cv_m": 0.453,
   "p_jerk_m": 20.8,
-  "p_coast_m": 3.8
+  "p_coast_m": 3.8,
+  "stops_n": 1,
+  "stop_s": 3,
+  "cruise_mph": 19.89,
+  "spd_accordion_p9010": 0.216
  },
  "17653242924": {
   "id": 17653242924,
@@ -848,7 +972,7 @@
   "dist_mi": 5.71,
   "spd_mean": 18.8,
   "spd_cv": 0.223,
-  "spd_accordion": 0.265,
+  "spd_accordion": 0.101,
   "cad_mean": 67.9,
   "cad_cv": 0.273,
   "cad_freewheel_pct": 4.6,
@@ -864,7 +988,11 @@
   "surge_time_pct": 0.0,
   "p_cv_m": 0.445,
   "p_jerk_m": 16.7,
-  "p_coast_m": 6.4
+  "p_coast_m": 6.4,
+  "stops_n": 2,
+  "stop_s": 19,
+  "cruise_mph": 19.77,
+  "spd_accordion_p9010": 0.265
  },
  "17818010469": {
   "id": 17818010469,
@@ -878,7 +1006,7 @@
   "dist_mi": 5.71,
   "spd_mean": 21.6,
   "spd_cv": 0.172,
-  "spd_accordion": 0.22,
+  "spd_accordion": 0.095,
   "cad_mean": 65.7,
   "cad_cv": 0.334,
   "cad_freewheel_pct": 7.9,
@@ -894,7 +1022,11 @@
   "surge_time_pct": 3.8,
   "p_cv_m": 0.519,
   "p_jerk_m": 21.7,
-  "p_coast_m": 6.5
+  "p_coast_m": 6.5,
+  "stops_n": 1,
+  "stop_s": 4,
+  "cruise_mph": 22.01,
+  "spd_accordion_p9010": 0.22
  },
  "18361583139": {
   "id": 18361583139,
@@ -908,12 +1040,16 @@
   "dist_mi": 5.69,
   "spd_mean": 19.7,
   "spd_cv": 0.183,
-  "spd_accordion": 0.227,
+  "spd_accordion": 0.107,
   "cad_mean": 65.8,
   "cad_cv": 0.328,
   "cad_freewheel_pct": 7.4,
   "cad_pedaling_cv": 0.134,
-  "cad_jerk_pct": 8.0
+  "cad_jerk_pct": 8.0,
+  "stops_n": 1,
+  "stop_s": 11,
+  "cruise_mph": 20.33,
+  "spd_accordion_p9010": 0.227
  },
  "18454041528": {
   "id": 18454041528,
@@ -927,12 +1063,16 @@
   "dist_mi": 5.69,
   "spd_mean": 22.9,
   "spd_cv": 0.066,
-  "spd_accordion": 0.129,
+  "spd_accordion": 0.062,
   "cad_mean": 68.3,
   "cad_cv": 0.281,
   "cad_freewheel_pct": 4.8,
   "cad_pedaling_cv": 0.142,
-  "cad_jerk_pct": 12.0
+  "cad_jerk_pct": 12.0,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 22.89,
+  "spd_accordion_p9010": 0.129
  },
  "18545338986": {
   "id": 18545338986,
@@ -946,12 +1086,16 @@
   "dist_mi": 5.7,
   "spd_mean": 22.1,
   "spd_cv": 0.075,
-  "spd_accordion": 0.139,
+  "spd_accordion": 0.073,
   "cad_mean": 59.6,
   "cad_cv": 0.421,
   "cad_freewheel_pct": 10.3,
   "cad_pedaling_cv": 0.186,
-  "cad_jerk_pct": 17.8
+  "cad_jerk_pct": 17.8,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 22.07,
+  "spd_accordion_p9010": 0.139
  },
  "18827087956": {
   "id": 18827087956,
@@ -965,7 +1109,7 @@
   "dist_mi": 5.7,
   "spd_mean": 20.6,
   "spd_cv": 0.19,
-  "spd_accordion": 0.291,
+  "spd_accordion": 0.122,
   "cad_mean": 62.1,
   "cad_cv": 0.354,
   "cad_freewheel_pct": 5.3,
@@ -981,7 +1125,11 @@
   "surge_time_pct": 5.6,
   "p_cv_m": 0.606,
   "p_jerk_m": 21.0,
-  "p_coast_m": 9.0
+  "p_coast_m": 9.0,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 20.59,
+  "spd_accordion_p9010": 0.291
  },
  "18919162954": {
   "id": 18919162954,
@@ -995,7 +1143,7 @@
   "dist_mi": 5.72,
   "spd_mean": 20.9,
   "spd_cv": 0.159,
-  "spd_accordion": 0.303,
+  "spd_accordion": 0.135,
   "cad_mean": 66.1,
   "cad_cv": 0.231,
   "cad_freewheel_pct": 1.2,
@@ -1011,7 +1159,11 @@
   "surge_time_pct": 2.5,
   "p_cv_m": 0.514,
   "p_jerk_m": 19.8,
-  "p_coast_m": 4.2
+  "p_coast_m": 4.2,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 20.91,
+  "spd_accordion_p9010": 0.303
  },
  "19012090607": {
   "id": 19012090607,
@@ -1025,7 +1177,7 @@
   "dist_mi": 5.8,
   "spd_mean": 17.8,
   "spd_cv": 0.339,
-  "spd_accordion": 0.718,
+  "spd_accordion": 0.24,
   "cad_mean": 67.6,
   "cad_cv": 0.272,
   "cad_freewheel_pct": 3.3,
@@ -1041,7 +1193,11 @@
   "surge_time_pct": 5.6,
   "p_cv_m": 0.586,
   "p_jerk_m": 28.6,
-  "p_coast_m": 6.9
+  "p_coast_m": 6.9,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 21.17,
+  "spd_accordion_p9010": 0.718
  },
  "19572154597": {
   "id": 19572154597,
@@ -1054,7 +1210,7 @@
   "dist_mi": 5.7,
   "spd_mean": 19.1,
   "spd_cv": 0.188,
-  "spd_accordion": 0.325,
+  "spd_accordion": 0.133,
   "has_pwr": true,
   "p_mean": 149.6,
   "p_cv": 0.598,
@@ -1071,7 +1227,11 @@
   "surge_time_pct": 16.3,
   "p_cv_m": 0.616,
   "p_jerk_m": 17.7,
-  "p_coast_m": 9.7
+  "p_coast_m": 9.7,
+  "stops_n": 1,
+  "stop_s": 3,
+  "cruise_mph": 19.34,
+  "spd_accordion_p9010": 0.325
  },
  "19670275347": {
   "id": 19670275347,
@@ -1084,7 +1244,7 @@
   "dist_mi": 5.7,
   "spd_mean": 23.0,
   "spd_cv": 0.149,
-  "spd_accordion": 0.264,
+  "spd_accordion": 0.14,
   "has_pwr": true,
   "p_mean": 194.4,
   "p_cv": 0.704,
@@ -1101,6 +1261,10 @@
   "surge_time_pct": 17.8,
   "p_cv_m": 0.676,
   "p_jerk_m": 27.7,
-  "p_coast_m": 5.8
+  "p_coast_m": 5.8,
+  "stops_n": 0,
+  "stop_s": 0,
+  "cruise_mph": 22.98,
+  "spd_accordion_p9010": 0.264
  }
 }
