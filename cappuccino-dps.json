@@ -932,5 +932,30 @@
   "cad_jerk_pct": 14.6,
   "cad_freewheel_pct": 3.8,
   "cad_pedaling_cv": 0.244
+ },
+ "19670275347": {
+  "id": 19670275347,
+  "name": "Full fat, extra steam, decaf Cappuccino",
+  "date": "2026-08-09",
+  "seg": [
+   2686,
+   3583
+  ],
+  "dist_mi": 5.7,
+  "spd_mean": 23.0,
+  "spd_cv": 0.149,
+  "spd_accordion": 0.264,
+  "has_pwr": true,
+  "p_mean": 194.4,
+  "p_cv": 0.704,
+  "p_jerk_pct": 30.9,
+  "p_coast_pct": 5.3,
+  "p_floor_p25": 94.2,
+  "p_vi": 1.118,
+  "cad_mean": 63.6,
+  "cad_cv": 0.329,
+  "cad_jerk_pct": 22.5,
+  "cad_freewheel_pct": 3.7,
+  "cad_pedaling_cv": 0.269
  }
 }
