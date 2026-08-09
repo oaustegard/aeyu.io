@@ -10,7 +10,7 @@ is located GEOGRAPHICALLY (nearest latlng to the two anchors below), not by
 segment-effort name -- no Strava segment covers exactly this window, and the
 name-based lookup documented earlier never matched.
 
-spd_* come from velocity_smooth; dist_mi from the distance stream. True average
+spd_* are derived from the distance stream; the target is scored on cruise speed
 speed is derived in cappuccino_dps.py from seg index count, not from these.
 """
 import os, sys, json, urllib.request
@@ -37,6 +37,23 @@ def _nearest(ll, target, lo=0, hi=None):
     d = (a[:, 0] - target[0]) ** 2 + ((a[:, 1] - target[1]) * 0.78) ** 2
     i = int(np.argmin(d))
     return lo + i, float(np.sqrt(d[i])) * 111000  # metres, approx
+
+
+def _stop_runs(spd, thresh=3.0, min_len=3):
+    """Contiguous runs of >=min_len samples below `thresh` mph."""
+    slow = spd < thresh
+    runs, i, n = [], 0, len(spd)
+    while i < n:
+        if slow[i]:
+            j = i
+            while j < n and slow[j]:
+                j += 1
+            if j - i >= min_len:
+                runs.append((i, j))
+            i = j
+        else:
+            i += 1
+    return runs
 
 
 def _surges(w, win=20, mult=1.6):
@@ -74,8 +91,26 @@ def feats(aid):
     dur = float(tt[-1] - tt[0])
     dist_mi = float(dd[-1] - dd[0]) / 1609.34
 
-    # speed from velocity_smooth (matches the calibrated feature set), mph
-    spd = arr("velocity_smooth")[s:e + 1] * 2.23694
+    # Speed from the DISTANCE stream, not velocity_smooth: velocity_smooth is
+    # unreliable in absolute terms (one ride reads 17.8 mph mean against a
+    # distance-derived 21.2). 5 s box smooth to kill GPS jitter.
+    _d = arr("distance")[s:e + 1]
+    _t = arr("time")[s:e + 1].astype(float)
+    spd = np.zeros(len(_d))
+    spd[1:] = np.where(np.diff(_t) > 0,
+                       np.diff(_d) / np.maximum(np.diff(_t), 1e-9), 0.0) * 2.23694
+    spd[0] = spd[1]
+    spd = np.convolve(spd, np.ones(5) / 5, mode="same")
+
+    # Stop events (<3 mph for >=3 s) plus their decel/accel ramps. MacArthur has
+    # 4+ stoplights; catching a red is not the same thing as a slow rotation.
+    stops = _stop_runs(spd)
+    roll = np.ones(len(spd), dtype=bool)
+    for a, b in stops:
+        roll[max(0, a - 15):min(len(spd), b + 25)] = False
+    roll &= spd >= 3.0
+    dd = np.zeros(len(_d)); dd[1:] = np.diff(_d)
+    dt = np.zeros(len(_t)); dt[1:] = np.diff(_t)
 
     r = {
         "id": int(aid), "name": d.get("name"),
@@ -86,7 +121,16 @@ def feats(aid):
         "_anchor_err_m": [round(ds_err), round(de_err)],
         "spd_mean": round(float(np.mean(spd)), 1),
         "spd_cv": round(float(np.std(spd) / np.mean(spd)), 3),
-        "spd_accordion": round(float((np.percentile(spd, 90) - np.percentile(spd, 10))
+        "stops_n": len(stops),
+        "stop_s": int(sum(b - a for a, b in stops)),
+        # CRUISE speed drives the 20-22 target; the elapsed average conflates a
+        # slow rotation with a red light (they correlate only r=0.75).
+        "cruise_mph": round(float((dd[roll].sum() / 1609.34) / (dt[roll].sum() / 3600)), 2),
+        # Accordion uses a ROBUST spread on the UNMASKED trace. p90-p10 is badly
+        # stop-contaminated, but masking a dispersion measure deletes the
+        # highest-variance seconds for free -- measured at +5.8 Q per red light.
+        # p75-p25 is 5.5x less stop-sensitive and cannot be gamed.
+        "spd_accordion": round(float((np.percentile(spd, 75) - np.percentile(spd, 25))
                                      / np.median(spd)), 3),
     }
 
