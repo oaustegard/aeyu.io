@@ -315,3 +315,33 @@ export const AWARD_GROUPS = [
     ],
   },
 ];
+
+/**
+ * Margin over the runner-up, in percent, for a rank-1 award.
+ *
+ * The award pill renders as "1st of N, X% faster", so X has to be the
+ * head-to-head gap to the second-best entry in the same set. Measuring the
+ * deviation from the set MEAN instead inflates the number on any segment that
+ * is only sometimes contested: 26 rides past Ridge to Ross-Sp average 54.7s,
+ * so a 40s sprint scored "26.9% faster" when the runner-up was 41s (2.4%).
+ *
+ * Returns null when there is no runner-up or `current` is not the best in the
+ * set, and 0 when the win is a tie — both fall through the pill's truthiness
+ * check, leaving just "1st of N".
+ *
+ * @param {number} current - the awarded value
+ * @param {number[]} values - every value in the set, including `current`
+ * @param {boolean} lowerIsBetter - true for elapsed times, false for watts
+ * @returns {number|null} percent to one decimal
+ */
+export function marginOverRunnerUp(current, values, lowerIsBetter = true) {
+  if (current == null || !Array.isArray(values) || values.length < 2) return null;
+  const sorted = [...values].sort((a, b) => (lowerIsBetter ? a - b : b - a));
+  if (lowerIsBetter ? current > sorted[0] : current < sorted[0]) return null;
+  const runnerUp = sorted[1];
+  if (runnerUp == null || runnerUp === 0) return null;
+  const pct = lowerIsBetter
+    ? ((runnerUp - current) / runnerUp) * 100
+    : ((current - runnerUp) / runnerUp) * 100;
+  return Math.round(pct * 10) / 10;
+}
