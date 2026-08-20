@@ -4,6 +4,14 @@ All merged pull requests for [aeyu.io](https://aeyu.io), a Strava-powered cyclin
 
 -----
 
+## 2026-08-19
+
+### Fixes
+
+- **Award pills reported a margin over the field average while claiming a margin over the field** — `pctDelta` was computed as `|current - mean| / mean` across the whole set, then rendered inside `1st of N, X% faster`, which reads as the head-to-head gap to the runner-up. On segments that are only sometimes contested the mean sits far off the contested times, so the number inflated badly: a 40s sprint on Ridge to Ross-Sp showed *26.9% faster* against 26 efforts whose runner-up was 41s — an actual margin of 2.4%. Mormon Temple Hill showed 17.1% against a runner-up 8% back. A new `marginOverRunnerUp()` in `award-config.js` replaces the mean at all six call sites (Year Best, Recent Best, Monthly Best, Best Month Ever, YTD Best Time, YTD Best Power), returns `null` when the effort is not the best in its set — which also suppresses the figure on YTD awards ranked below 1st, where "3rd of 8, X% faster" had no coherent referent — and returns `0` on a tie, leaving the pill showing rank alone.
+
+-----
+
 ## 2026-08-02
 
 ### Fixes
