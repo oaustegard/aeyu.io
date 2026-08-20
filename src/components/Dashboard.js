@@ -9,7 +9,7 @@
 
 import { html } from "htm/preact";
 import { signal, effect } from "@preact/signals";
-import { useEffect } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import { authState, disconnect, startOAuth } from "../auth.js";
 import {
   startAutoSync,
@@ -212,14 +212,8 @@ const resetName = signal("");
 const resetDate = signal("");
 const referencePoints = signal([]);
 const showRefForm = signal(false);
-const refType = signal("since_date");
 const pendingCount = signal(0);
 const steepestClimbName = signal(null);
-const refLabel = signal("");
-const refDate = signal("");
-const refCount = signal("10");
-const refBirthday = signal("");
-const refAge = signal("40");
 const streakData = signal(null);
 const fitnessData = signal(null);
 const powerCurveData = signal(null);
@@ -441,6 +435,136 @@ async function loadDashboard() {
     loading.value = false;
     if (window.dismissLoadingOverlay) window.dismissLoadingOverlay();
   }
+}
+
+/**
+ * The add-a-reference-point form.
+ *
+ * Its own component with local `useState` rather than inline template reading
+ * module-level signals. Reading a signal's `.value` in Dashboard's body
+ * subscribes the whole component, so every keystroke in these fields used to
+ * re-render the entire dashboard — all ride cards, every chart, the whole
+ * settings modal. Measured at one full Dashboard render per character.
+ *
+ * Local state confines a keystroke to this form. `onAdd` hands the finished
+ * reference point back; the parent still owns persistence.
+ */
+function ReferencePointForm({ onAdd, onCancel }) {
+  const [type, setType] = useState("since_date");
+  const [label, setLabel] = useState("");
+  const [date, setDate] = useState("");
+  const [count, setCount] = useState("10");
+  const [birthday, setBirthday] = useState("");
+  const [age, setAge] = useState("40");
+
+  const complete =
+    label.trim() &&
+    (type !== "since_date" || date) &&
+    (type !== "since_age" || (birthday && parseInt(age)));
+
+  const fieldStyle = "border: 1px solid var(--border); font-family: var(--font-body);";
+  const numStyle = "border: 1px solid var(--border); font-family: var(--font-mono);";
+
+  return html`
+    <div class="rounded-lg p-3 space-y-2" style="background: var(--bg);">
+      <select
+        value=${type}
+        onChange=${(e) => {
+          setType(e.target.value);
+          setLabel(e.target.value === "last_n" ? "last " + count + " efforts" : "");
+        }}
+        class="w-full text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1"
+        style="border: 1px solid var(--border); font-family: var(--font-body); background: var(--surface);"
+      >
+        <option value="since_date">Best since date</option>
+        <option value="last_n">Best in last N efforts</option>
+        <option value="since_age">Best since turning age</option>
+      </select>
+
+      <input
+        type="text"
+        placeholder=${type === "since_date" ? "Label (e.g. Since new bike)" : type === "last_n" ? "Label (e.g. Last 10 efforts)" : "Label (e.g. Since turning 40)"}
+        value=${label}
+        onInput=${(e) => setLabel(e.target.value)}
+        class="w-full text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1" style=${fieldStyle}
+      />
+
+      ${type === "since_date" && html`
+        <input
+          type="date"
+          value=${date}
+          onInput=${(e) => setDate(e.target.value)}
+          class="w-full text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1" style=${fieldStyle}
+        />
+      `}
+
+      ${type === "last_n" && html`
+        <div class="flex items-center gap-2">
+          <input
+            type="number"
+            min="2"
+            max="100"
+            value=${count}
+            onInput=${(e) => setCount(e.target.value)}
+            class="w-20 text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1" style=${numStyle}
+          />
+          <span class="text-xs" style="color: var(--text-secondary);">efforts per segment</span>
+        </div>
+      `}
+
+      ${type === "since_age" && html`
+        <div class="space-y-2">
+          <div>
+            <label class="text-xs block mb-0.5" style="color: var(--text-secondary);">Birthday</label>
+            <input
+              type="date"
+              value=${birthday}
+              onInput=${(e) => setBirthday(e.target.value)}
+              class="w-full text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1" style=${fieldStyle}
+            />
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs" style="color: var(--text-secondary);">Age</label>
+            <input
+              type="number"
+              min="1"
+              max="120"
+              value=${age}
+              onInput=${(e) => setAge(e.target.value)}
+              class="w-20 text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1" style=${numStyle}
+            />
+          </div>
+        </div>
+      `}
+
+      <div class="flex gap-2">
+        <button
+          onClick=${() => {
+            if (!complete) return;
+            const rp = { id: Date.now().toString(), type, label: label.trim() };
+            if (type === "since_date") rp.date = date;
+            else if (type === "last_n") rp.count = parseInt(count) || 10;
+            else if (type === "since_age") { rp.birthday = birthday; rp.age = parseInt(age); }
+            onAdd(rp);
+          }}
+          disabled=${!complete}
+          class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
+          style=${complete
+            ? "background: var(--accent); color: white;"
+            : "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"}
+        >
+          Add reference point
+        </button>
+        <button
+          onClick=${onCancel}
+          class="text-xs px-3 py-1.5 rounded transition-colors"
+          style="color: var(--text-secondary);"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  `;
 }
 
 export function Dashboard() {
@@ -2332,121 +2456,16 @@ export function Dashboard() {
                 `}
 
                 ${showRefForm.value ? html`
-                  <div class="rounded-lg p-3 space-y-2" style="background: var(--bg);">
-                    <select
-                      value=${refType.value}
-                      onChange=${(e) => {
-                        refType.value = e.target.value;
-                        if (e.target.value === "since_date") refLabel.value = "";
-                        if (e.target.value === "last_n") refLabel.value = "last " + refCount.value + " efforts";
-                        if (e.target.value === "since_age") refLabel.value = "";
-                      }}
-                      class="w-full text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1"
-                      style="border: 1px solid var(--border); font-family: var(--font-body); background: var(--surface);"
-                    >
-                      <option value="since_date">Best since date</option>
-                      <option value="last_n">Best in last N efforts</option>
-                      <option value="since_age">Best since turning age</option>
-                    </select>
-
-                    <input
-                      type="text"
-                      placeholder=${refType.value === "since_date" ? "Label (e.g. Since new bike)" : refType.value === "last_n" ? "Label (e.g. Last 10 efforts)" : "Label (e.g. Since turning 40)"}
-                      value=${refLabel.value}
-                      onInput=${(e) => { refLabel.value = e.target.value; }}
-                      class="w-full text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1" style="border: 1px solid var(--border); font-family: var(--font-body);"
-                    />
-
-                    ${refType.value === "since_date" && html`
-                      <input
-                        type="date"
-                        value=${refDate.value}
-                        onInput=${(e) => { refDate.value = e.target.value; }}
-                        class="w-full text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1" style="border: 1px solid var(--border); font-family: var(--font-body);"
-                      />
-                    `}
-
-                    ${refType.value === "last_n" && html`
-                      <div class="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="2"
-                          max="100"
-                          value=${refCount.value}
-                          onInput=${(e) => { refCount.value = e.target.value; }}
-                          class="w-20 text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1" style="border: 1px solid var(--border); font-family: var(--font-mono);"
-                        />
-                        <span class="text-xs" style="color: var(--text-secondary);">efforts per segment</span>
-                      </div>
-                    `}
-
-                    ${refType.value === "since_age" && html`
-                      <div class="space-y-2">
-                        <div>
-                          <label class="text-xs block mb-0.5" style="color: var(--text-secondary);">Birthday</label>
-                          <input
-                            type="date"
-                            value=${refBirthday.value}
-                            onInput=${(e) => { refBirthday.value = e.target.value; }}
-                            class="w-full text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1" style="border: 1px solid var(--border); font-family: var(--font-body);"
-                          />
-                        </div>
-                        <div class="flex items-center gap-2">
-                          <label class="text-xs" style="color: var(--text-secondary);">Age</label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="120"
-                            value=${refAge.value}
-                            onInput=${(e) => { refAge.value = e.target.value; }}
-                            class="w-20 text-xs rounded px-2 py-1.5 focus:outline-none focus:ring-1" style="border: 1px solid var(--border); font-family: var(--font-mono);"
-                          />
-                        </div>
-                      </div>
-                    `}
-
-                    <div class="flex gap-2">
-                      <button
-                        onClick=${async () => {
-                          const label = refLabel.value.trim();
-                          if (!label) return;
-                          const rp = { id: Date.now().toString(), type: refType.value, label };
-                          if (refType.value === "since_date") {
-                            if (!refDate.value) return;
-                            rp.date = refDate.value;
-                          } else if (refType.value === "last_n") {
-                            rp.count = parseInt(refCount.value) || 10;
-                          } else if (refType.value === "since_age") {
-                            if (!refBirthday.value || !parseInt(refAge.value)) return;
-                            rp.birthday = refBirthday.value;
-                            rp.age = parseInt(refAge.value);
-                          }
-                          const updated = [...referencePoints.value, rp];
-                          referencePoints.value = updated;
-                          await setUserConfig({ referencePoints: updated });
-                          showRefForm.value = false;
-                          refLabel.value = "";
-                          refDate.value = "";
-                          refType.value = "since_date";
-                          await loadDashboard();
-                        }}
-                        disabled=${!refLabel.value.trim() || (refType.value === "since_date" && !refDate.value) || (refType.value === "since_age" && (!refBirthday.value || !parseInt(refAge.value)))}
-                        class="text-xs px-3 py-1.5 rounded font-medium transition-colors"
-                        style=${refLabel.value.trim() && (refType.value !== "since_date" || refDate.value) && (refType.value !== "since_age" || (refBirthday.value && parseInt(refAge.value)))
-                          ? "background: var(--accent); color: white;"
-                          : "background: var(--border); color: var(--text-tertiary); cursor: not-allowed;"}
-                      >
-                        Add reference point
-                      </button>
-                      <button
-                        onClick=${() => { showRefForm.value = false; refLabel.value = ""; refDate.value = ""; refType.value = "since_date"; }}
-                        class="text-xs px-3 py-1.5 rounded transition-colors"
-                        style="color: var(--text-secondary);"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
+                  <${ReferencePointForm}
+                    onAdd=${async (rp) => {
+                      const updated = [...referencePoints.value, rp];
+                      referencePoints.value = updated;
+                      await setUserConfig({ referencePoints: updated });
+                      showRefForm.value = false;
+                      await loadDashboard();
+                    }}
+                    onCancel=${() => { showRefForm.value = false; }}
+                  />
                 ` : html`
                   <button
                     onClick=${() => { showRefForm.value = true; }}
