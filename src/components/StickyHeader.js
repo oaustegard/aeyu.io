@@ -1,12 +1,40 @@
 import { html } from "htm/preact";
 import { signal } from "@preact/signals";
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { authState } from "../auth.js";
 import { isDemo } from "../demo.js";
+import { resolveAvatarUrl } from "../avatar.js";
 
 // Whether the header has been scrolled past — drives compact mode
 export const headerCompact = signal(false);
 const avatarMenuOpen = signal(false);
+
+/**
+ * Circular avatar that degrades to the athlete's initial.
+ *
+ * `onError` covers the failures resolveAvatarUrl cannot predict — a CDN object
+ * that has since been deleted, a hotlink block, an offline device. Without it
+ * any load failure leaves the broken-image glyph, because there is no second
+ * chance once the <img> is committed.
+ */
+function Avatar({ url, initial, size, borderWidth, fontSize }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => { setFailed(false); }, [url]);
+
+  if (url && !failed) {
+    return html`<img
+      src=${url}
+      alt=""
+      onError=${() => setFailed(true)}
+      class="rounded-full"
+      style="width: 100%; height: 100%; object-fit: cover;"
+    />`;
+  }
+  return html`<span
+    class="rounded-full flex items-center justify-center"
+    style="width: 100%; height: 100%; background: rgba(255,255,255,0.2); color: rgba(255,255,255,0.9); font-size: ${fontSize}; font-family: var(--font-body); font-weight: 600;"
+  >${initial}</span>`;
+}
 export function StickyHeader({
   onHelp,
   onBack,
@@ -22,7 +50,8 @@ export function StickyHeader({
 }) {
   const auth = authState.value;
   const athlete = auth?.athlete;
-  const avatarUrl = athlete?.profile;
+  const avatarUrl = resolveAvatarUrl(athlete?.profile);
+  const avatarInitial = athlete?.firstname?.trim()?.[0] || "?";
   const sentinelRef = useRef(null);
   const menuRef = useRef(null);
 
@@ -126,25 +155,14 @@ export function StickyHeader({
             </button>
           `}
 
-          ${avatarUrl ? html`
-            <button
-              onClick=${(e) => { e.stopPropagation(); avatarMenuOpen.value = !avatarMenuOpen.value; }}
-              class="rounded-full transition-opacity hover:opacity-80 flex-shrink-0"
-              style="width: 32px; height: 32px; border: 2px solid rgba(255,255,255,0.4);"
-              title="${athlete.firstname}'s menu"
-            >
-              <img src=${avatarUrl} alt="" class="rounded-full" style="width: 100%; height: 100%; object-fit: cover;" />
-            </button>
-          ` : html`
-            <button
-              onClick=${(e) => { e.stopPropagation(); avatarMenuOpen.value = !avatarMenuOpen.value; }}
-              class="rounded-full flex items-center justify-center flex-shrink-0"
-              style="width: 32px; height: 32px; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4); color: rgba(255,255,255,0.9); font-size: 0.75rem; font-family: var(--font-body); font-weight: 600;"
-              title="Menu"
-            >
-              ${athlete ? athlete.firstname[0] : "?"}
-            </button>
-          `}
+          <button
+            onClick=${(e) => { e.stopPropagation(); avatarMenuOpen.value = !avatarMenuOpen.value; }}
+            class="rounded-full transition-opacity hover:opacity-80 flex-shrink-0 overflow-hidden"
+            style="width: 32px; height: 32px; border: 2px solid rgba(255,255,255,0.4); padding: 0;"
+            title=${athlete ? `${athlete.firstname}'s menu` : "Menu"}
+          >
+            <${Avatar} url=${avatarUrl} initial=${avatarInitial} fontSize="0.75rem" />
+          </button>
         </div>
       </div>
     </header>
@@ -207,23 +225,13 @@ export function StickyHeader({
             </button>
           `}
 
-          ${avatarUrl ? html`
-            <button
-              onClick=${(e) => { e.stopPropagation(); avatarMenuOpen.value = !avatarMenuOpen.value; }}
-              class="rounded-full transition-opacity hover:opacity-80 flex-shrink-0"
-              style="width: 26px; height: 26px; border: 1.5px solid rgba(255,255,255,0.4);"
-            >
-              <img src=${avatarUrl} alt="" class="rounded-full" style="width: 100%; height: 100%; object-fit: cover;" />
-            </button>
-          ` : html`
-            <button
-              onClick=${(e) => { e.stopPropagation(); avatarMenuOpen.value = !avatarMenuOpen.value; }}
-              class="rounded-full flex items-center justify-center flex-shrink-0"
-              style="width: 26px; height: 26px; background: rgba(255,255,255,0.2); border: 1.5px solid rgba(255,255,255,0.4); color: rgba(255,255,255,0.9); font-size: 0.65rem; font-family: var(--font-body); font-weight: 600;"
-            >
-              ${athlete ? athlete.firstname[0] : "?"}
-            </button>
-          `}
+          <button
+            onClick=${(e) => { e.stopPropagation(); avatarMenuOpen.value = !avatarMenuOpen.value; }}
+            class="rounded-full transition-opacity hover:opacity-80 flex-shrink-0 overflow-hidden"
+            style="width: 26px; height: 26px; border: 1.5px solid rgba(255,255,255,0.4); padding: 0;"
+          >
+            <${Avatar} url=${avatarUrl} initial=${avatarInitial} fontSize="0.65rem" />
+          </button>
         </div>
       </div>
     </header>
@@ -248,9 +256,9 @@ export function StickyHeader({
         ${athlete && html`
           <div class="px-4 py-3" style="border-bottom: 1px solid var(--border-light);">
             <div class="flex items-center gap-2.5">
-              ${avatarUrl && html`
-                <img src=${avatarUrl} alt="" class="rounded-full flex-shrink-0" style="width: 36px; height: 36px; object-fit: cover;" />
-              `}
+              <span class="rounded-full flex-shrink-0 overflow-hidden" style="width: 36px; height: 36px; background: var(--accent); display: inline-block;">
+                <${Avatar} url=${avatarUrl} initial=${avatarInitial} fontSize="0.875rem" />
+              </span>
               <div>
                 <p class="text-sm font-medium" style="color: var(--text);">${athlete.firstname} ${athlete.lastname}</p>
                 ${isDemo.value && html`<span class="text-xs px-1.5 py-0.5 rounded-full" style="background: #FEF3C7; color: #92400E;">Demo</span>`}
