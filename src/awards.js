@@ -89,7 +89,7 @@ import { getSegment, getResetEvent, recordRecoveryMilestone, getUserConfig, getA
 import { formatTime, formatDistance } from "./units.js";
 import { detectRoutes, findRouteForActivity } from "./routes.js";
 import { estimateCriticalPower } from "./critical-power.js";
-import { AWARD_PRIORITY, awardScore, isCapReinstatable } from "./award-config.js";
+import { AWARD_PRIORITY, awardScore, isCapReinstatable, marginOverRunnerUp } from "./award-config.js";
 
 /** Minimum total efforts on a segment before comparative awards apply */
 const MIN_EFFORTS_FOR_AWARDS = 3;
@@ -460,7 +460,7 @@ function dayOfYear(date) {
  * @param {Array} allEfforts - All efforts on this segment
  * @param {Date} activityDate - Date of the current activity
  * @param {string} field - "elapsed_time" (lower=better) or "average_watts" (higher=better)
- * @returns {{ sinceYear: number, span: number, rank: number, totalYears: number, pctDelta: number } | null}
+ * @returns {{ sinceYear: number, span: number, rank: number, totalYears: number, pctDelta: number|null } | null}
  */
 function computeYtdComparison(currentValue, allEfforts, activityDate, field) {
   if (currentValue == null) return null;
@@ -521,16 +521,13 @@ function computeYtdComparison(currentValue, allEfforts, activityDate, field) {
 
   if (sinceYear == null) return null;
 
-  // Rank among all years' bests and % delta from average
+  // Rank among all years' bests, plus the margin over the runner-up year
   const allBests = Object.values(bestByYear);
   const totalYears = allBests.length;
   const rank = lowerIsBetter
     ? allBests.filter((v) => v < currentValue).length + 1
     : allBests.filter((v) => v > currentValue).length + 1;
-  const avg = allBests.reduce((s, v) => s + v, 0) / allBests.length;
-  const pctDelta = avg !== 0
-    ? Math.round(Math.abs(currentValue - avg) / avg * 1000) / 10
-    : 0;
+  const pctDelta = marginOverRunnerUp(currentValue, allBests, lowerIsBetter);
 
   return { sinceYear, span: currentYear - sinceYear, rank, totalYears, pctDelta };
 }
@@ -849,10 +846,7 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
         const previousBest = otherEfforts.length > 0 ? otherEfforts[0] : null;
 
         const yearTimes = thisYearEfforts.map((e) => e.elapsed_time);
-        const yearAvg = yearTimes.reduce((s, v) => s + v, 0) / yearTimes.length;
-        const ybPctDelta = yearAvg !== 0
-          ? Math.round(Math.abs(effort.elapsed_time - yearAvg) / yearAvg * 1000) / 10
-          : 0;
+        const ybPctDelta = marginOverRunnerUp(effort.elapsed_time, yearTimes);
 
         awards.push({
           type: "year_best",
@@ -885,10 +879,7 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
 
       if (effort.elapsed_time === bestOfLast5) {
         const recentTimes = last5.map((e) => e.elapsed_time);
-        const recentAvg = recentTimes.reduce((s, v) => s + v, 0) / recentTimes.length;
-        const rbPctDelta = recentAvg !== 0
-          ? Math.round(Math.abs(effort.elapsed_time - recentAvg) / recentAvg * 1000) / 10
-          : 0;
+        const rbPctDelta = marginOverRunnerUp(effort.elapsed_time, recentTimes);
 
         awards.push({
           type: "recent_best",
@@ -988,10 +979,7 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
       if (effort.elapsed_time === bestThisMonth) {
         const monthName = activityDate.toLocaleDateString("en-US", { month: "long" });
         const monthTimes = thisMonthEfforts.map((e) => e.elapsed_time);
-        const monthAvg = monthTimes.reduce((s, v) => s + v, 0) / monthTimes.length;
-        const mbPctDelta = monthAvg !== 0
-          ? Math.round(Math.abs(effort.elapsed_time - monthAvg) / monthAvg * 1000) / 10
-          : 0;
+        const mbPctDelta = marginOverRunnerUp(effort.elapsed_time, monthTimes);
 
         awards.push({
           type: "monthly_best",
@@ -1080,10 +1068,7 @@ export async function computeAwards(activity, resetEvent = null, referencePoints
             const monthName = activityDate.toLocaleDateString("en-US", { month: "long" });
             const yearsSpanned = new Set(sameMonthEfforts.map((e) => new Date(e.start_date_local).getFullYear())).size;
             const sameMonthTimes = sameMonthEfforts.map((e) => e.elapsed_time);
-            const sameMonthAvg = sameMonthTimes.reduce((s, v) => s + v, 0) / sameMonthTimes.length;
-            const bmePctDelta = sameMonthAvg !== 0
-              ? Math.round(Math.abs(effort.elapsed_time - sameMonthAvg) / sameMonthAvg * 1000) / 10
-              : 0;
+            const bmePctDelta = marginOverRunnerUp(effort.elapsed_time, sameMonthTimes);
 
             awards.push({
               type: "best_month_ever",
