@@ -62,3 +62,18 @@ body {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* iOS Safari zooms the page when a focused input's font-size is under 16px.
+   The settings forms use text-xs (12px), so every field there triggered it.
+   Scoped to touch pointers so desktop keeps the compact type scale. */
+@media (pointer: coarse) {
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  input[type="search"],
+  input[type="email"],
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
