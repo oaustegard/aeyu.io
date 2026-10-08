@@ -163,9 +163,9 @@ python3 test/harness.py     # run test scenarios
 
 Requires Node.js (for esbuild/Tailwind bundling) and Python 3 with Playwright installed.
 
-## Contributing
+## Development
 
-Issues and pull requests are welcome. The codebase has `_MAP.md` files in each directory that document all exports with signatures and line numbers — start there rather than reading source files top to bottom.
+The codebase has `_MAP.md` files in each directory that document all exports with signatures and line numbers — start there rather than reading source files top to bottom.
 
 For development context, see `CLAUDE.md` which contains architecture notes, patterns, and gotchas.
 
