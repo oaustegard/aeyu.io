@@ -221,7 +221,7 @@ export function RideReplay({ activity, awards }) {
     const clock = clockRef.current;
     drawGrid(cam);
     r.render(cam, rc
-      ? { playhead: 1e12, widthBase: 2.5 * dpr, widthGain: 7 * dpr, focusA: rc.effort.tA, focusB: rc.effort.tB }
+      ? { playhead: 1e12, widthBase: 2.5 * dpr, widthGain: 7 * dpr, focusA: rc.effort.tA, focusB: rc.effort.tB, context: Math.max(15, 0.25 * rc.effort.elapsed) }
       : { playhead: clock == null ? 1e12 : clock, widthBase: 1.5 * dpr, widthGain: 5 * dpr });
 
     const o = overlayRef.current, ctx = o.getContext("2d");

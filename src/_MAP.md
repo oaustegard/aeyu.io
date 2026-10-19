@@ -182,21 +182,21 @@
 
 ### ride-render.js
 > Imports: `ride-scene.js`
-- **createRideGPURenderer** (f) `(canvas, ribbon)` :120
-- **createRideCanvasRenderer** (f) `(canvas, ribbon)` :190
+- **createRideGPURenderer** (f) `(canvas, ribbon)` :127
+- **createRideCanvasRenderer** (f) `(canvas, ribbon)` :197
 
 ### ride-scene.js
-- **buildRideScene** (f) `(streams, activity, awardsBySegment = new Map(), colors = {})` :25
-- **sampleAt** (f) `(scene, time)` :109
-- **pointAtDistance** (f) `(scene, dist)` :124
-- **RIBBON_FLOATS** (variable) :137
-- **packRibbon** (f) `(scene, baseRgb = [0.98, 0.93, 0.86])` :138
-- **hexToRgb** (f) `(hex)` :156
-- **buildGhostRace** (f) `(scene, effort, history, maxGhosts = 30)` :166
-- **standings** (f) `(race, clock)` :201
-- **makeCamera** (f) `(b, width, height, { yaw = 0, pitch = 0.9, zoom = 1 } = {})` :251
-- **sideOnYaw** (f) `(scene, tA = -Infinity, tB = Infinity)` :285
-- **sliceBounds** (f) `(scene, tA, tB)` :301
+- **buildRideScene** (f) `(streams, activity, awardsBySegment = new Map(), colors = {}, score = () => 0)` :29
+- **sampleAt** (f) `(scene, time)` :123
+- **pointAtDistance** (f) `(scene, dist)` :138
+- **RIBBON_FLOATS** (variable) :151
+- **packRibbon** (f) `(scene, baseRgb = [0.98, 0.93, 0.86])` :152
+- **hexToRgb** (f) `(hex)` :170
+- **buildGhostRace** (f) `(scene, effort, history, maxGhosts = 30)` :180
+- **standings** (f) `(race, clock)` :215
+- **makeCamera** (f) `(b, width, height, { yaw = 0, pitch = 0.9, zoom = 1 } = {})` :265
+- **sideOnYaw** (f) `(scene, tA = -Infinity, tB = Infinity)` :299
+- **sliceBounds** (f) `(scene, tA, tB)` :315
 
 ### routes.js
 - **detectRoutes** (f) `(activities, stravaRoutes = [])` :102
