@@ -69,6 +69,17 @@ export function RideReplay({ activity, awards }) {
   const [race, setRace] = useState(null);
   const [histories, setHistories] = useState(new Map());
   const [toasts, setToasts] = useState([]);
+  const [fullscreen, setFullscreen] = useState(false);
+
+  // CSS full screen, not the Fullscreen API: iPhone Safari only grants that to video
+  useEffect(() => {
+    if (!fullscreen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e) => { if (e.key === "Escape") setFullscreen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
+  }, [fullscreen]);
   const secondsRef = useRef(replaySeconds);
   secondsRef.current = replaySeconds;
 
@@ -381,15 +392,26 @@ export function RideReplay({ activity, awards }) {
   const progressFrac = rc ? (clock ?? 0) / rc.longest : clock == null ? 1 : (sampleAt(scene, clock).d / scene.distance);
 
   return html`
-    <section class="rounded-xl mb-6 overflow-hidden" style="background: #12110f; border: 1px solid var(--border);">
-      <div class="flex items-center justify-between px-4 py-2">
+    <section class=${fullscreen ? "flex flex-col" : "rounded-xl mb-6 overflow-hidden"}
+      style=${fullscreen
+        ? "position: fixed; inset: 0; z-index: 70; background: #12110f; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);"
+        : "background: #12110f; border: 1px solid var(--border);"}>
+      <div class="flex items-center justify-between gap-3 px-4 py-2">
         <h2 style="font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.75); text-transform: uppercase; letter-spacing: 0.05em;">
           ${rc ? html`Ghost race · ${rc.effort.name}` : "Ride replay"}
         </h2>
-        <span class="text-xs" style="font-family: var(--font-mono); color: rgba(255,255,255,0.4);">${engine === "webgpu" ? "WebGPU" : engine === "canvas2d" ? "Canvas2D" : ""}</span>
+        <div class="flex items-center gap-3">
+          <span class="text-xs" style="font-family: var(--font-mono); color: rgba(255,255,255,0.4);">${engine === "webgpu" ? "WebGPU" : engine === "canvas2d" ? "Canvas2D" : ""}</span>
+          <button aria-label=${fullscreen ? "Exit full screen" : "Full screen"} title=${fullscreen ? "Exit full screen" : "Full screen"}
+            onClick=${() => setFullscreen(!fullscreen)} style="color: rgba(255,255,255,0.75); background: none; border: none; padding: 4px; display: flex;">
+            ${fullscreen
+              ? html`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>`
+              : html`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>`}
+          </button>
+        </div>
       </div>
 
-      <div ref=${wrapRef} class="relative" style="aspect-ratio: 4 / 3; max-height: 62vh;">
+      <div ref=${wrapRef} class="relative" style=${fullscreen ? "flex: 1; min-height: 0;" : "aspect-ratio: 4 / 3; max-height: 62vh;"}>
         <canvas ref=${gridRef} class="absolute inset-0" style="width: 100%; height: 100%;" />
         <canvas key=${force2d ? "c2d" : "gpu"} ref=${mainRef} class="absolute inset-0" style="width: 100%; height: 100%;" />
         <canvas ref=${overlayRef} class="absolute inset-0" style="width: 100%; height: 100%; touch-action: pan-y; cursor: grab;" />
@@ -414,16 +436,17 @@ export function RideReplay({ activity, awards }) {
           </div>`)}
         </div>
 
-        ${order && html`
-          <ol data-testid="leaderboard" class="absolute right-3 top-3 text-xs rounded-lg px-2 py-1" style="font-family: var(--font-mono); background: rgba(18,17,15,0.8); color: rgba(255,255,255,0.8); pointer-events: none; min-width: 9rem;">
-            ${order.filter((s) => s.rank <= 5 || s.g.isThis || s.g.isBest || s.g.isMedian).map((s) => html`
-              <li class="flex justify-between gap-3" style="color: ${s.g.isThis ? "#fff" : s.g.isBest ? GOLD : s.g.isMedian ? LAVENDER : "rgba(255,255,255,0.6)"}; font-weight: ${s.g.isThis ? 600 : 400};">
-                <span>${s.rank}. ${ghostLabel(s.g)}</span>
-                <span>${s.done ? formatTime(s.g.elapsed) : `${Math.round(s.frac * 100)}%`}</span>
-              </li>`)}
-            <li style="color: rgba(255,255,255,0.4);">${rc.ghosts.length} efforts</li>
-          </ol>`}
       </div>
+
+      ${order && html`
+        <ol data-testid="leaderboard" class="text-xs px-3 py-2" style="font-family: var(--font-mono); color: rgba(255,255,255,0.8); display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); column-gap: 1rem; row-gap: 2px; border-top: 1px solid rgba(255,255,255,0.08);">
+          ${order.filter((s) => s.rank <= 5 || s.g.isThis || s.g.isBest || s.g.isMedian).map((s) => html`
+            <li class="flex justify-between gap-3" style="color: ${s.g.isThis ? "#fff" : s.g.isBest ? GOLD : s.g.isMedian ? LAVENDER : "rgba(255,255,255,0.6)"}; font-weight: ${s.g.isThis ? 600 : 400};">
+              <span>${s.rank}. ${ghostLabel(s.g)}</span>
+              <span>${s.done ? formatTime(s.g.elapsed) : `${Math.round(s.frac * 100)}%`}</span>
+            </li>`)}
+          <li style="color: rgba(255,255,255,0.4);">${rc.ghosts.length} efforts</li>
+        </ol>`}
 
       <svg viewBox="0 0 1000 100" preserveAspectRatio="none" style="width: 100%; height: 56px; display: block; cursor: pointer; touch-action: none;"
         onPointerDown=${(e) => { const r = e.currentTarget.getBoundingClientRect(); scrubTo(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))); }}>
@@ -454,7 +477,7 @@ export function RideReplay({ activity, awards }) {
       ${raceable.length > 0 && html`
         <div class="px-3 pb-3">
           <p class="text-xs mb-1" style=${muted}>Race your history on a segment</p>
-          <div class="flex flex-wrap gap-2">
+          <div class="flex flex-wrap gap-2" style="max-height: ${fullscreen ? "4.5rem" : "6rem"}; overflow-y: auto; overscroll-behavior: contain;">
             ${raceable.map((e) => html`<button onClick=${() => startRace(e)}
               class="px-2 py-1 rounded-full text-xs"
               style="font-family: var(--font-body); border: 1px solid ${rc && rc.effort.effort_id === e.effort_id ? "var(--strava)" : e.color || "rgba(255,255,255,0.2)"}; color: ${e.color || "rgba(255,255,255,0.75)"}; background: ${rc && rc.effort.effort_id === e.effort_id ? "rgba(252,76,2,0.2)" : "transparent"};">
