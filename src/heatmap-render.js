@@ -2,10 +2,15 @@
  * Heatmap renderers (#301). WebGPU draws every segment as an instanced quad
  * into a float density texture, then tone-maps it. Filters are uniforms the
  * vertex shader tests against the per-activity buffer, so the segment buffer
- * is uploaded once. Canvas2D is the fallback where WebGPU is unavailable.
+ * is uploaded once. Playback is the same trick: a playhead uniform hides rides
+ * after it and the unfinished part of the ride it is drawing, and a second
+ * density channel holds recently drawn rides so they glow before settling.
+ * Canvas2D is the fallback where WebGPU is unavailable.
  */
 
-import { matchesFilter } from "./heatmap.js";
+import { matchesFilter, SEG_STRIDE } from "./heatmap.js";
+
+const SEG_WORDS = SEG_STRIDE / 4;
 
 const SHADER = /* wgsl */ `
 struct U {
@@ -20,6 +25,10 @@ struct U {
   speedMax: f32,
   typeMask: u32,
   gearMask: u32,
+  playhead: f32,
+  drawDays: f32,
+  trailDays: f32,
+  animate: u32,
   _pad: vec2f,
 };
 struct Attr { day: f32, speed: f32, typeSlot: u32, gearSlot: u32 };
@@ -27,16 +36,25 @@ struct Attr { day: f32, speed: f32, typeSlot: u32, gearSlot: u32 };
 @group(0) @binding(0) var<uniform> u: U;
 @group(0) @binding(1) var<storage, read> attrs: array<Attr>;
 
-struct VOut { @builtin(position) pos: vec4f, @location(0) side: f32 };
+struct VOut { @builtin(position) pos: vec4f, @location(0) side: f32, @location(1) fresh: f32 };
 
 @vertex
-fn vs(@builtin(vertex_index) vi: u32, @location(0) seg: vec4f, @location(1) act: u32) -> VOut {
+fn vs(@builtin(vertex_index) vi: u32, @location(0) seg: vec4f, @location(1) segT: f32, @location(2) act: u32) -> VOut {
   var out: VOut;
   let a = attrs[act];
-  let keep = a.day >= u.dayMin && a.day <= u.dayMax
+  var keep = a.day >= u.dayMin && a.day <= u.dayMax
     && a.speed >= u.speedMin && a.speed <= u.speedMax
     && ((u.typeMask >> a.typeSlot) & 1u) == 1u
     && ((u.gearMask >> a.gearSlot) & 1u) == 1u;
+  out.fresh = 0.0;
+  if (u.animate == 1u) {
+    let age = u.playhead - a.day;
+    let progress = age / u.drawDays;
+    keep = keep && age >= 0.0 && segT <= progress;
+    // Full glow while drawing, brightest at the pen tip, then decay
+    let tip = select(0.0, exp(-(progress - segT) * 12.0), progress < 1.0);
+    out.fresh = exp(-max(0.0, age - u.drawDays) / u.trailDays) * (1.0 + 2.0 * tip);
+  }
   if (!keep) {
     out.pos = vec4f(2.0, 2.0, 2.0, 1.0);
     out.side = 0.0;
@@ -65,7 +83,7 @@ fn vs(@builtin(vertex_index) vi: u32, @location(0) seg: vec4f, @location(1) act:
 @fragment
 fn fsDensity(in: VOut) -> @location(0) vec4f {
   let cover = clamp(u.lineWidth * 0.5 + 0.5 - abs(in.side), 0.0, 1.0);
-  return vec4f(cover, 0.0, 0.0, 0.0);
+  return vec4f(cover, cover * in.fresh, 0.0, 0.0);
 }
 
 @group(0) @binding(2) var density: texture_2d<f32>;
@@ -90,9 +108,10 @@ fn ramp(t: f32) -> vec3f {
 
 @fragment
 fn fsTone(@builtin(position) pos: vec4f) -> @location(0) vec4f {
-  let d = textureLoad(density, vec2i(pos.xy), 0).r;
-  let t = 1.0 - exp(-d * u.gain);
-  return vec4f(ramp(t), 1.0);
+  let s = textureLoad(density, vec2i(pos.xy), 0);
+  let t = 1.0 - exp(-s.r * u.gain);
+  let glow = 1.0 - exp(-s.g * 0.8);
+  return vec4f(min(ramp(t) + vec3f(1.0, 0.85, 0.55) * glow, vec3f(1.0)), 1.0);
 }
 `;
 
@@ -111,7 +130,7 @@ export async function createWebGPURenderer(canvas, data) {
 
   const module = device.createShaderModule({ code: SHADER });
   const segBuf = device.createBuffer({
-    size: Math.max(20, data.segments.byteLength),
+    size: Math.max(SEG_STRIDE, data.segments.byteLength),
     usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
   });
   device.queue.writeBuffer(segBuf, 0, data.segments);
@@ -120,17 +139,18 @@ export async function createWebGPURenderer(canvas, data) {
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   });
   device.queue.writeBuffer(attrBuf, 0, data.attrs);
-  const uniBuf = device.createBuffer({ size: 64, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+  const uniBuf = device.createBuffer({ size: 80, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
 
   const densityPipeline = device.createRenderPipeline({
     layout: "auto",
     vertex: {
       module, entryPoint: "vs",
       buffers: [{
-        arrayStride: 20, stepMode: "instance",
+        arrayStride: SEG_STRIDE, stepMode: "instance",
         attributes: [
           { shaderLocation: 0, offset: 0, format: "float32x4" },
-          { shaderLocation: 1, offset: 16, format: "uint32" },
+          { shaderLocation: 1, offset: 16, format: "float32" },
+          { shaderLocation: 2, offset: 20, format: "uint32" },
         ],
       }],
     },
@@ -178,13 +198,13 @@ export async function createWebGPURenderer(canvas, data) {
     texW = w; texH = h;
   }
 
-  const uni = new ArrayBuffer(64);
+  const uni = new ArrayBuffer(80);
   const uf = new Float32Array(uni);
   const uu = new Uint32Array(uni);
 
   return {
     kind: "webgpu",
-    render(view, filter, style) {
+    render(view, filter, style, anim = null) {
       const w = canvas.width, h = canvas.height;
       if (w === 0 || h === 0) return;
       ensureTarget(w, h);
@@ -195,6 +215,10 @@ export async function createWebGPURenderer(canvas, data) {
       uf[8] = filter.dayMin; uf[9] = filter.dayMax;
       uf[10] = filter.speedMin; uf[11] = filter.speedMax;
       uu[12] = filter.typeMask >>> 0; uu[13] = filter.gearMask >>> 0;
+      uf[14] = anim ? anim.playhead : 0;
+      uf[15] = anim ? anim.drawDays : 1;
+      uf[16] = anim ? anim.trailDays : 1;
+      uu[17] = anim ? 1 : 0;
       device.queue.writeBuffer(uniBuf, 0, uni);
 
       const enc = device.createCommandEncoder();
@@ -229,9 +253,24 @@ export function createCanvasRenderer(canvas, data) {
   const ctx = canvas.getContext("2d");
   const segF = new Float32Array(data.segments);
   const segU = new Uint32Array(data.segments);
+  const starts = [];
+  for (let k = 0; k < data.segCount; k++) {
+    if (k === 0 || segU[k * SEG_WORDS + 5] !== segU[(k - 1) * SEG_WORDS + 5]) starts.push(k);
+  }
+  starts.push(data.segCount);
+
+  function trace(from, to, view, w, h) {
+    ctx.beginPath();
+    ctx.moveTo(w / 2 + (segF[from * SEG_WORDS] - view.cx) * view.scale, h / 2 + (segF[from * SEG_WORDS + 1] - view.cy) * view.scale);
+    for (let k = from; k < to; k++) {
+      ctx.lineTo(w / 2 + (segF[k * SEG_WORDS + 2] - view.cx) * view.scale, h / 2 + (segF[k * SEG_WORDS + 3] - view.cy) * view.scale);
+    }
+    ctx.stroke();
+  }
+
   return {
     kind: "canvas2d",
-    render(view, filter, style) {
+    render(view, filter, style, anim = null) {
       const w = canvas.width, h = canvas.height;
       ctx.globalCompositeOperation = "source-over";
       ctx.fillStyle = "#12110f";
@@ -239,24 +278,29 @@ export function createCanvasRenderer(canvas, data) {
       ctx.globalCompositeOperation = "lighter";
       ctx.lineWidth = style.lineWidth;
       ctx.lineCap = "round";
-      ctx.strokeStyle = `rgba(252, 76, 2, ${1 - Math.exp(-style.gain)})`;
-      ctx.beginPath();
-      let last = -1;
-      for (let k = 0; k < data.segCount; k++) {
-        const act = segU[k * 5 + 4];
-        if (act !== last) {
-          if (!matchesFilter(data.meta[act], filter)) {
-            while (k + 1 < data.segCount && segU[(k + 1) * 5 + 4] === act) k++;
-            continue;
-          }
-          ctx.stroke();
-          ctx.beginPath();
-          last = act;
-          ctx.moveTo(w / 2 + (segF[k * 5] - view.cx) * view.scale, h / 2 + (segF[k * 5 + 1] - view.cy) * view.scale);
+      const heat = `rgba(252, 76, 2, ${1 - Math.exp(-style.gain)})`;
+      for (let r = 0; r + 1 < starts.length; r++) {
+        const from = starts[r];
+        const act = segU[from * SEG_WORDS + 5];
+        const m = data.meta[act];
+        if (!matchesFilter(m, filter)) continue;
+        let to = starts[r + 1];
+        let fresh = 0;
+        if (anim) {
+          const age = anim.playhead - m.day;
+          if (age < 0) continue;
+          const progress = age / anim.drawDays;
+          while (to > from && segF[(to - 1) * SEG_WORDS + 4] > progress) to--;
+          if (to === from) continue;
+          fresh = Math.exp(-Math.max(0, age - anim.drawDays) / anim.trailDays);
         }
-        ctx.lineTo(w / 2 + (segF[k * 5 + 2] - view.cx) * view.scale, h / 2 + (segF[k * 5 + 3] - view.cy) * view.scale);
+        ctx.strokeStyle = heat;
+        trace(from, to, view, w, h);
+        if (fresh > 0.02) {
+          ctx.strokeStyle = `rgba(255, 217, 140, ${0.8 * fresh})`;
+          trace(from, to, view, w, h);
+        }
       }
-      ctx.stroke();
     },
     destroy() {},
   };

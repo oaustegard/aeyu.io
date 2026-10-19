@@ -53,6 +53,15 @@ export function Heatmap() {
   const [panelOpen, setPanelOpen] = useState(() => window.innerWidth >= 640);
   const [units, setUnits] = useState(unitSystem.value);
   const [force2d, setForce2d] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [playDay, setPlayDay] = useState(null);
+  const [duration, setDuration] = useState(20);
+  const animRef = useRef(null);
+  const rafRef = useRef(0);
+  const playingRef = useRef(false);
+  const durationRef = useRef(duration);
+  playingRef.current = playing;
+  durationRef.current = duration;
   const dataRef = useRef(null);
   dataRef.current = data;
 
@@ -114,11 +123,74 @@ export function Heatmap() {
       const r = rendererRef.current, c = canvasRef.current;
       if (!r || !c || !filterRef.current) return;
       if (!viewRef.current) fit();
-      const t0 = performance.now();
-      r.render(viewRef.current, filterRef.current, { lineWidth: styleRef.current.lineWidth * devicePixelRatio, gain: styleRef.current.gain });
-      const d = dataRef.current;
-      window.__heatmap = { engine: r.kind, segments: d.segCount, activities: d.meta.length, frameMs: performance.now() - t0 };
+      renderNow();
     });
+  }
+
+  function renderNow() {
+    const r = rendererRef.current;
+    if (!r || !viewRef.current || !filterRef.current) return;
+    const t0 = performance.now();
+    r.render(viewRef.current, filterRef.current, { lineWidth: styleRef.current.lineWidth * devicePixelRatio, gain: styleRef.current.gain }, animRef.current);
+    const d = dataRef.current;
+    window.__heatmap = { engine: r.kind, segments: d.segCount, activities: d.meta.length, frameMs: performance.now() - t0, playhead: animRef.current?.playhead ?? null };
+  }
+
+  // Playback: the playhead sweeps the filtered date range in `duration` seconds.
+  // Each ride takes ~0.8 s to draw in and glows for a few seconds after.
+  function animParams(playhead) {
+    const f = filterRef.current;
+    const daysPerSec = Math.max(1, f.dayMax - f.dayMin) / durationRef.current;
+    return { playhead, drawDays: daysPerSec * 0.8, trailDays: daysPerSec * 1.5 };
+  }
+
+  function play() {
+    const f = filterRef.current;
+    const a = animRef.current;
+    const start = a && a.playhead < f.dayMax ? a.playhead : f.dayMin;
+    animRef.current = animParams(start);
+    playingRef.current = true;
+    setPlaying(true);
+    let last = performance.now(), lastUi = 0;
+    const tick = (now) => {
+      if (!playingRef.current) return;
+      const cur = animRef.current;
+      const daysPerSec = cur.drawDays / 0.8;
+      const next = animParams(cur.playhead + ((now - last) / 1000) * daysPerSec);
+      last = now;
+      animRef.current = next;
+      renderNow();
+      if (now - lastUi > 100) { setPlayDay(next.playhead); lastUi = now; }
+      // Run past the end until the last ride has drawn and stopped glowing
+      if (next.playhead > filterRef.current.dayMax + next.drawDays + 3 * next.trailDays) {
+        playingRef.current = false;
+        setPlaying(false);
+        setPlayDay(filterRef.current.dayMax);
+        return;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+  }
+
+  function pause() {
+    playingRef.current = false;
+    setPlaying(false);
+    cancelAnimationFrame(rafRef.current);
+  }
+
+  function stopPlayback() {
+    pause();
+    animRef.current = null;
+    setPlayDay(null);
+    draw();
+  }
+
+  function scrub(day) {
+    pause();
+    animRef.current = animParams(day);
+    setPlayDay(day);
+    draw();
   }
 
   const filterRef = useRef(filter);
@@ -126,6 +198,7 @@ export function Heatmap() {
   filterRef.current = filter;
   styleRef.current = style;
   useEffect(() => { draw(); }, [filter, style, engine]);
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
 
   function fit() {
     const c = canvasRef.current;
@@ -254,6 +327,29 @@ export function Heatmap() {
         ${data.meta.length === 0 && html`
           <div class="absolute inset-0 flex items-center justify-center px-6 text-center" style="color: rgba(255,255,255,0.7); font-family: var(--font-body);">
             ${missing > 0 ? "Your rides were synced before the heatmap existed — load their routes to draw them." : "No GPS tracks yet. Outdoor rides appear here once synced."}
+          </div>`}
+
+        ${data.meta.length > 0 && html`
+          <div class="absolute left-3 right-3 bottom-3 flex items-center gap-3 rounded-xl px-3 py-2"
+            style="background: rgba(18,17,15,0.85); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.1); max-width: 720px; margin: 0 auto;">
+            <button aria-label=${playing ? "Pause" : "Play"} onClick=${() => (playing ? pause() : play())}
+              class="flex items-center justify-center rounded-full flex-shrink-0"
+              style="width: 36px; height: 36px; background: var(--strava); color: white; border: none;">
+              ${playing
+                ? html`<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><rect x="2" y="1" width="3.5" height="12" rx="1"/><rect x="8.5" y="1" width="3.5" height="12" rx="1"/></svg>`
+                : html`<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><path d="M3 1.5v11a.5.5 0 00.77.42l8.5-5.5a.5.5 0 000-.84l-8.5-5.5A.5.5 0 003 1.5z"/></svg>`}
+            </button>
+            <input type="range" class="flex-1" aria-label="Playback position" style="accent-color: var(--strava); min-width: 0;"
+              min=${filter.dayMin} max=${filter.dayMax}
+              value=${playDay == null ? filter.dayMax : Math.min(playDay, filter.dayMax)}
+              onInput=${(e) => scrub(+e.target.value)} />
+            <span data-testid="playday" class="text-xs flex-shrink-0" style="font-family: var(--font-mono); color: rgba(255,255,255,0.8); min-width: 5.5rem; text-align: right;">
+              ${playDay == null ? "All time" : dayToISO(Math.floor(Math.min(playDay, filter.dayMax)))}
+            </span>
+            <button class="text-xs flex-shrink-0" title="Playback length" style="font-family: var(--font-mono); color: rgba(255,255,255,0.6);"
+              onClick=${() => setDuration(duration === 10 ? 20 : duration === 20 ? 40 : 10)}>${duration}s</button>
+            ${playDay != null && html`<button class="text-xs flex-shrink-0" aria-label="Show all" title="Back to the full map"
+              style="color: rgba(255,255,255,0.6);" onClick=${stopPlayback}>✕</button>`}
           </div>`}
 
         <div class="absolute left-3 right-3 sm:right-auto top-3" style="max-width: 340px;">

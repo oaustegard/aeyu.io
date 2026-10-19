@@ -127,7 +127,7 @@ const FAQ_ENTRIES = [
   {
     id: "heatmap",
     question: "What is the Heatmap?",
-    answer: "Every outdoor ride you've synced, drawn as one density map: the brighter the line, the more often you've ridden it. Open it from the avatar menu → Heatmap. Filter by date or year, ride type, bike and average speed, and the map redraws as you drag; pan by dragging, zoom with the scroll wheel or a pinch, and Fit re-centres on what's shown. It renders on your GPU with WebGPU (Canvas2D in browsers without it), entirely on your device. Rides synced before the heatmap existed need one extra step: press 'Load routes' and it fetches their GPS tracks from Strava's activity list.",
+    answer: "Every outdoor ride you've synced, drawn as one density map: the brighter the line, the more often you've ridden it. Open it from the avatar menu → Heatmap. Filter by date or year, ride type, bike and average speed, and the map redraws as you drag; pan by dragging, zoom with the scroll wheel or a pinch, and Fit re-centres on what's shown. Press play to watch the map build up over time: each ride draws itself along its route and glows briefly before joining the heat. Drag the timeline to scrub, and tap the 20s label to change the playback length. It renders on your GPU with WebGPU (Canvas2D in browsers without it), entirely on your device. Rides synced before the heatmap existed need one extra step: press 'Load routes' and it fetches their GPS tracks from Strava's activity list.",
   },
   {
     id: "ride-streak",
@@ -1826,7 +1826,7 @@ export function Dashboard() {
                   <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
                 </summary>
                 <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
-                  Every outdoor ride you've synced, drawn as one density map: the brighter the line, the more often you've ridden it. Open it from the avatar menu → Heatmap. Filter by date or year, ride type, bike and average speed, and the map redraws as you drag; pan by dragging, zoom with the scroll wheel or a pinch, and Fit re-centres on what's shown. It renders on your GPU with WebGPU (Canvas2D in browsers without it), entirely on your device. Rides synced before the heatmap existed need one extra step: press 'Load routes' and it fetches their GPS tracks from Strava's activity list.
+                  Every outdoor ride you've synced, drawn as one density map: the brighter the line, the more often you've ridden it. Open it from the avatar menu → Heatmap. Filter by date or year, ride type, bike and average speed, and the map redraws as you drag; pan by dragging, zoom with the scroll wheel or a pinch, and Fit re-centres on what's shown. Press play to watch the map build up over time: each ride draws itself along its route and glows briefly before joining the heat. Drag the timeline to scrub, and tap the 20s label to change the playback length. It renders on your GPU with WebGPU (Canvas2D in browsers without it), entirely on your device. Rides synced before the heatmap existed need one extra step: press 'Load routes' and it fetches their GPS tracks from Strava's activity list.
                 </div>
               </details>
 

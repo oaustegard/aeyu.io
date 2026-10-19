@@ -32,7 +32,14 @@ test('one segment per consecutive point pair, tagged with its activity', () => {
   const d = buildHeatmapData([ride({ id: 1 }), ride({ id: 2 })]);
   assert.equal(d.segCount, 4);
   const u = new Uint32Array(d.segments);
-  assert.deepEqual([u[4], u[9], u[14], u[19]], [0, 0, 1, 1]);
+  assert.deepEqual([u[5], u[11], u[17], u[23]], [0, 0, 1, 1]);
+});
+
+test('segments carry their start position along the ride', () => {
+  const d = buildHeatmapData([ride()]);
+  const f = new Float32Array(d.segments);
+  assert.equal(f[4], 0);
+  assert.ok(f[10] > 0 && f[10] < 1);
 });
 
 test('skips activities without a track', () => {

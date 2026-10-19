@@ -136,20 +136,21 @@
 
 ### heatmap-render.js
 > Imports: `heatmap.js`
-- **webgpuAvailable** (f) `()` :99
-- **createWebGPURenderer** (f) `(canvas, data)` :103
-- **createCanvasRenderer** (f) `(canvas, data)` :226
+- **webgpuAvailable** (f) `()` :118
+- **createWebGPURenderer** (f) `(canvas, data)` :122
+- **createCanvasRenderer** (f) `(canvas, data)` :252
 
 ### heatmap.js
 - **NO_GEAR** (variable) :6
 - **MAX_SLOTS** (variable) :7
-- **decodePolyline** (f) `(str)` :9
-- **encodePolyline** (f) `(points)` :28
-- **project** (f) `(lat, lng)` :45
-- **dayNumber** (f) `(isoLocal)` :50
-- **buildHeatmapData** (f) `(activities)` :68
-- **matchesFilter** (f) `(m, f)` :139
-- **fitBounds** (f) `(meta, f)` :150
+- **SEG_STRIDE** (variable) :8
+- **decodePolyline** (f) `(str)` :11
+- **encodePolyline** (f) `(points)` :30
+- **project** (f) `(lat, lng)` :47
+- **dayNumber** (f) `(isoLocal)` :52
+- **buildHeatmapData** (f) `(activities)` :71
+- **matchesFilter** (f) `(m, f)` :149
+- **fitBounds** (f) `(meta, f)` :160
 
 ### icons.js
 > Imports: `preact`

@@ -5,6 +5,8 @@
 
 export const NO_GEAR = "__none__";
 export const MAX_SLOTS = 32;
+export const SEG_STRIDE = 24;
+const SEG_WORDS = SEG_STRIDE / 4;
 
 export function decodePolyline(str) {
   const points = [];
@@ -60,7 +62,8 @@ function percentile(sorted, p) {
  * Pack every activity with a track into GPU-ready arrays.
  *
  * Coordinates are stored relative to `origin` so f32 keeps sub-metre
- * precision. Each line segment is one instance: x0 y0 x1 y1 (f32) + the
+ * precision. Each line segment is one instance: x0 y0 x1 y1, its start as a
+ * fraction of the ride's length (f32, drives the draw-in animation), and the
  * activity index (u32). Per-activity attributes (day, speed, type slot,
  * gear slot) live in a separate buffer the shader indexes, which is what
  * lets filters change without touching the segment buffer.
@@ -89,7 +92,7 @@ export function buildHeatmapData(activities) {
   const origin = n ? [ox / n, oy / n] : [0.5, 0.5];
 
   const segCount = tracks.reduce((s, t) => s + t.pts.length - 1, 0);
-  const segments = new ArrayBuffer(segCount * 20);
+  const segments = new ArrayBuffer(segCount * SEG_STRIDE);
   const segF = new Float32Array(segments);
   const segU = new Uint32Array(segments);
   const attrs = new ArrayBuffer(tracks.length * 16);
@@ -100,16 +103,23 @@ export function buildHeatmapData(activities) {
   let k = 0;
   tracks.forEach((t, idx) => {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const along = [0];
+    for (let j = 1; j < t.pts.length; j++) {
+      along.push(along[j - 1] + Math.hypot(t.pts[j][0] - t.pts[j - 1][0], t.pts[j][1] - t.pts[j - 1][1]));
+    }
+    const total = along[along.length - 1] || 1;
     for (let j = 0; j < t.pts.length; j++) {
       const x = t.pts[j][0] - origin[0], y = t.pts[j][1] - origin[1];
       if (x < minX) minX = x; if (x > maxX) maxX = x;
       if (y < minY) minY = y; if (y > maxY) maxY = y;
       if (j === 0) continue;
-      segF[k * 5] = t.pts[j - 1][0] - origin[0];
-      segF[k * 5 + 1] = t.pts[j - 1][1] - origin[1];
-      segF[k * 5 + 2] = x;
-      segF[k * 5 + 3] = y;
-      segU[k * 5 + 4] = idx;
+      const o = k * SEG_WORDS;
+      segF[o] = t.pts[j - 1][0] - origin[0];
+      segF[o + 1] = t.pts[j - 1][1] - origin[1];
+      segF[o + 2] = x;
+      segF[o + 3] = y;
+      segF[o + 4] = along[j - 1] / total;
+      segU[o + 5] = idx;
       k++;
     }
     const day = dayNumber(t.a.start_date_local || t.a.start_date);
