@@ -42,7 +42,6 @@ function loadStreams(id) {
 
 function ghostLabel(g) {
   if (g.isThis) return "Today";
-  if (g.isBest) return "Best";
   if (g.isP25) return "P25";
   if (g.isMedian) return "Median";
   return g.date ? formatDate(g.date) : "Earlier";
@@ -483,7 +482,7 @@ export function RideReplay({ activity, awards }) {
         <ol data-testid="leaderboard" class="text-xs px-3 py-2" style="font-family: var(--font-mono); color: rgba(255,255,255,0.8); display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); column-gap: 1rem; row-gap: 2px; border-top: 1px solid rgba(255,255,255,0.08);">
           ${order.filter((s) => s.g.marked).map((s) => html`
             <li class="flex justify-between gap-3" style="color: ${ghostText(s.g)}; font-weight: ${s.g.isThis ? 600 : 400};">
-              <span>${s.rank}. ${ghostLabel(s.g)}</span>
+              <span>${s.g.isBest ? "PR" : `${s.rank}.`} ${ghostLabel(s.g)}</span>
               <span>${s.done ? formatTime(s.g.elapsed) : `${Math.round(s.frac * 100)}%`}</span>
             </li>`)}
           <li style="color: rgba(255,255,255,0.4);">${rc.ghosts.length} efforts</li>
