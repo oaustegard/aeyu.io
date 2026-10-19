@@ -401,7 +401,6 @@ export function RideReplay({ activity, awards }) {
           ${rc ? html`Ghost race · ${rc.effort.name}` : "Ride replay"}
         </h2>
         <div class="flex items-center gap-3">
-          <span class="text-xs" style="font-family: var(--font-mono); color: rgba(255,255,255,0.4);">${engine === "webgpu" ? "WebGPU" : engine === "canvas2d" ? "Canvas2D" : ""}</span>
           <button aria-label=${fullscreen ? "Exit full screen" : "Full screen"} title=${fullscreen ? "Exit full screen" : "Full screen"}
             onClick=${() => setFullscreen(!fullscreen)} style="color: rgba(255,255,255,0.75); background: none; border: none; padding: 4px; display: flex;">
             ${fullscreen
@@ -477,7 +476,7 @@ export function RideReplay({ activity, awards }) {
       ${raceable.length > 0 && html`
         <div class="px-3 pb-3">
           <p class="text-xs mb-1" style=${muted}>Race your history on a segment</p>
-          <div class="flex flex-wrap gap-2" style="max-height: ${fullscreen ? "4.5rem" : "6rem"}; overflow-y: auto; overscroll-behavior: contain;">
+          <div class="flex flex-wrap gap-2" style="max-height: ${fullscreen ? "6.75rem" : "9rem"}; overflow-y: auto; overscroll-behavior: contain;">
             ${raceable.map((e) => html`<button onClick=${() => startRace(e)}
               class="px-2 py-1 rounded-full text-xs"
               style="font-family: var(--font-body); border: 1px solid ${rc && rc.effort.effort_id === e.effort_id ? "var(--strava)" : e.color || "rgba(255,255,255,0.2)"}; color: ${e.color || "rgba(255,255,255,0.75)"}; background: ${rc && rc.effort.effort_id === e.effort_id ? "rgba(252,76,2,0.2)" : "transparent"};">

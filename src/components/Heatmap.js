@@ -356,7 +356,7 @@ export function Heatmap() {
           <div class="rounded-xl p-3" style="background: rgba(18,17,15,0.85); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.1);">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs" style="font-family: var(--font-mono); color: rgba(255,255,255,0.8);">
-                ${shown} of ${data.meta.length} rides${engine ? html` · <span data-testid="engine">${engine === "webgpu" ? "WebGPU" : "Canvas2D"}</span>` : ""}
+                ${shown} of ${data.meta.length} rides
               </span>
               <div class="flex gap-2">
                 <button class="text-xs" style=${label} onClick=${() => { viewRef.current = null; draw(); }}>Fit</button>
@@ -373,8 +373,6 @@ export function Heatmap() {
                       Load routes for ${missing} rides</button>`}
               </div>`}
 
-            ${engine === "canvas2d" && html`<p class="mt-2 text-xs" style=${label}>
-              WebGPU isn't available in this browser, so this is the slower Canvas2D renderer.</p>`}
 
             ${panelOpen && html`
               <div class="mt-3 flex flex-col gap-3">
