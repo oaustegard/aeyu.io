@@ -319,7 +319,7 @@ export function Heatmap() {
   const label = "font-family: var(--font-body); color: rgba(255,255,255,0.6);";
 
   return html`
-    <div class="flex flex-col" style="height: 100vh; height: 100dvh; background: #12110f;">
+    <div class="flex flex-col" style="height: 100vh; height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom)); background: #12110f;">
       ${header}
       <div ref=${wrapRef} class="relative flex-1" style="min-height: 0; overflow: hidden;">
         <canvas key=${force2d ? "c2d" : "gpu"} ref=${canvasRef} style="width: 100%; height: 100%; display: block; touch-action: none; cursor: grab;" />
