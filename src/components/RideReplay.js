@@ -19,8 +19,9 @@ import {
 import { createRideGPURenderer, createRideCanvasRenderer } from "../ride-render.js";
 
 const DOT_COLORS = Object.fromEntries(Object.entries(AWARD_LABELS).map(([k, v]) => [k, v.dot]));
-const GOLD = "#F2B544", SKY = "#7FC8F8", LAVENDER = "#B9A6E8";
-const ghostColor = (g) => (g.isThis ? "#ffffff" : g.isBest ? GOLD : g.isP25 ? SKY : LAVENDER);
+const GOLD = "#F2B544", LAVENDER = "#B9A6E8", GHOST = "rgba(255,255,255,0.45)";
+const ghostColor = (g) => (g.isThis ? "#ffffff" : g.isBest ? GOLD : g.isMedian ? LAVENDER : GHOST);
+const ghostText = (g) => (g.isThis ? "#fff" : g.isBest ? GOLD : g.isMedian || g.isP25 ? LAVENDER : "rgba(255,255,255,0.6)");
 const muted = "font-family: var(--font-body); color: rgba(255,255,255,0.6);";
 
 // The effect re-runs when awards finish loading; share one Strava request
@@ -222,9 +223,9 @@ export function RideReplay({ activity, awards }) {
     c.width = c.height = 64;
     const g = c.getContext("2d");
     const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    grad.addColorStop(0, "rgba(255,214,150,1)");
-    grad.addColorStop(0.4, "rgba(252,140,60,0.55)");
-    grad.addColorStop(1, "rgba(252,76,2,0)");
+    grad.addColorStop(0, "rgba(255,240,225,1)");
+    grad.addColorStop(0.5, "rgba(255,240,225,0.35)");
+    grad.addColorStop(1, "rgba(255,240,225,0)");
     g.fillStyle = grad;
     g.fillRect(0, 0, 64, 64);
     return (spriteRef.current = c);
@@ -245,8 +246,8 @@ export function RideReplay({ activity, awards }) {
       if (a[b] < 0.01 || pts[b][2] <= 0) continue;
       const nb = pts[Math.min(pts.length - 1, b + 1)], pb = pts[Math.max(0, b - 1)];
       const step = Math.hypot(nb[0] - pb[0], nb[1] - pb[1]) / 2;
-      const r = Math.max(22 * dpr, 3 * step);
-      ctx.globalAlpha = a[b] * 0.42;
+      const r = Math.max(16 * dpr, 2.5 * step);
+      ctx.globalAlpha = a[b] * 0.12;
       ctx.drawImage(img, pts[b][0] - r, pts[b][1] - r, 2 * r, 2 * r);
     }
     ctx.globalAlpha = 1;
@@ -269,8 +270,9 @@ export function RideReplay({ activity, awards }) {
     ctx.clearRect(0, 0, o.width, o.height);
     if (rc && clock != null) {
       drawCrowd(ctx, cam, s, rc, clock);
-      for (const g of rc.ghosts.filter((g) => g.marked && !g.isThis)) {
-        dot(ctx, cam, pointAtDistance(s, rc.dA + rc.progress(g, clock)), ghostColor(g), 5, null);
+      for (const g of rc.ghosts.filter((g) => g.marked && !g.isThis).reverse()) {
+        dot(ctx, cam, pointAtDistance(s, rc.dA + rc.progress(g, clock)), ghostColor(g),
+          g.isBest || g.isMedian ? 5 : 3.5, g.isP25 ? LAVENDER : null);
       }
       const me = rc.ghosts.find((g) => g.isThis);
       dot(ctx, cam, pointAtDistance(s, rc.dA + rc.progress(me, clock)), "#ffffff", 6, "#FC4C02");
@@ -480,7 +482,7 @@ export function RideReplay({ activity, awards }) {
       ${order && html`
         <ol data-testid="leaderboard" class="text-xs px-3 py-2" style="font-family: var(--font-mono); color: rgba(255,255,255,0.8); display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); column-gap: 1rem; row-gap: 2px; border-top: 1px solid rgba(255,255,255,0.08);">
           ${order.filter((s) => s.g.marked).map((s) => html`
-            <li class="flex justify-between gap-3" style="color: ${ghostColor(s.g)}; font-weight: ${s.g.isThis ? 600 : 400};">
+            <li class="flex justify-between gap-3" style="color: ${ghostText(s.g)}; font-weight: ${s.g.isThis ? 600 : 400};">
               <span>${s.rank}. ${ghostLabel(s.g)}</span>
               <span>${s.done ? formatTime(s.g.elapsed) : `${Math.round(s.frac * 100)}%`}</span>
             </li>`)}

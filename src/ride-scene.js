@@ -176,8 +176,8 @@ export function hexToRgb(hex) {
  * Ghost race on one segment: every stored effort runs the stretch this ride
  * covered between the effort's start and end. Ghosts are paced like this
  * effort, scaled to their own elapsed time, so climbs slow everyone alike.
- * All of them feed the crowd glow; today, best, P25 and median also get a
- * marker (`marked`).
+ * All of them feed the crowd glow; the five fastest, P25, median and today
+ * also get a dot (`marked`).
  */
 export function buildGhostRace(scene, effort, history) {
   const dA = sampleAt(scene, effort.tA).d;
@@ -188,8 +188,9 @@ export function buildGhostRace(scene, effort, history) {
   const sorted = [...all.values()].sort((a, b) => a.elapsed_time - b.elapsed_time);
   const at = (q) => sorted[Math.floor(q * (sorted.length - 1))];
   const best = sorted[0], p25 = at(0.25), median = at(0.5);
-  const ghosts = sorted.map((e) => {
+  const ghosts = sorted.map((e, i) => {
     const g = {
+      isTop: i < 5,
       effort_id: e.effort_id,
       elapsed: e.elapsed_time,
       date: e.start_date_local || e.start_date || null,
@@ -198,7 +199,7 @@ export function buildGhostRace(scene, effort, history) {
       isP25: e === p25 && e !== best,
       isMedian: e === median && e !== best && e !== p25,
     };
-    g.marked = g.isThis || g.isBest || g.isP25 || g.isMedian;
+    g.marked = g.isTop || g.isThis || g.isP25 || g.isMedian;
     return g;
   });
   return {

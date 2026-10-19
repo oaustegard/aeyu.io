@@ -102,14 +102,15 @@ test('colours only the best few non-overlapping award efforts', () => {
   assert.ok(lit.some((e) => e.effort_id === 111), 'highest score kept');
 });
 
-test('marks today, best, P25 and median; everyone else is glow only', () => {
+test('marks the five fastest, P25, median and today; everyone else is glow only', () => {
   const s = buildRideScene(streams(), activity);
   const history = Array.from({ length: 20 }, (_, i) => ({ effort_id: 100 + i, elapsed_time: 40 + i * 3, start_date: '2025-01-01' }));
   history.push({ effort_id: 7, elapsed_time: 60, start_date: '2026-03-14' });
   const race = buildGhostRace(s, s.efforts[0], history);
   assert.equal(race.ghosts.length, 21);
   const marked = race.ghosts.filter((g) => g.marked);
-  assert.equal(marked.length, 4);
+  assert.equal(marked.length, 8);
+  assert.deepEqual(marked.filter((g) => g.isTop).map((g) => g.elapsed), [40, 43, 46, 49, 52]);
   assert.equal(marked.find((g) => g.isBest).elapsed, 40);
   assert.equal(marked.find((g) => g.isP25).elapsed, 55);
   assert.equal(marked.find((g) => g.isMedian).elapsed, 67);
