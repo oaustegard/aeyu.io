@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { getStreams, putStreams, getSegment } from "../db.js";
 import { fetchRideStreams } from "../sync.js";
 import { isDemo } from "../demo.js";
-import { AWARD_LABELS } from "../award-config.js";
+import { AWARD_LABELS, awardScore } from "../award-config.js";
 import { formatSpeed, formatElevation, formatTime, formatDate } from "../units.js";
 import {
   buildRideScene, packRibbon, sampleAt, pointAtDistance, makeCamera,
@@ -56,7 +56,7 @@ export function RideReplay({ activity, awards }) {
   const clockRef = useRef(null);
   const playingRef = useRef(false);
   const rafRef = useRef(0);
-  const viewRef = useRef({ yaw: 0.35, pitch: 0.95, zoom: 1 });
+  const viewRef = useRef({ yaw: 0.35, pitch: 1.1, zoom: 1 });
   const firedRef = useRef(new Set());
 
   const [status, setStatus] = useState("loading");
@@ -90,10 +90,10 @@ export function RideReplay({ activity, awards }) {
         if (!bySeg.has(a.segment_id)) bySeg.set(a.segment_id, []);
         bySeg.get(a.segment_id).push(a);
       }
-      const s = rec && buildRideScene(rec, activity, bySeg, DOT_COLORS);
+      const s = rec && buildRideScene(rec, activity, bySeg, DOT_COLORS, awardScore);
       if (!s) { setStatus("none"); return; }
       sceneRef.current = s;
-      viewRef.current = { yaw: sideOnYaw(s), pitch: 0.95, zoom: 1 };
+      viewRef.current = { yaw: sideOnYaw(s), pitch: 1.1, zoom: 1 };
       setScene(s);
       setStatus("ready");
       const h = new Map();
@@ -210,8 +210,8 @@ export function RideReplay({ activity, awards }) {
     const clock = clockRef.current;
     drawGrid(cam);
     r.render(cam, rc
-      ? { playhead: 1e12, widthBase: 3 * dpr, widthGain: 12 * dpr, focusA: rc.effort.tA, focusB: rc.effort.tB }
-      : { playhead: clock == null ? 1e12 : clock, widthBase: 1.5 * dpr, widthGain: 9 * dpr });
+      ? { playhead: 1e12, widthBase: 2.5 * dpr, widthGain: 7 * dpr, focusA: rc.effort.tA, focusB: rc.effort.tB }
+      : { playhead: clock == null ? 1e12 : clock, widthBase: 1.5 * dpr, widthGain: 5 * dpr });
 
     const o = overlayRef.current, ctx = o.getContext("2d");
     ctx.clearRect(0, 0, o.width, o.height);
@@ -242,7 +242,7 @@ export function RideReplay({ activity, awards }) {
   function checkAwards(prev, now) {
     if (raceRef.current) return;
     const fired = firedRef.current;
-    const hits = sceneRef.current.efforts.filter((e) => e.awards.length && !fired.has(e.effort_id) && e.tB > prev && e.tB <= now);
+    const hits = sceneRef.current.efforts.filter((e) => e.color && !fired.has(e.effort_id) && e.tB > prev && e.tB <= now);
     if (!hits.length) return;
     for (const e of hits) fired.add(e.effort_id);
     const items = hits.map((e) => ({ id: e.effort_id, name: e.name, color: e.color, labels: e.awards.map((a) => AWARD_LABELS[a.type]?.label || a.type) }));
@@ -283,7 +283,7 @@ export function RideReplay({ activity, awards }) {
     pause();
     clockRef.current = null;
     raceRef.current = null;
-    viewRef.current = { yaw: sideOnYaw(sceneRef.current), pitch: 0.95, zoom: 1 };
+    viewRef.current = { yaw: sideOnYaw(sceneRef.current), pitch: 1.1, zoom: 1 };
     setRace(null);
     setToasts([]);
     renderFrame();
@@ -389,7 +389,7 @@ export function RideReplay({ activity, awards }) {
         <span class="text-xs" style="font-family: var(--font-mono); color: rgba(255,255,255,0.4);">${engine === "webgpu" ? "WebGPU" : engine === "canvas2d" ? "Canvas2D" : ""}</span>
       </div>
 
-      <div ref=${wrapRef} class="relative" style="height: min(62vh, 480px);">
+      <div ref=${wrapRef} class="relative" style="aspect-ratio: 4 / 3; max-height: 62vh;">
         <canvas ref=${gridRef} class="absolute inset-0" style="width: 100%; height: 100%;" />
         <canvas key=${force2d ? "c2d" : "gpu"} ref=${mainRef} class="absolute inset-0" style="width: 100%; height: 100%;" />
         <canvas ref=${overlayRef} class="absolute inset-0" style="width: 100%; height: 100%; touch-action: pan-y; cursor: grab;" />

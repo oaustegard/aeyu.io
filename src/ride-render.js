@@ -70,8 +70,8 @@ fn vsRibbon(@builtin(vertex_index) vi: u32, s: Seg) -> VOut {
   let end = c.x > 0.5;
   let wpx = u.widthBase + u.widthGain * select(s.w.x, s.w.y, end);
   let hw = wpx * 0.5 + 0.5;
-  // Overlap ends by half a width so joints between segments have no gaps
-  let p = select(s0 - d * hw * 0.5, s1 + d * hw * 0.5, end) + n * c.y * hw;
+  // Overlap ends slightly so joints between segments have no gaps
+  let p = select(s0 - d * hw * 0.3, s1 + d * hw * 0.3, end) + n * c.y * hw;
   let clip = select(c0, c1, end);
   var o: VOut;
   o.pos = vec4f(p / half * clip.w, clip.z, clip.w);
@@ -107,7 +107,7 @@ fn vsCurtain(@builtin(vertex_index) vi: u32, s: Seg) -> VOut {
 
 @fragment
 fn fsCurtain(i: VOut) -> @location(0) vec4f {
-  let a = 0.16 * i.side * i.alpha;
+  let a = 0.22 * i.side * i.alpha;
   return vec4f(i.rgb * a, a);
 }
 `;

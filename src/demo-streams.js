@@ -54,9 +54,14 @@ export function synthesizeStreams(activity) {
 
   let watts = null;
   if (activity.device_watts && activity.average_watts) {
-    watts = velocity.map((v, i) => Math.max(0, (78 * 9.81 * v * (grade[i] + 0.005) + 0.5 * 1.2 * 0.32 * v ** 3) / 0.97));
+    // Spiky like a real power meter: per-sample noise, surges, and zeros when coasting downhill
+    watts = velocity.map((v, i) => {
+      if (grade[i] < -0.02 && r() < 0.7) return 0;
+      const p = Math.max(0, (78 * 9.81 * v * (grade[i] + 0.005) + 0.5 * 1.2 * 0.32 * v ** 3) / 0.97);
+      return p * (0.6 + 0.8 * r()) * (r() < 0.04 ? 2 : 1);
+    });
     const mean = watts.reduce((s, w) => s + w, 0) / watts.length || 1;
-    watts = watts.map((w) => Math.round(Math.max(0, (w / mean) * activity.average_watts * (0.85 + 0.3 * r()))));
+    watts = watts.map((w) => Math.round((w / mean) * activity.average_watts));
   }
 
   return {

@@ -5,7 +5,10 @@
  */
 
 const MAX_POINTS = 4000;
-const POWER_SMOOTH_S = 10;
+// Raw power is spiky and drops to 0 when coasting; 30 s keeps the ribbon's
+// edge smooth enough to read as a shape
+const POWER_SMOOTH_S = 30;
+const MAX_HIGHLIGHTS = 5;
 
 function lowerBound(arr, v, n = arr.length) {
   let lo = 0, hi = n;
@@ -21,8 +24,9 @@ function lowerBound(arr, v, n = arr.length) {
  * @param {object} activity stored activity (start_date, segment_efforts)
  * @param {Map<number, Array>} awardsBySegment segment_id → awards for this ride
  * @param {object} colors   award type → hex color
+ * @param {function} score  award → number, to pick which few efforts get colour
  */
-export function buildRideScene(streams, activity, awardsBySegment = new Map(), colors = {}) {
+export function buildRideScene(streams, activity, awardsBySegment = new Map(), colors = {}, score = () => 0) {
   const ll = streams?.latlng;
   if (!ll || ll.length < 2 || !streams.time) return null;
   const stride = Math.max(1, Math.ceil(ll.length / MAX_POINTS));
@@ -74,10 +78,10 @@ export function buildRideScene(streams, activity, awardsBySegment = new Map(), c
     for (let k = 1; k < n; k++) v[k] = (d[k] - d[k - 1]) / Math.max(1, t[k] - t[k - 1]);
   }
 
-  // Exaggerate relief to ~12% of the route's extent so climbs read as climbs
+  // Exaggerate relief to ~20% of the route's extent so climbs read as climbs
   const extent = Math.max(maxX - minX, maxY - minY, 1);
   const relief = maxA - minA;
-  const exaggeration = relief > 0 ? Math.min(10, Math.max(1, (0.12 * extent) / relief)) : 1;
+  const exaggeration = relief > 0 ? Math.min(15, Math.max(1, (0.2 * extent) / relief)) : 1;
   for (let k = 0; k < n; k++) z[k] = (alt[k] - minA) * exaggeration;
 
   let avgW = 0;
@@ -90,13 +94,23 @@ export function buildRideScene(streams, activity, awardsBySegment = new Map(), c
   const startMs = Date.parse(activity.start_date);
   const efforts = (activity.segment_efforts || []).map((e) => {
     const tA = (Date.parse(e.start_date) - startMs) / 1000;
-    const awards = awardsBySegment.get(e.segment.id) || [];
+    const awards = [...(awardsBySegment.get(e.segment.id) || [])].sort((a, b) => score(b) - score(a));
     return {
       effort_id: e.id, segment_id: e.segment.id, name: e.segment.name,
       tA, tB: tA + e.elapsed_time, elapsed: e.elapsed_time,
-      awards, color: awards.length ? colors[awards[0].type] || null : null,
+      awards, top: awards.length ? score(awards[0]) : -Infinity, color: null,
     };
   }).filter((e) => Number.isFinite(e.tA) && e.tB > t[0] && e.tA < t[n - 1]);
+
+  // A real ride earns awards on dozens of overlapping segments; colouring all
+  // of them colours the whole ride. Keep the best few non-overlapping ones.
+  const kept = [];
+  for (const e of efforts.filter((e) => e.awards.length).sort((a, b) => b.top - a.top)) {
+    if (kept.length >= MAX_HIGHLIGHTS) break;
+    if (kept.some((k) => e.tA < k.tB && k.tA < e.tB)) continue;
+    kept.push(e);
+    e.color = colors[e.awards[0].type] || null;
+  }
 
   return {
     n, x, y, z, t, d, alt, v, w, g, hasPower, hasAltitude, avgW, exaggeration,

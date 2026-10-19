@@ -87,3 +87,17 @@ test('camera frames the scene inside the viewport', () => {
     assert.ok(w > 0 && px >= 0 && px <= 800 && py >= 0 && py <= 600, `point ${k} at ${px},${py}`);
   }
 });
+
+test('colours only the best few non-overlapping award efforts', () => {
+  const efforts = Array.from({ length: 12 }, (_, i) => ({
+    id: 100 + i, segment: { id: 200 + i, name: `S${i}` },
+    start_date: new Date(Date.parse('2026-03-14T10:00:00Z') + (i % 6) * 30000).toISOString(),
+    elapsed_time: 20,
+  }));
+  const awards = new Map(efforts.map((e, i) => [e.segment.id, [{ type: 'year_best', score: i }]]));
+  const s = buildRideScene(streams(), { ...activity, segment_efforts: efforts }, awards, { year_best: '#ff0000' }, (a) => a.score);
+  const lit = s.efforts.filter((e) => e.color);
+  assert.ok(lit.length <= 5);
+  for (const a of lit) for (const b of lit) if (a !== b) assert.ok(a.tB <= b.tA || b.tB <= a.tA);
+  assert.ok(lit.some((e) => e.effort_id === 111), 'highest score kept');
+});
