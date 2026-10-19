@@ -1,12 +1,12 @@
 /**
  * Participation Awards — IndexedDB Data Layer
  * Database: participation-awards
- * Stores: auth, activities, segments, sync_state
+ * Stores: auth, activities, segments, sync_state, routes, streams
  */
 
 const DB_NAME = "participation-awards";
 const DEMO_DB_NAME = "participation-awards-demo";
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 let dbPromise = null;
 let activeDBName = DB_NAME;
@@ -64,6 +64,11 @@ export function openDB() {
 
       if (!db.objectStoreNames.contains("routes")) {
         db.createObjectStore("routes", { keyPath: "id", autoIncrement: true });
+      }
+
+      // Per-ride GPS/power streams for the ride replay, fetched on demand
+      if (!db.objectStoreNames.contains("streams")) {
+        db.createObjectStore("streams", { keyPath: "id" });
       }
 
       // Migration from v1 → v2: add power indexes to existing activities store
@@ -618,10 +623,29 @@ export async function importSettings(data) {
   }
 }
 
+export async function getStreams(activityId) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction("streams", "readonly").objectStore("streams").get(activityId);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function putStreams(record) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("streams", "readwrite");
+    tx.objectStore("streams").put(record);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 export async function clearAllData() {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const storeNames = ["auth", "activities", "segments", "sync_state", "routes"];
+    const storeNames = ["auth", "activities", "segments", "sync_state", "routes", "streams"];
     const tx = db.transaction(storeNames, "readwrite");
     for (const name of storeNames) {
       tx.objectStore(name).clear();

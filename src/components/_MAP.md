@@ -1,15 +1,15 @@
 # components/
-*Files: 9*
+*Files: 10*
 
 ## Files
 
 ### ActivityDetail.js
 > Imports: `preact, signals, hooks, db.js, awards.js`...
-- **ActivityDetail** (f) `({ id })` :1228
+- **ActivityDetail** (f) `({ id })` :1229
 
 ### Dashboard.js
 > Imports: `preact, signals, hooks, auth.js, sync.js`...
-- **Dashboard** (f) `()` :575
+- **Dashboard** (f) `()` :580
 
 ### Heatmap.js
 > Imports: `preact, hooks, db.js, sync.js, demo.js`...
@@ -22,6 +22,10 @@
 ### Landing.js
 > Imports: `preact, signals, auth.js, demo.js, app.js`...
 - **Landing** (f) `()` :67
+
+### RideReplay.js
+> Imports: `preact, hooks, db.js, sync.js, demo.js`...
+- **RideReplay** (f) `({ activity, awards })` :48
 
 ### SegmentSparkline.js
 > Imports: `preact, hooks, units.js`

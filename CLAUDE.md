@@ -44,11 +44,15 @@ src/
   icons.js          SVG icon rendering (Preact components + Canvas drawing)
   heatmap.js        Heatmap data prep: polyline decode, projection, GPU packing, filters
   heatmap-render.js WebGPU density renderer + Canvas2D fallback
+  ride-scene.js     Ride replay math: stream projection, effort time ranges, ghost pacing, camera
+  ride-render.js    Ride replay ribbon + curtain renderer (WebGPU, Canvas2D fallback)
+  demo-streams.js   Synthetic GPS/power streams for demo rides, built from their polylines
   components/
     Landing.js      Pre-auth landing page with FAQ, demo link
     Dashboard.js    Main screen: activities, awards, sync, settings
     ActivityDetail.js  Per-activity view with segment efforts and share card
     Heatmap.js      Ride heatmap page: filters, pan/zoom, backfill button (#301)
+    RideReplay.js   Per-ride 3D replay and segment ghost race (top of ActivityDetail)
     SyncProgress.js    Legacy sync screen (now inline in Dashboard)
 callback.html       OAuth redirect target
 demo-data.json      Canned demo data (~60 activities, 10 segments)
@@ -148,6 +152,7 @@ Push to `main` → GitHub Pages auto-deploys. Worker changes need `wrangler depl
 - Segment efforts are stored in TWO places: embedded in activities AND in the segments store. Both must be populated.
 - `summary_polyline` is tri-state: `undefined` = stored before the heatmap and never fetched (the heatmap's "Load routes" backfill fills it), `null` = Strava has no track (indoor/manual), string = the track
 - Headless WebGPU needs `--enable-unsafe-webgpu --enable-features=Vulkan --use-vulkan=swiftshader --use-angle=swiftshader --use-webgpu-adapter=swiftshader`; without `--use-vulkan=swiftshader` the adapter appears but the canvas never presents ("A valid external Instance reference no longer exists")
+- Ride streams live in the `streams` store (DB v4), one record per ride, fetched on first open of its ActivityDetail via `fetchRideStreams`; `latlng: null` marks a ride with no GPS so it isn't re-requested. Demo mode synthesizes them at `startDemo` (`demo-streams.js`). Efforts are placed on the stream clock by `start_date` minus the activity's `start_date`, so demo efforts must have start times inside their ride
 - The `has_efforts` flag on activities distinguishes summary-only (from list endpoint) from detail-fetched activities
 - Power awards require `device_watts: true` — estimated power is excluded
 - Calendar gate: Year Best suppressed before March 1 to avoid thin early-season data

@@ -7,6 +7,7 @@ import { signal } from "@preact/signals";
 import { openDB, switchToDemoDB, switchToRealDB, deleteDemoDB, getAuth, putRoutes } from "./db.js";
 import { authState } from "./auth.js";
 import { detectRoutes } from "./routes.js";
+import { synthesizeStreams } from "./demo-streams.js";
 
 export const isDemo = signal(false);
 export const demoError = signal(null);
@@ -79,9 +80,10 @@ export async function startDemo() {
 
     // Store demo activities, segments, and sync state
     await new Promise((resolve, reject) => {
-      const tx = db.transaction(["activities", "segments", "sync_state"], "readwrite");
+      const tx = db.transaction(["activities", "segments", "sync_state", "streams"], "readwrite");
       for (const act of data.activities) {
         tx.objectStore("activities").put(act);
+        if (act.summary_polyline) tx.objectStore("streams").put(synthesizeStreams(act));
       }
       for (const seg of data.segments) {
         tx.objectStore("segments").put(seg);

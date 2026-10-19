@@ -130,6 +130,11 @@ const FAQ_ENTRIES = [
     answer: "Every outdoor ride you've synced, drawn as one density map: the brighter the line, the more often you've ridden it. Open it from the avatar menu → Heatmap. Filter by date or year, ride type, bike and average speed, and the map redraws as you drag; pan by dragging, zoom with the scroll wheel or a pinch, and Fit re-centres on what's shown. Press play to watch the map build up over time: each ride draws itself along its route and glows briefly before joining the heat. Drag the timeline to scrub, and tap the 20s label to change the playback length. It renders on your GPU with WebGPU (Canvas2D in browsers without it), entirely on your device. Rides synced before the heatmap existed need one extra step: press 'Load routes' and it fetches their GPS tracks from Strava's activity list.",
   },
   {
+    id: "ride-replay",
+    question: "What is the ride replay and ghost race?",
+    answer: "Every ride with GPS gets a replay at the top of its page. The route is a tilted 3D ribbon: its width is your power (no power meter means an even line), its height is elevation, and a curtain under it shows the climbs. Press play and the ride draws itself at its own pace, compressed to 15, 30 or 60 seconds, so slow climbs linger and descents rush by. Segments where you earned an award light up in that award's colour as you finish them. Drag to turn the view, scroll to zoom, and tap the elevation profile to jump. Under the replay, pick a segment to race your history: every stored effort on it becomes a ghost (gold for your best, lavender for your median, white for today), paced like today's effort and scaled to its own time, with a live leaderboard. The GPS data is fetched from Strava once per ride, the first time you open it, and kept on your device.",
+  },
+  {
     id: "ride-streak",
     question: "What is Ride Streak?",
     answer: "Ride Streak counts consecutive weeks where you've ridden at least once. One missed week is forgiven (a 'mulligan') — two consecutive missed weeks break the streak. Group Rides are automatically detected by matching recurring rides on the same day of the week, similar time, and similar starting location. Each group ride includes a trend chart showing average speed and power over time so you can spot trends.",
@@ -1827,6 +1832,16 @@ export function Dashboard() {
                 </summary>
                 <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
                   Every outdoor ride you've synced, drawn as one density map: the brighter the line, the more often you've ridden it. Open it from the avatar menu → Heatmap. Filter by date or year, ride type, bike and average speed, and the map redraws as you drag; pan by dragging, zoom with the scroll wheel or a pinch, and Fit re-centres on what's shown. Press play to watch the map build up over time: each ride draws itself along its route and glows briefly before joining the heat. Drag the timeline to scrub, and tap the 20s label to change the playback length. It renders on your GPU with WebGPU (Canvas2D in browsers without it), entirely on your device. Rides synced before the heatmap existed need one extra step: press 'Load routes' and it fetches their GPS tracks from Strava's activity list.
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  What is the ride replay and ghost race?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  Every ride with GPS gets a replay at the top of its page. The route is a tilted 3D ribbon: its width is your power (no power meter means an even line), its height is elevation, and a curtain under it shows the climbs. Press play and the ride draws itself at its own pace, compressed to 15, 30 or 60 seconds, so slow climbs linger and descents rush by. Segments where you earned an award light up in that award's colour as you finish them. Drag to turn the view, scroll to zoom, and tap the elevation profile to jump. Under the replay, pick a segment to race your history: every stored effort on it becomes a ghost (gold for your best, lavender for your median, white for today), paced like today's effort and scaled to its own time, with a live leaderboard. The GPS data is fetched from Strava once per ride, the first time you open it, and kept on your device.
                 </div>
               </details>
 

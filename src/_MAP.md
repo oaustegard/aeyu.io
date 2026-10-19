@@ -1,5 +1,5 @@
 # src/
-*Files: 23 | Subdirectories: 1*
+*Files: 26 | Subdirectories: 1*
 
 ## Subdirectories
 
@@ -66,48 +66,54 @@
 - **switchToRealDB** (f) `()` :20
 - **deleteDemoDB** (f) `()` :26
 - **openDB** (f) `()` :35
-- **getAuth** (f) `()` :96
-- **setAuth** (f) `(session)` :106
-- **clearAuth** (f) `()` :116
-- **putActivity** (f) `(activity)` :128
-- **putActivities** (f) `(activities)` :138
-- **getActivity** (f) `(id)` :151
-- **getActivitiesByIds** (f) `(ids)` :161
-- **getActivitiesByYear** (f) `(year)` :173
-- **getActivitiesWithoutEfforts** (f) `()` :187
-- **getActivitiesWithoutPower** (f) `()` :206
-- **getActivitiesWithoutHeartRate** (f) `()` :223
-- **getActivitiesWithoutZones** (f) `()` :236
-- **getAllActivities** (f) `()` :252
-- **putSegment** (f) `(segment)` :264
-- **getSegment** (f) `(id)` :274
-- **getAllSegments** (f) `()` :284
-- **appendEffort** (f) `(segmentId, segmentData, effort)` :294
-- **setSegmentKom** (f) `(segmentId, komSeconds, athleteCount = null)` :341
-- **removeEffortsForActivity** (f) `(activityId)` :367
-- **getResetEvent** (f) `()` :403
-- **setResetEvent** (f) `(event)` :413
-- **clearResetEvent** (f) `()` :425
-- **recordRecoveryMilestone** (f) `(segmentId, threshold)` :439
-- **getUserConfig** (f) `()` :457
-- **setUserConfig** (f) `(config)` :467
-- **getSyncState** (f) `()` :493
-- **updateSyncState** (f) `(updates)` :503
-- **putRoutes** (f) `(routes)` :517
-- **getAllRoutes** (f) `()` :531
-- **putStravaRoutes** (f) `(routes)` :543
-- **getStravaRoutes** (f) `()` :553
-- **exportSettings** (f) `()` :565
-- **importSettings** (f) `(data)` :585
-- **clearAllData** (f) `()` :621
+- **getAuth** (f) `()` :101
+- **setAuth** (f) `(session)` :111
+- **clearAuth** (f) `()` :121
+- **putActivity** (f) `(activity)` :133
+- **putActivities** (f) `(activities)` :143
+- **getActivity** (f) `(id)` :156
+- **getActivitiesByIds** (f) `(ids)` :166
+- **getActivitiesByYear** (f) `(year)` :178
+- **getActivitiesWithoutEfforts** (f) `()` :192
+- **getActivitiesWithoutPower** (f) `()` :211
+- **getActivitiesWithoutHeartRate** (f) `()` :228
+- **getActivitiesWithoutZones** (f) `()` :241
+- **getAllActivities** (f) `()` :257
+- **putSegment** (f) `(segment)` :269
+- **getSegment** (f) `(id)` :279
+- **getAllSegments** (f) `()` :289
+- **appendEffort** (f) `(segmentId, segmentData, effort)` :299
+- **setSegmentKom** (f) `(segmentId, komSeconds, athleteCount = null)` :346
+- **removeEffortsForActivity** (f) `(activityId)` :372
+- **getResetEvent** (f) `()` :408
+- **setResetEvent** (f) `(event)` :418
+- **clearResetEvent** (f) `()` :430
+- **recordRecoveryMilestone** (f) `(segmentId, threshold)` :444
+- **getUserConfig** (f) `()` :462
+- **setUserConfig** (f) `(config)` :472
+- **getSyncState** (f) `()` :498
+- **updateSyncState** (f) `(updates)` :508
+- **putRoutes** (f) `(routes)` :522
+- **getAllRoutes** (f) `()` :536
+- **putStravaRoutes** (f) `(routes)` :548
+- **getStravaRoutes** (f) `()` :558
+- **exportSettings** (f) `()` :570
+- **importSettings** (f) `(data)` :590
+- **getStreams** (f) `(activityId)` :626
+- **putStreams** (f) `(record)` :635
+- **clearAllData** (f) `()` :645
+
+### demo-streams.js
+> Imports: `heatmap.js`
+- **synthesizeStreams** (f) `(activity)` :14
 
 ### demo.js
-> Imports: `signals, db.js, auth.js, routes.js`
-- **isDemo** (variable) :11
-- **demoError** (variable) :12
-- **checkDemo** (f) `()` :24
-- **startDemo** (f) `()` :53
-- **exitDemo** (f) `()` :128
+> Imports: `signals, db.js, auth.js, routes.js, demo-streams.js`
+- **isDemo** (variable) :12
+- **demoError** (variable) :13
+- **checkDemo** (f) `()` :25
+- **startDemo** (f) `()` :54
+- **exitDemo** (f) `()` :130
 
 ### durability.js
 - **computeDecoupling** (f) `(watts, hr)` :38
@@ -174,6 +180,24 @@
 - **estimateFTP** (f) `(powerCurve)` :66
 - **getAllTimeBestCurve** (f) `()` :75
 
+### ride-render.js
+> Imports: `ride-scene.js`
+- **createRideGPURenderer** (f) `(canvas, ribbon)` :120
+- **createRideCanvasRenderer** (f) `(canvas, ribbon)` :190
+
+### ride-scene.js
+- **buildRideScene** (f) `(streams, activity, awardsBySegment = new Map(), colors = {})` :25
+- **sampleAt** (f) `(scene, time)` :109
+- **pointAtDistance** (f) `(scene, dist)` :124
+- **RIBBON_FLOATS** (variable) :137
+- **packRibbon** (f) `(scene, baseRgb = [0.98, 0.93, 0.86])` :138
+- **hexToRgb** (f) `(hex)` :156
+- **buildGhostRace** (f) `(scene, effort, history, maxGhosts = 30)` :166
+- **standings** (f) `(race, clock)` :201
+- **makeCamera** (f) `(b, width, height, { yaw = 0, pitch = 0.9, zoom = 1 } = {})` :251
+- **sideOnYaw** (f) `(scene, tA = -Infinity, tB = Infinity)` :285
+- **sliceBounds** (f) `(scene, tA, tB)` :301
+
 ### routes.js
 - **detectRoutes** (f) `(activities, stravaRoutes = [])` :102
 - **findRouteForActivity** (f) `(activity, routes)` :223
@@ -193,14 +217,16 @@
 - **isSyncing** (variable) :53
 - **parseXomTime** (f) `(str)` :125
 - **syncRoutes** (f) `()` :662
-- **backfillMapData** (f) `(onProgress)` :756
-- **startBackfill** (f) `(onProgress)` :895
-- **incrementalSync** (f) `()` :1017
-- **updateSyncWindow** (f) `(newEpoch)` :1092
-- **manualSync** (f) `(onProgress)` :1117
-- **startAutoSync** (f) `(onComplete)` :1143
-- **stopAutoSync** (f) `()` :1152
-- **resyncActivity** (f) `(activityId)` :1219
+- **STREAM_KEYS** (variable) :750
+- **fetchRideStreams** (f) `(activityId)` :756
+- **backfillMapData** (f) `(onProgress)` :774
+- **startBackfill** (f) `(onProgress)` :913
+- **incrementalSync** (f) `()` :1035
+- **updateSyncWindow** (f) `(newEpoch)` :1110
+- **manualSync** (f) `(onProgress)` :1135
+- **startAutoSync** (f) `(onComplete)` :1161
+- **stopAutoSync** (f) `()` :1170
+- **resyncActivity** (f) `(activityId)` :1237
 
 ### touch-tooltip.js
 - **initTouchTooltips** (f) `()` :69

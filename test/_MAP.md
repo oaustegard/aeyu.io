@@ -1,5 +1,5 @@
 # test/
-*Files: 12 | Subdirectories: 1*
+*Files: 13 | Subdirectories: 1*
 
 ## Subdirectories
 
@@ -57,6 +57,10 @@
 - *No top-level symbols*
 
 ### inject.html
+- *No top-level symbols*
+
+### ride-scene.test.js
+> Imports: `node:test, strict, ride-scene.js`
 - *No top-level symbols*
 
 ### share-video.test.js

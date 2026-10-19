@@ -745,6 +745,24 @@ async function runHeartRateMigration() {
   await updateSyncState({ schema_version: 3 });
 }
 
+// --- Ride replay streams ---
+
+export const STREAM_KEYS = ["latlng", "time", "distance", "altitude", "velocity_smooth", "watts", "grade_smooth"];
+
+/**
+ * One request per ride, made when its replay is first opened. Rides without
+ * GPS are stored as { id, latlng: null } so they aren't re-requested.
+ */
+export async function fetchRideStreams(activityId) {
+  const raw = await stravaFetch(
+    `/activities/${activityId}/streams?keys=${STREAM_KEYS.join(",")}&key_by_type=true`
+  );
+  const record = { id: activityId };
+  for (const k of STREAM_KEYS) record[k] = raw?.[k]?.data || null;
+  if (!record.time) record.latlng = null;
+  return record;
+}
+
 // --- Heatmap backfill (#301) ---
 
 /**

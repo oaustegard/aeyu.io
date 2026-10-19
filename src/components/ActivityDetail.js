@@ -29,6 +29,7 @@ import { AWARD_LABELS, AWARD_COLORS, awardScore } from "../award-config.js";
 import { renderShareVideo } from "../share-video.js";
 import { StickyHeader } from "./StickyHeader.js";
 import { SegmentSparkline } from "./SegmentSparkline.js";
+import { RideReplay } from "./RideReplay.js";
 import { TrendChart } from "./TrendChart.js";
 import { buildRideExport, rideToMarkdown, buildSegmentExport, segmentToMarkdown, convertContextUnits } from "../export-llm.js";
 import { estimateFTP, getAllTimeBestCurve } from "../power-curve.js";
@@ -1463,6 +1464,8 @@ export function ActivityDetail({ id }) {
       </div>
 
       <main class="max-w-3xl mx-auto px-6 py-6">
+        <${RideReplay} key=${act.id} activity=${act} awards=${awards.value} />
+
         <!-- Awards summary — compact pill row + ride-level awards + share (#88) -->
         ${awards.value.length > 0 && html`
           <div class="rounded-xl p-4 mb-6" style="background: var(--surface); border: 1px solid var(--border);">

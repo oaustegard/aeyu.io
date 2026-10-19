@@ -4,6 +4,14 @@ All merged pull requests for [aeyu.io](https://aeyu.io), a Strava-powered cyclin
 
 -----
 
+## 2026-10-20
+
+### Features
+
+- **Ride replay and segment ghost race** — every ride with GPS now opens with a replay above its awards. Each measure gets its own channel instead of a colour menu. Speed is motion: the ride draws itself at its own pace, compressed to 15, 30 or 60 s. Power is the ribbon's width, from a 10 s rolling mean. Elevation is the ribbon's height above a tilted ground grid, with relief exaggerated to about 12% of the route's extent and a translucent curtain below. Colour is kept for awards: segments that earned one take that award's colour and pop a label as the rider finishes them. A HUD shows time, speed, power, grade and elevation in the user's units, and the elevation profile below doubles as a scrubber. Any segment with two or more stored efforts can be raced: every effort becomes a ghost on this ride's stretch of road, paced like today's effort and scaled to its own elapsed time, with best, median and today marked and a live leaderboard. Streams come from one `/activities/{id}/streams` request per ride, made on first open and cached in a new `streams` store (IndexedDB v4). Ghosts need no further requests, because efforts are placed on the ride's clock from their start times. WebGPU draws the ribbon and curtain from one upload, with the playhead and camera as uniforms; Canvas2D is the fallback. Demo mode synthesizes plausible streams from each demo ride's track, and demo effort start times were spread through their rides so the race has real stretches to run on.
+
+-----
+
 ## 2026-10-19
 
 ### Features
