@@ -14,12 +14,13 @@ import { AWARD_LABELS, awardScore } from "../award-config.js";
 import { formatSpeed, formatElevation, formatTime, formatDate } from "../units.js";
 import {
   buildRideScene, packRibbon, sampleAt, pointAtDistance, makeCamera,
-  sliceBounds, buildGhostRace, standings, sideOnYaw,
+  sliceBounds, buildGhostRace, standings, sideOnYaw, crowdDensity,
 } from "../ride-scene.js";
 import { createRideGPURenderer, createRideCanvasRenderer } from "../ride-render.js";
 
 const DOT_COLORS = Object.fromEntries(Object.entries(AWARD_LABELS).map(([k, v]) => [k, v.dot]));
-const GOLD = "#F2B544", LAVENDER = "#B9A6E8", GHOST = "rgba(255,255,255,0.45)";
+const GOLD = "#F2B544", SKY = "#7FC8F8", LAVENDER = "#B9A6E8";
+const ghostColor = (g) => (g.isThis ? "#ffffff" : g.isBest ? GOLD : g.isP25 ? SKY : LAVENDER);
 const muted = "font-family: var(--font-body); color: rgba(255,255,255,0.6);";
 
 // The effect re-runs when awards finish loading; share one Strava request
@@ -41,6 +42,7 @@ function loadStreams(id) {
 function ghostLabel(g) {
   if (g.isThis) return "Today";
   if (g.isBest) return "Best";
+  if (g.isP25) return "P25";
   if (g.isMedian) return "Median";
   return g.date ? formatDate(g.date) : "Earlier";
 }
@@ -212,6 +214,45 @@ export function RideReplay({ activity, awards }) {
     }
   }
 
+  // Soft sprite stamped along the road; 'lighter' makes overlaps add up
+  const spriteRef = useRef(null);
+  function sprite() {
+    if (spriteRef.current) return spriteRef.current;
+    const c = document.createElement("canvas");
+    c.width = c.height = 64;
+    const g = c.getContext("2d");
+    const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, "rgba(255,214,150,1)");
+    grad.addColorStop(0.4, "rgba(252,140,60,0.55)");
+    grad.addColorStop(1, "rgba(252,76,2,0)");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 64);
+    return (spriteRef.current = c);
+  }
+
+  function drawCrowd(ctx, cam, s, rc, clock) {
+    const { d, a, riding } = crowdDensity(rc, clock);
+    if (!riding) return;
+    const img = sprite();
+    const pts = Array.from(d, (dist) => {
+      const p = pointAtDistance(s, rc.dA + dist);
+      return cam.project(p.x, p.y, p.z);
+    });
+    const dpr = devicePixelRatio || 1;
+    const prevOp = ctx.globalCompositeOperation;
+    ctx.globalCompositeOperation = "lighter";
+    for (let b = 0; b < pts.length; b++) {
+      if (a[b] < 0.01 || pts[b][2] <= 0) continue;
+      const nb = pts[Math.min(pts.length - 1, b + 1)], pb = pts[Math.max(0, b - 1)];
+      const step = Math.hypot(nb[0] - pb[0], nb[1] - pb[1]) / 2;
+      const r = Math.max(22 * dpr, 3 * step);
+      ctx.globalAlpha = a[b] * 0.42;
+      ctx.drawImage(img, pts[b][0] - r, pts[b][1] - r, 2 * r, 2 * r);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = prevOp;
+  }
+
   function renderFrame() {
     const s = sceneRef.current, r = rendererRef.current, c = mainRef.current;
     if (!s || !r || !c || c.width < 2) return;
@@ -227,13 +268,12 @@ export function RideReplay({ activity, awards }) {
     const o = overlayRef.current, ctx = o.getContext("2d");
     ctx.clearRect(0, 0, o.width, o.height);
     if (rc && clock != null) {
-      const order = standings(rc, clock);
-      for (const st of [...order].reverse()) {
-        const p = pointAtDistance(s, rc.dA + st.p);
-        const g = st.g;
-        dot(ctx, cam, p, g.isThis ? "#ffffff" : g.isBest ? GOLD : g.isMedian ? LAVENDER : GHOST,
-          g.isThis ? 6 : g.isBest || g.isMedian ? 5 : 3.5, g.isThis ? "#FC4C02" : null);
+      drawCrowd(ctx, cam, s, rc, clock);
+      for (const g of rc.ghosts.filter((g) => g.marked && !g.isThis)) {
+        dot(ctx, cam, pointAtDistance(s, rc.dA + rc.progress(g, clock)), ghostColor(g), 5, null);
       }
+      const me = rc.ghosts.find((g) => g.isThis);
+      dot(ctx, cam, pointAtDistance(s, rc.dA + rc.progress(me, clock)), "#ffffff", 6, "#FC4C02");
     } else if (!rc && clock != null) {
       dot(ctx, cam, sampleAt(s, clock), "#ffffff", 6, "#FC4C02");
     }
@@ -439,8 +479,8 @@ export function RideReplay({ activity, awards }) {
 
       ${order && html`
         <ol data-testid="leaderboard" class="text-xs px-3 py-2" style="font-family: var(--font-mono); color: rgba(255,255,255,0.8); display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); column-gap: 1rem; row-gap: 2px; border-top: 1px solid rgba(255,255,255,0.08);">
-          ${order.filter((s) => s.rank <= 5 || s.g.isThis || s.g.isBest || s.g.isMedian).map((s) => html`
-            <li class="flex justify-between gap-3" style="color: ${s.g.isThis ? "#fff" : s.g.isBest ? GOLD : s.g.isMedian ? LAVENDER : "rgba(255,255,255,0.6)"}; font-weight: ${s.g.isThis ? 600 : 400};">
+          ${order.filter((s) => s.g.marked).map((s) => html`
+            <li class="flex justify-between gap-3" style="color: ${ghostColor(s.g)}; font-weight: ${s.g.isThis ? 600 : 400};">
               <span>${s.rank}. ${ghostLabel(s.g)}</span>
               <span>${s.done ? formatTime(s.g.elapsed) : `${Math.round(s.frac * 100)}%`}</span>
             </li>`)}

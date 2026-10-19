@@ -25,7 +25,7 @@
 
 ### RideReplay.js
 > Imports: `preact, hooks, db.js, sync.js, demo.js`...
-- **RideReplay** (f) `({ activity, awards })` :48
+- **RideReplay** (f) `({ activity, awards })` :50
 
 ### SegmentSparkline.js
 > Imports: `preact, hooks, units.js`

@@ -201,11 +201,12 @@
 - **RIBBON_FLOATS** (variable) :151
 - **packRibbon** (f) `(scene, baseRgb = [0.98, 0.93, 0.86])` :152
 - **hexToRgb** (f) `(hex)` :170
-- **buildGhostRace** (f) `(scene, effort, history, maxGhosts = 30)` :180
-- **standings** (f) `(race, clock)` :215
-- **makeCamera** (f) `(b, width, height, { yaw = 0, pitch = 0.9, zoom = 1 } = {})` :265
-- **sideOnYaw** (f) `(scene, tA = -Infinity, tB = Infinity)` :299
-- **sliceBounds** (f) `(scene, tA, tB)` :315
+- **buildGhostRace** (f) `(scene, effort, history)` :182
+- **crowdDensity** (f) `(race, clock, bins = 128)` :224
+- **standings** (f) `(race, clock)` :245
+- **makeCamera** (f) `(b, width, height, { yaw = 0, pitch = 0.9, zoom = 1 } = {})` :295
+- **sideOnYaw** (f) `(scene, tA = -Infinity, tB = Infinity)` :329
+- **sliceBounds** (f) `(scene, tA, tB)` :345
 
 ### routes.js
 - **detectRoutes** (f) `(activities, stravaRoutes = [])` :102

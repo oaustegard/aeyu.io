@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildRideScene, sampleAt, pointAtDistance, packRibbon, RIBBON_FLOATS, buildGhostRace, standings, makeCamera, sideOnYaw } from '../src/ride-scene.js';
+import { buildRideScene, sampleAt, pointAtDistance, packRibbon, RIBBON_FLOATS, buildGhostRace, standings, makeCamera, sideOnYaw, crowdDensity } from '../src/ride-scene.js';
 
 // 101 points due east, 10 m apart, 2 s apart, climbing 1 m per point
 const streams = (overrides = {}) => ({
@@ -100,4 +100,37 @@ test('colours only the best few non-overlapping award efforts', () => {
   assert.ok(lit.length <= 5);
   for (const a of lit) for (const b of lit) if (a !== b) assert.ok(a.tB <= b.tA || b.tB <= a.tA);
   assert.ok(lit.some((e) => e.effort_id === 111), 'highest score kept');
+});
+
+test('marks today, best, P25 and median; everyone else is glow only', () => {
+  const s = buildRideScene(streams(), activity);
+  const history = Array.from({ length: 20 }, (_, i) => ({ effort_id: 100 + i, elapsed_time: 40 + i * 3, start_date: '2025-01-01' }));
+  history.push({ effort_id: 7, elapsed_time: 60, start_date: '2026-03-14' });
+  const race = buildGhostRace(s, s.efforts[0], history);
+  assert.equal(race.ghosts.length, 21);
+  const marked = race.ghosts.filter((g) => g.marked);
+  assert.equal(marked.length, 4);
+  assert.equal(marked.find((g) => g.isBest).elapsed, 40);
+  assert.equal(marked.find((g) => g.isP25).elapsed, 55);
+  assert.equal(marked.find((g) => g.isMedian).elapsed, 67);
+});
+
+test('crowd glow peaks where the ghosts are and empties as they finish', () => {
+  const s = buildRideScene(streams(), activity);
+  const history = Array.from({ length: 10 }, (_, i) => ({ effort_id: 100 + i, elapsed_time: 50 + i, start_date: '2025-01-01' }));
+  const race = buildGhostRace(s, s.efforts[0], history);
+  const mid = crowdDensity(race, 30);
+  const peak = mid.d[mid.a.indexOf(Math.max(...mid.a))];
+  const positions = race.ghosts.map((g) => race.progress(g, 30));
+  assert.ok(peak >= Math.min(...positions) - 20 && peak <= Math.max(...positions) + 20);
+  assert.ok(mid.a[0] < Math.max(...mid.a) / 4, 'start of segment is dim once the field has moved on');
+  assert.equal(crowdDensity(race, 1000).riding, 0);
+});
+
+test('a slow outlier does not stretch the race clock', () => {
+  const s = buildRideScene(streams(), activity);
+  const history = Array.from({ length: 19 }, (_, i) => ({ effort_id: 100 + i, elapsed_time: 50 + i, start_date: '2025-01-01' }));
+  history.push({ effort_id: 999, elapsed_time: 1800, start_date: '2025-02-01' });
+  const race = buildGhostRace(s, s.efforts[0], history);
+  assert.ok(race.longest < 100);
 });

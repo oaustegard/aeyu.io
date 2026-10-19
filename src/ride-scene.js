@@ -176,32 +176,36 @@ export function hexToRgb(hex) {
  * Ghost race on one segment: every stored effort runs the stretch this ride
  * covered between the effort's start and end. Ghosts are paced like this
  * effort, scaled to their own elapsed time, so climbs slow everyone alike.
+ * All of them feed the crowd glow; today, best, P25 and median also get a
+ * marker (`marked`).
  */
-export function buildGhostRace(scene, effort, history, maxGhosts = 30) {
+export function buildGhostRace(scene, effort, history) {
   const dA = sampleAt(scene, effort.tA).d;
   const dB = sampleAt(scene, effort.tB).d;
   if (!(dB > dA)) return null;
-  const sorted = [...history].sort((a, b) => a.elapsed_time - b.elapsed_time);
-  const best = sorted[0];
-  const median = sorted[Math.floor((sorted.length - 1) / 2)];
-  const recent = [...history].sort((a, b) => (b.start_date || "").localeCompare(a.start_date || ""));
-  const keep = new Map();
-  for (const e of [best, median, ...recent]) {
-    if (keep.size >= maxGhosts) break;
-    if (e && !keep.has(e.effort_id)) keep.set(e.effort_id, e);
-  }
-  if (!keep.has(effort.effort_id)) keep.set(effort.effort_id, { effort_id: effort.effort_id, elapsed_time: effort.elapsed, start_date: null });
-  const ghosts = [...keep.values()].map((e) => ({
-    effort_id: e.effort_id,
-    elapsed: e.elapsed_time,
-    date: e.start_date_local || e.start_date || null,
-    isThis: e.effort_id === effort.effort_id,
-    isBest: e === best,
-    isMedian: e === median,
-  }));
+  const all = new Map(history.filter((e) => e.elapsed_time > 0).map((e) => [e.effort_id, e]));
+  if (!all.has(effort.effort_id)) all.set(effort.effort_id, { effort_id: effort.effort_id, elapsed_time: effort.elapsed, start_date: null });
+  const sorted = [...all.values()].sort((a, b) => a.elapsed_time - b.elapsed_time);
+  const at = (q) => sorted[Math.floor(q * (sorted.length - 1))];
+  const best = sorted[0], p25 = at(0.25), median = at(0.5);
+  const ghosts = sorted.map((e) => {
+    const g = {
+      effort_id: e.effort_id,
+      elapsed: e.elapsed_time,
+      date: e.start_date_local || e.start_date || null,
+      isThis: e.effort_id === effort.effort_id,
+      isBest: e === best,
+      isP25: e === p25 && e !== best,
+      isMedian: e === median && e !== best && e !== p25,
+    };
+    g.marked = g.isThis || g.isBest || g.isP25 || g.isMedian;
+    return g;
+  });
   return {
     effort, dA, dB, ghosts,
-    longest: Math.max(...ghosts.map((g) => g.elapsed)),
+    // A stopped-at-the-lights outlier shouldn't stretch the race; past P90
+    // the slowest ghosts just finish off-clock
+    longest: Math.max(effort.elapsed, at(0.9).elapsed_time),
     /** Distance along the segment (0..dB-dA) for a ghost `clock` seconds in. */
     progress(ghost, clock) {
       if (clock >= ghost.elapsed) return dB - dA;
@@ -209,6 +213,32 @@ export function buildGhostRace(scene, effort, history, maxGhosts = 30) {
       return Math.max(0, sampleAt(scene, tThis).d - dA);
     },
   };
+}
+
+/**
+ * Crowd glow: a Gaussian on each ghost still riding, summed along the
+ * segment (a kernel density estimate). Returns `bins` distances along the
+ * segment and an alpha for each. Alpha is relative to every ghost bunched at
+ * one point, so the glow fades as the field spreads out.
+ */
+export function crowdDensity(race, clock, bins = 128) {
+  const len = race.dB - race.dA;
+  const riding = race.ghosts.filter((g) => clock < g.elapsed).map((g) => race.progress(g, clock));
+  const d = new Float32Array(bins), a = new Float32Array(bins);
+  for (let b = 0; b < bins; b++) d[b] = ((b + 0.5) / bins) * len;
+  const n = riding.length;
+  if (n === 0) return { d, a, riding: 0 };
+  const mean = riding.reduce((s, p) => s + p, 0) / n;
+  const sd = Math.sqrt(riding.reduce((s, p) => s + (p - mean) ** 2, 0) / n);
+  // Silverman's rule, floored so a tight pack still reads as a patch of road
+  const h = Math.max(len * 0.02, 10, 1.06 * sd * n ** -0.2);
+  const total = race.ghosts.length;
+  for (let b = 0; b < bins; b++) {
+    let sum = 0;
+    for (const p of riding) { const z = (d[b] - p) / h; sum += Math.exp(-0.5 * z * z); }
+    a[b] = Math.min(0.85, sum / (0.35 * total));
+  }
+  return { d, a, riding: n, h };
 }
 
 /** Live order: further along first; finished ghosts by elapsed time. */
