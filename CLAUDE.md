@@ -44,6 +44,7 @@ src/
   icons.js          SVG icon rendering (Preact components + Canvas drawing)
   heatmap.js        Heatmap data prep: polyline decode, projection, GPU packing, filters
   heatmap-render.js WebGPU density renderer + Canvas2D fallback
+  places.js         Heatmap town labels: tile loading, nearness to rides, collision-free layout
   ride-scene.js     Ride replay math: stream projection, effort time ranges, ghost pacing, camera
   ride-render.js    Ride replay ribbon + curtain renderer (WebGPU, Canvas2D fallback)
   demo-streams.js   Synthetic GPS/power streams for demo rides, built from their polylines
@@ -55,6 +56,7 @@ src/
     RideReplay.js   Per-ride 3D replay and segment ghost race (top of ActivityDetail)
     SyncProgress.js    Legacy sync screen (now inline in Dashboard)
 callback.html       OAuth redirect target
+geo/cities/         GeoNames populated places (pop 5000+, CC BY 4.0) in 10°×10° JSON tiles, [name, lat, lng, pop]
 demo-data.json      Canned demo data (~60 activities, 10 segments)
 sw.js               Service worker for PWA offline support
 vendor/

@@ -13,7 +13,7 @@
 
 ### Heatmap.js
 > Imports: `preact, hooks, db.js, sync.js, demo.js`...
-- **Heatmap** (f) `()` :40
+- **Heatmap** (f) `()` :41
 
 ### InstallBanner.js
 > Imports: `preact, install.js`

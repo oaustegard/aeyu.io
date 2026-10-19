@@ -1,5 +1,5 @@
 # test/
-*Files: 14 | Subdirectories: 1*
+*Files: 15 | Subdirectories: 1*
 
 ## Subdirectories
 
@@ -61,6 +61,10 @@
 
 ### modules-load.test.js
 > Imports: `node:test, strict`
+- *No top-level symbols*
+
+### places.test.js
+> Imports: `node:test, strict, places.js, heatmap.js`
 - *No top-level symbols*
 
 ### ride-scene.test.js

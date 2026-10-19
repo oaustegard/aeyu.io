@@ -11,6 +11,7 @@ import { isDemo } from "../demo.js";
 import { navigate } from "../app.js";
 import { unitSystem, setUnitPreference, loadUnitPreference } from "../units.js";
 import { buildHeatmapData, fitBounds, matchesFilter, NO_GEAR, MAX_SLOTS } from "../heatmap.js";
+import { loadPlaces, placeCounts, layoutLabels } from "../places.js";
 import { webgpuAvailable, createWebGPURenderer, createCanvasRenderer } from "../heatmap-render.js";
 import { StickyHeader } from "./StickyHeader.js";
 
@@ -53,6 +54,14 @@ export function Heatmap() {
   const [panelOpen, setPanelOpen] = useState(() => window.innerWidth >= 640);
   const [units, setUnits] = useState(unitSystem.value);
   const [force2d, setForce2d] = useState(false);
+  const [showPlaces, setShowPlaces] = useState(true);
+  const labelsRef = useRef(null);
+  const panelRef = useRef(null);
+  const barRef = useRef(null);
+  const placesRef = useRef([]);
+  const countsRef = useRef({ key: null, counts: [] });
+  const showPlacesRef = useRef(showPlaces);
+  showPlacesRef.current = showPlaces;
   const [playing, setPlaying] = useState(false);
   const [playDay, setPlayDay] = useState(null);
   const [duration, setDuration] = useState(20);
@@ -84,6 +93,8 @@ export function Heatmap() {
     setStyle((s) => ({ ...s, gain: Math.min(0.5, Math.max(0.03, 2 / Math.sqrt(Math.max(1, d.meta.length)))) }));
     viewRef.current = null;
     setData(d);
+    placesRef.current = [];
+    loadPlaces(d.meta, d.origin).then((p) => { placesRef.current = p; countsRef.current.key = null; draw(); });
   }
 
   useEffect(() => { load(); }, []);
@@ -134,6 +145,44 @@ export function Heatmap() {
     r.render(viewRef.current, filterRef.current, { lineWidth: styleRef.current.lineWidth * devicePixelRatio, gain: styleRef.current.gain }, animRef.current);
     const d = dataRef.current;
     window.__heatmap = { engine: r.kind, segments: d.segCount, activities: d.meta.length, frameMs: performance.now() - t0, playhead: animRef.current?.playhead ?? null };
+    drawLabels();
+  }
+
+  function drawLabels() {
+    const c = labelsRef.current, d = dataRef.current, v = viewRef.current, f = filterRef.current;
+    if (!c || !d || !v || !f) return;
+    const ctx = c.getContext("2d");
+    ctx.clearRect(0, 0, c.width, c.height);
+    const places = placesRef.current;
+    if (!showPlacesRef.current || !places.length) { window.__labels = []; return; }
+    // In playback a town appears once its first ride has happened
+    const playhead = animRef.current ? Math.floor(animRef.current.playhead) : null;
+    const cache = countsRef.current;
+    if (!cache.key || cache.key[0] !== f || cache.key[1] !== playhead) {
+      cache.counts = placeCounts(places, d.meta, f, playhead);
+      cache.key = [f, playhead];
+    }
+    const dpr = devicePixelRatio || 1;
+    ctx.font = `500 ${11 * dpr}px "DM Sans", sans-serif`;
+    const h = 11 * dpr;
+    const wr = c.getBoundingClientRect();
+    const reserved = [panelRef.current, barRef.current].filter(Boolean).map((el) => {
+      const r = el.getBoundingClientRect();
+      return [(r.left - wr.left) * dpr, (r.top - wr.top) * dpr, (r.right - wr.left) * dpr, (r.bottom - wr.top) * dpr];
+    });
+    const labels = layoutLabels(places, cache.counts, v, c.width, c.height, (s) => [ctx.measureText(s).width, h],
+      { pad: 14 * dpr, reserved, max: Math.round((c.width * c.height) / (dpr * dpr * 9000)) });
+    ctx.textBaseline = "middle";
+    ctx.lineJoin = "round";
+    for (const l of labels) {
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.beginPath(); ctx.arc(l.sx, l.sy, 2 * dpr, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "rgba(18,17,15,0.85)";
+      ctx.lineWidth = 3 * dpr;
+      ctx.strokeText(l.p.name, l.sx + 6 * dpr, l.sy);
+      ctx.fillText(l.p.name, l.sx + 6 * dpr, l.sy);
+    }
+    window.__labels = labels.map((l) => l.p.name);
   }
 
   // Playback: the playhead sweeps the filtered date range in `duration` seconds.
@@ -197,7 +246,7 @@ export function Heatmap() {
   const styleRef = useRef(style);
   filterRef.current = filter;
   styleRef.current = style;
-  useEffect(() => { draw(); }, [filter, style, engine]);
+  useEffect(() => { draw(); }, [filter, style, engine, showPlaces]);
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
 
   function fit() {
@@ -218,6 +267,7 @@ export function Heatmap() {
     const dpr = devicePixelRatio || 1;
     c.width = Math.max(1, Math.round(w.clientWidth * dpr));
     c.height = Math.max(1, Math.round(w.clientHeight * dpr));
+    if (labelsRef.current) { labelsRef.current.width = c.width; labelsRef.current.height = c.height; }
     draw();
   }
 
@@ -323,6 +373,7 @@ export function Heatmap() {
       ${header}
       <div ref=${wrapRef} class="relative flex-1" style="min-height: 0; overflow: hidden;">
         <canvas key=${force2d ? "c2d" : "gpu"} ref=${canvasRef} style="width: 100%; height: 100%; display: block; touch-action: none; cursor: grab;" />
+        <canvas ref=${labelsRef} class="absolute inset-0" style="width: 100%; height: 100%; pointer-events: none;" />
 
         ${data.meta.length === 0 && html`
           <div class="absolute inset-0 flex items-center justify-center px-6 text-center" style="color: rgba(255,255,255,0.7); font-family: var(--font-body);">
@@ -330,7 +381,7 @@ export function Heatmap() {
           </div>`}
 
         ${data.meta.length > 0 && html`
-          <div class="absolute left-3 right-3 bottom-3 flex items-center gap-3 rounded-xl px-3 py-2"
+          <div ref=${barRef} class="absolute left-3 right-3 bottom-3 flex items-center gap-3 rounded-xl px-3 py-2"
             style="background: rgba(18,17,15,0.85); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.1); max-width: 720px; margin: 0 auto;">
             <button aria-label=${playing ? "Pause" : "Play"} onClick=${() => (playing ? pause() : play())}
               class="flex items-center justify-center rounded-full flex-shrink-0"
@@ -352,7 +403,7 @@ export function Heatmap() {
               style="color: rgba(255,255,255,0.6);" onClick=${stopPlayback}>✕</button>`}
           </div>`}
 
-        <div class="absolute left-3 right-3 sm:right-auto top-3" style="max-width: 340px;">
+        <div ref=${panelRef} class="absolute left-3 right-3 sm:right-auto top-3" style="max-width: 340px;">
           <div class="rounded-xl p-3" style="background: rgba(18,17,15,0.85); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.1);">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs" style="font-family: var(--font-mono); color: rgba(255,255,255,0.8);">
@@ -424,6 +475,11 @@ export function Heatmap() {
                   <p class="text-xs mb-1" style=${label}>Intensity</p>
                   <input type="range" class="w-full" style="accent-color: var(--strava);" aria-label="Intensity" min="0.05" max="3" step="0.05" value=${style.gain}
                     onInput=${(e) => setStyle({ ...style, gain: +e.target.value })} />
+                </div>
+
+                <div class="flex items-center justify-between gap-2">
+                  <${Chip} label="Place names" on=${showPlaces} onClick=${() => setShowPlaces(!showPlaces)} />
+                  <a href="https://www.geonames.org/" target="_blank" rel="noopener noreferrer" class="text-xs" style="color: rgba(255,255,255,0.4); font-family: var(--font-body);">Places © GeoNames, CC BY 4.0</a>
                 </div>
               </div>`}
           </div>

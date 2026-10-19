@@ -1,5 +1,5 @@
 # src/
-*Files: 26 | Subdirectories: 1*
+*Files: 27 | Subdirectories: 1*
 
 ## Subdirectories
 
@@ -171,6 +171,15 @@
 - **initInstallDetection** (f) `()` :23
 - **triggerInstall** (f) `()` :52
 - **dismissInstallBanner** (f) `()` :62
+
+### places.js
+> Imports: `heatmap.js`
+- **unproject** (f) `(x, y)` :13
+- **tilesForTracks** (f) `(meta, origin)` :25
+- **placesNearTracks** (f) `(rows, meta, origin)` :44
+- **loadPlaces** (f) `(meta, origin, fetchFn = fetch)` :59
+- **placeCounts** (f) `(places, meta, filter, playhead = null)` :73
+- **layoutLabels** (f) `(places, counts, view, width, height, measure, { max = 40, pad = 0, reserved = [] } = {})` :90
 
 ### power-curve.js
 > Imports: `db.js`
