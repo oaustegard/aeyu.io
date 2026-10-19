@@ -42,10 +42,13 @@ src/
   units.js          Metric/imperial formatting, signal-based preference
   demo.js           Demo mode: load canned data, fake auth, isDemo signal
   icons.js          SVG icon rendering (Preact components + Canvas drawing)
+  heatmap.js        Heatmap data prep: polyline decode, projection, GPU packing, filters
+  heatmap-render.js WebGPU density renderer + Canvas2D fallback
   components/
     Landing.js      Pre-auth landing page with FAQ, demo link
     Dashboard.js    Main screen: activities, awards, sync, settings
     ActivityDetail.js  Per-activity view with segment efforts and share card
+    Heatmap.js      Ride heatmap page: filters, pan/zoom, backfill button (#301)
     SyncProgress.js    Legacy sync screen (now inline in Dashboard)
 callback.html       OAuth redirect target
 demo-data.json      Canned demo data (~60 activities, 10 segments)
@@ -143,6 +146,8 @@ Push to `main` → GitHub Pages auto-deploys. Worker changes need `wrangler depl
   Don't attempt `gh issue`, `gh pr`, etc.
 
 - Segment efforts are stored in TWO places: embedded in activities AND in the segments store. Both must be populated.
+- `summary_polyline` is tri-state: `undefined` = stored before the heatmap and never fetched (the heatmap's "Load routes" backfill fills it), `null` = Strava has no track (indoor/manual), string = the track
+- Headless WebGPU needs `--enable-unsafe-webgpu --enable-features=Vulkan --use-vulkan=swiftshader --use-angle=swiftshader --use-webgpu-adapter=swiftshader`; without `--use-vulkan=swiftshader` the adapter appears but the canvas never presents ("A valid external Instance reference no longer exists")
 - The `has_efforts` flag on activities distinguishes summary-only (from list endpoint) from detail-fetched activities
 - Power awards require `device_watts: true` — estimated power is excluded
 - Calendar gate: Year Best suppressed before March 1 to avoid thin early-season data

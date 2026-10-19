@@ -1,15 +1,19 @@
 # components/
-*Files: 8*
+*Files: 9*
 
 ## Files
 
 ### ActivityDetail.js
 > Imports: `preact, signals, hooks, db.js, awards.js`...
-- **ActivityDetail** (f) `({ id })` :1179
+- **ActivityDetail** (f) `({ id })` :1228
 
 ### Dashboard.js
 > Imports: `preact, signals, hooks, auth.js, sync.js`...
-- **Dashboard** (f) `()` :441
+- **Dashboard** (f) `()` :575
+
+### Heatmap.js
+> Imports: `preact, hooks, db.js, sync.js, demo.js`...
+- **Heatmap** (f) `()` :40
 
 ### InstallBanner.js
 > Imports: `preact, install.js`
@@ -24,8 +28,8 @@
 - **SegmentSparkline** (f) `({ segment, currentEffortId, stravaSegmentId, onExportLLM, exportLlmStatus })` :58
 
 ### StickyHeader.js
-> Imports: `preact, signals, hooks, auth.js, demo.js`
-- **headerCompact** (variable) :8
+> Imports: `preact, signals, hooks, auth.js, demo.js`...
+- **headerCompact** (variable) :9
 - **StickyHeader** (f) `({
   onHelp,
   onBack,
@@ -38,7 +42,7 @@
   onUnitToggle,
   onSearch,
   searchActive = false,
-})` :10
+})` :38
 
 ### SyncProgress.js
 > Imports: `preact, hooks, sync.js, auth.js, app.js`

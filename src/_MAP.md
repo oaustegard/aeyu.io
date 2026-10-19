@@ -1,5 +1,5 @@
 # src/
-*Files: 18 | Subdirectories: 1*
+*Files: 23 | Subdirectories: 1*
 
 ## Subdirectories
 
@@ -9,9 +9,9 @@
 
 ### app.js
 > Imports: `preact, preact, signals, auth.js, demo.js`...
-- **route** (variable) :26
-- **routeParams** (variable) :27
-- **navigate** (f) `(url)` :48
+- **route** (variable) :27
+- **routeParams** (variable) :28
+- **navigate** (f) `(url)` :49
 
 ### auth.js
 > Imports: `signals, config.js, db.js`
@@ -22,23 +22,29 @@
 - **getValidToken** (f) `()` :77
 - **disconnect** (f) `()` :114
 
+### avatar.js
+- **resolveAvatarUrl** (f) `(profile)` :13
+
 ### award-config.js
 - **AWARD_LABELS** (variable) :9
 - **AWARD_COLORS** (variable) :73
 - **AWARD_PRIORITY** (variable) :91
-- **awardStrength** (f) `(award)` :169
-- **awardScore** (f) `(award)` :186
-- **AWARD_GROUPS** (variable) :192
+- **ALL_TIME_PRIORITY_FLOOR** (variable) :158
+- **isCapReinstatable** (f) `(award)` :180
+- **awardStrength** (f) `(award)` :205
+- **awardScore** (f) `(award)` :222
+- **AWARD_GROUPS** (variable) :228
+- **marginOverRunnerUp** (f) `(current, values, lowerIsBetter = true)` :337
 
 ### awards.js
 > Imports: `db.js, units.js, routes.js, critical-power.js, award-config.js`
-- **rankSegmentAwards** (f) `(awards)` :252
-- **computeAwards** (f) `(activity, resetEvent = null, referencePoints = [])` :647
-- **computeRideLevelAwards** (f) `(activity, allActivities, resetEvent = null)` :1232
-- **computeAwardsForActivities** (f) `(activities, disabledAwardTypes = null)` :1978
-- **computeWeeklyStreaks** (f) `(allActivities)` :2136
-- **detectGroupRides** (f) `(allActivities, routes = [])` :2258
-- **computeStreakData** (f) `(allActivities, routes = [])` :2459
+- **rankSegmentAwards** (f) `(awards)` :243
+- **computeAwards** (f) `(activity, resetEvent = null, referencePoints = [])` :648
+- **computeRideLevelAwards** (f) `(activity, allActivities, resetEvent = null)` :1302
+- **computeAwardsForActivities** (f) `(activities, disabledAwardTypes = null)` :2048
+- **computeWeeklyStreaks** (f) `(allActivities)` :2206
+- **detectGroupRides** (f) `(allActivities, routes = [])` :2328
+- **computeStreakData** (f) `(allActivities, routes = [])` :2529
 
 ### config.js
 - **STRAVA_CLIENT_ID** (variable) :6
@@ -77,23 +83,23 @@
 - **getSegment** (f) `(id)` :274
 - **getAllSegments** (f) `()` :284
 - **appendEffort** (f) `(segmentId, segmentData, effort)` :294
-- **setSegmentKom** (f) `(segmentId, komSeconds, athleteCount)` :341
-- **removeEffortsForActivity** (f) `(activityId)` :335
-- **getResetEvent** (f) `()` :371
-- **setResetEvent** (f) `(event)` :381
-- **clearResetEvent** (f) `()` :393
-- **recordRecoveryMilestone** (f) `(segmentId, threshold)` :407
-- **getUserConfig** (f) `()` :425
-- **setUserConfig** (f) `(config)` :435
-- **getSyncState** (f) `()` :461
-- **updateSyncState** (f) `(updates)` :471
-- **putRoutes** (f) `(routes)` :485
-- **getAllRoutes** (f) `()` :499
-- **putStravaRoutes** (f) `(routes)` :511
-- **getStravaRoutes** (f) `()` :521
-- **exportSettings** (f) `()` :533
-- **importSettings** (f) `(data)` :553
-- **clearAllData** (f) `()` :589
+- **setSegmentKom** (f) `(segmentId, komSeconds, athleteCount = null)` :341
+- **removeEffortsForActivity** (f) `(activityId)` :367
+- **getResetEvent** (f) `()` :403
+- **setResetEvent** (f) `(event)` :413
+- **clearResetEvent** (f) `()` :425
+- **recordRecoveryMilestone** (f) `(segmentId, threshold)` :439
+- **getUserConfig** (f) `()` :457
+- **setUserConfig** (f) `(config)` :467
+- **getSyncState** (f) `()` :493
+- **updateSyncState** (f) `(updates)` :503
+- **putRoutes** (f) `(routes)` :517
+- **getAllRoutes** (f) `()` :531
+- **putStravaRoutes** (f) `(routes)` :543
+- **getStravaRoutes** (f) `()` :553
+- **exportSettings** (f) `()` :565
+- **importSettings** (f) `(data)` :585
+- **clearAllData** (f) `()` :621
 
 ### demo.js
 > Imports: `signals, db.js, auth.js, routes.js`
@@ -101,7 +107,12 @@
 - **demoError** (variable) :12
 - **checkDemo** (f) `()` :24
 - **startDemo** (f) `()` :53
-- **exitDemo** (f) `()` :127
+- **exitDemo** (f) `()` :128
+
+### durability.js
+- **computeDecoupling** (f) `(watts, hr)` :38
+- **computeSustainedBlocks** (f) `(hr, thresholds)` :99
+- **computeDurability** (f) `(watts, hr, hrThresholds)` :124
 
 ### export-llm.js
 > Imports: `db.js, fitness.js, awards.js, units.js, award-config.js`...
@@ -109,9 +120,9 @@
 - **convertContextUnits** (f) `(ctx)` :416
 - **contextToMarkdown** (f) `(ctx)` :423
 - **buildRideExport** (f) `(activityId, options = {})` :655
-- **rideToMarkdown** (f) `(ctx)` :775
-- **buildSegmentExport** (f) `(segmentId)` :926
-- **segmentToMarkdown** (f) `(ctx)` :980
+- **rideToMarkdown** (f) `(ctx)` :796
+- **buildSegmentExport** (f) `(segmentId)` :947
+- **segmentToMarkdown** (f) `(ctx)` :1001
 
 ### fitness.js
 > Imports: `db.js`
@@ -122,6 +133,23 @@
 ### gear-stats.js
 - **bikeStats** (f) `(activities, gears)` :49
 - **gearAwards** (f) `(stats)` :130
+
+### heatmap-render.js
+> Imports: `heatmap.js`
+- **webgpuAvailable** (f) `()` :99
+- **createWebGPURenderer** (f) `(canvas, data)` :103
+- **createCanvasRenderer** (f) `(canvas, data)` :226
+
+### heatmap.js
+- **NO_GEAR** (variable) :6
+- **MAX_SLOTS** (variable) :7
+- **decodePolyline** (f) `(str)` :9
+- **encodePolyline** (f) `(points)` :28
+- **project** (f) `(lat, lng)` :45
+- **dayNumber** (f) `(isoLocal)` :50
+- **buildHeatmapData** (f) `(activities)` :68
+- **matchesFilter** (f) `(m, f)` :139
+- **fitBounds** (f) `(meta, f)` :150
 
 ### icons.js
 > Imports: `preact`
@@ -149,20 +177,29 @@
 - **detectRoutes** (f) `(activities, stravaRoutes = [])` :102
 - **findRouteForActivity** (f) `(activity, routes)` :223
 
+### share-video.js
+- **FPS** (variable) :33
+- **videoDuration** (f) `(slideCount)` :48
+- **slideAt** (f) `(t, slideCount)` :57
+- **drawFrame** (f) `(ctx, slides, layout, t)` :71
+- **pickEncoderConfig** (f) `(width, height)` :131
+- **renderShareVideo** (f) `(drawSlides, { onProgress } = {})` :159
+
 ### sync.js
-> Imports: `signals, config.js, auth.js, db.js, power-curve.js`
-- **syncProgress** (variable) :29
-- **rateLimitStatus** (variable) :38
-- **isSyncing** (variable) :45
+> Imports: `signals, config.js, auth.js, db.js, power-curve.js`...
+- **syncProgress** (variable) :37
+- **rateLimitStatus** (variable) :46
+- **isSyncing** (variable) :53
 - **parseXomTime** (f) `(str)` :125
-- **syncRoutes** (f) `()` :659
-- **startBackfill** (f) `(onProgress)` :828
-- **incrementalSync** (f) `()` :950
-- **updateSyncWindow** (f) `(newEpoch)` :1025
-- **manualSync** (f) `(onProgress)` :1050
-- **startAutoSync** (f) `(onComplete)` :1076
-- **stopAutoSync** (f) `()` :1085
-- **resyncActivity** (f) `(activityId)` :1152
+- **syncRoutes** (f) `()` :662
+- **backfillMapData** (f) `(onProgress)` :756
+- **startBackfill** (f) `(onProgress)` :895
+- **incrementalSync** (f) `()` :1017
+- **updateSyncWindow** (f) `(newEpoch)` :1092
+- **manualSync** (f) `(onProgress)` :1117
+- **startAutoSync** (f) `(onComplete)` :1143
+- **stopAutoSync** (f) `()` :1152
+- **resyncActivity** (f) `(activityId)` :1219
 
 ### touch-tooltip.js
 - **initTouchTooltips** (f) `()` :69

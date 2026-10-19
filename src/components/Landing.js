@@ -285,6 +285,15 @@ export function Landing() {
             </p>
           <//>
 
+          <${FaqItem} q="Is there a heatmap of my rides?">
+            <p>
+              Yes. Every outdoor ride you've synced is drawn as one density map,
+              brighter where you ride most. Filter by year, ride type, bike or
+              average speed and it redraws instantly. It renders on your own GPU
+              with WebGPU, so your GPS tracks never leave your browser.
+            </p>
+          <//>
+
           <${FaqItem} q="Why 'Participation Awards'?">
             <p>
               Because not every ride is a PR. Most aren't. But you still showed

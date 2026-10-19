@@ -1,5 +1,5 @@
 # test/
-*Files: 6 | Subdirectories: 1*
+*Files: 12 | Subdirectories: 1*
 
 ## Subdirectories
 
@@ -7,8 +7,24 @@
 
 ## Files
 
+### avatar.test.js
+> Imports: `node:test, strict, avatar.js`
+- *No top-level symbols*
+
+### award-margin.test.js
+> Imports: `node:test, strict, award-config.js`
+- *No top-level symbols*
+
+### award-priority.test.js
+> Imports: `node:test, strict, award-config.js`
+- *No top-level symbols*
+
 ### critical-power.test.js
 > Imports: `node:test, strict, critical-power.js`
+- *No top-level symbols*
+
+### durability.test.js
+> Imports: `node:test, strict, durability.js`
 - *No top-level symbols*
 
 ### gear-stats.test.js
@@ -27,16 +43,24 @@
 - **make_ride** (f) `(dt, efforts_data, seg_efforts_store, name=None, extra_dist=0,
               extra_time=0, extra_elev=0, device_watts=False, avg_watts=None)` :140
 - **generate_mock_data** (f) `(seed=42)` :203
-- **QHandler** (C) :490
-  - **__init__** (m) `(self, *a, directory=None, **kw)` :491
-  - **log_message** (m) `(self, *a)` :493
-  - **guess_type** (m) `(self, path)` :494
-- **start_server** (f) `(directory, port=8765)` :499
-- **setup_cdn_routes** (f) `(page, vendor_dir)` :514
-- **stub_cdn** (f) `(page)` :518
-- **run_harness** (f) `(screen="all", output_dir=None, audit_only=False)` :641
+- **QHandler** (C) :530
+  - **__init__** (m) `(self, *a, directory=None, **kw)` :531
+  - **log_message** (m) `(self, *a)` :533
+  - **guess_type** (m) `(self, path)` :534
+- **start_server** (f) `(directory, port=8765)` :539
+- **setup_cdn_routes** (f) `(page, vendor_dir)` :554
+- **stub_cdn** (f) `(page)` :558
+- **run_harness** (f) `(screen="all", output_dir=None, audit_only=False)` :681
+
+### heatmap.test.js
+> Imports: `node:test, strict, heatmap.js`
+- *No top-level symbols*
 
 ### inject.html
+- *No top-level symbols*
+
+### share-video.test.js
+> Imports: `node:test, strict, share-video.js`
 - *No top-level symbols*
 
 ## Other Files

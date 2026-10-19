@@ -4,6 +4,14 @@ All merged pull requests for [aeyu.io](https://aeyu.io), a Strava-powered cyclin
 
 -----
 
+## 2026-10-19
+
+### Features
+
+- **Ride heatmap** (#301) — `/heatmap`, reached from the avatar menu, draws every synced outdoor ride as one density map and filters it live by date or year, ride type, bike and average speed. WebGPU renders each track segment as an instanced quad into a float density texture, then tone-maps it. The segment buffer is uploaded once; a filter change rewrites a 64-byte uniform that the vertex shader tests against a per-activity attribute buffer, so dragging a slider never re-sends points to the GPU. Browsers without WebGPU get a Canvas2D renderer with the same filters, and the page says which engine is running. Sync now keeps `summary_polyline` and `gear_id` from the activity list. Rides stored earlier get them from a "Load routes" button, which re-walks the list endpoint at 200 per page rather than re-fetching each activity, then resolves bike names via `/gear/{id}`. Demo data carries synthetic tracks, bikes and a few gravel rides so demo mode exercises the page.
+
+-----
+
 ## 2026-08-19
 
 ### Fixes

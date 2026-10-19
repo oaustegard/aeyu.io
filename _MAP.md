@@ -1,5 +1,5 @@
 # aeyu.io/
-*Files: 17 | Subdirectories: 3*
+*Files: 22 | Subdirectories: 3*
 
 ## Subdirectories
 
@@ -11,15 +11,18 @@
 
 ### CHANGELOG.md
 - aeyu.io Changelog `h1` :1
-- 2026-05-25 `h2` :7
-- 2026-03-14 `h2` :15
-- 2026-03-13 `h2` :47
-- 2026-03-12 `h2` :59
-- 2026-03-11 `h2` :68
-- 2026-03-10 `h2` :103
-- 2026-03-09 `h2` :153
-- 2026-03-08 `h2` :215
-- 2025-05-24 – 2025-05-25 `h2` :228
+- 2026-10-19 `h2` :7
+- 2026-08-19 `h2` :15
+- 2026-08-02 `h2` :25
+- 2026-05-25 `h2` :39
+- 2026-03-14 `h2` :48
+- 2026-03-13 `h2` :80
+- 2026-03-12 `h2` :92
+- 2026-03-11 `h2` :101
+- 2026-03-10 `h2` :136
+- 2026-03-09 `h2` :186
+- 2026-03-08 `h2` :248
+- 2025-05-24 – 2025-05-25 `h2` :261
 
 ### CLAUDE.md
 - CLAUDE.md — aeyu.io (Participation Awards) `h1` :1
@@ -27,10 +30,10 @@
 - Code Navigation `h2` :9
 - Tech Stack `h2` :22
 - Architecture `h2` :31
-- Key Concepts `h2` :72
-- Development Patterns `h2` :90
-- Common Tasks `h2` :113
-- Gotchas `h2` :133
+- Key Concepts `h2` :75
+- Development Patterns `h2` :93
+- Common Tasks `h2` :116
+- Gotchas `h2` :137
 
 ### README.md
 - aeyu.io — Participation Awards `h1` :5
@@ -39,7 +42,7 @@
 - Architecture `h2` :94
 - Award Types `h2` :149
 - Running Tests `h2` :155
-- Contributing `h2` :166
+- Development `h2` :166
 - License `h2` :172
 - Acknowledgments `h2` :180
 
@@ -77,6 +80,18 @@
 > Imports: `auth.js`
 - *No top-level symbols*
 
+### cappuccino.html
+- *No top-level symbols*
+
+### cappuccino_dps.py
+> Imports: `json, sys`
+- **score_rides** (f) `(rows)` :73
+- **render_html** (f) `(rows, updated)` :117
+
+### cappuccino_gather.py
+> Imports: `os, sys, json, urllib.request`
+- **feats** (f) `(aid)` :77
+
 ### coach-claude.html
 - *No top-level symbols*
 
@@ -92,6 +107,11 @@
 
 ### export.html
 - **getToken** (f) :2
+
+### heatmap.html
+> Imports: `app.js`
+- **showLoadError** (f) :49
+- **clearCacheAndReload** (f) :70
 
 ### index.html
 > Imports: `app.js`
@@ -119,6 +139,7 @@
 ## Other Files
 
 - CNAME
+- cappuccino-dps.json
 - demo-data.json
 - manifest.json
 

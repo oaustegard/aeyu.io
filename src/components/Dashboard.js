@@ -125,6 +125,11 @@ const FAQ_ENTRIES = [
     answer: "The search bar (magnifying glass icon in the header) filters your activity list by name, date, award type, or segment name. It also searches the FAQ — matching entries appear below your ride results. Press Escape to close the search.",
   },
   {
+    id: "heatmap",
+    question: "What is the Heatmap?",
+    answer: "Every outdoor ride you've synced, drawn as one density map: the brighter the line, the more often you've ridden it. Open it from the avatar menu → Heatmap. Filter by date or year, ride type, bike and average speed, and the map redraws as you drag; pan by dragging, zoom with the scroll wheel or a pinch, and Fit re-centres on what's shown. It renders on your GPU with WebGPU (Canvas2D in browsers without it), entirely on your device. Rides synced before the heatmap existed need one extra step: press 'Load routes' and it fetches their GPS tracks from Strava's activity list.",
+  },
+  {
     id: "ride-streak",
     question: "What is Ride Streak?",
     answer: "Ride Streak counts consecutive weeks where you've ridden at least once. One missed week is forgiven (a 'mulligan') — two consecutive missed weeks break the streak. Group Rides are automatically detected by matching recurring rides on the same day of the week, similar time, and similar starting location. Each group ride includes a trend chart showing average speed and power over time so you can spot trends.",
@@ -650,6 +655,10 @@ export function Dashboard() {
             onClick: async () => { try { await manualSync(loadDashboard); } catch(e) { console.error("Manual sync error:", e); } await loadDashboard(); },
             hidden: syncing,
           }]),
+          {
+            label: "Heatmap",
+            onClick: () => navigate("/heatmap"),
+          },
           {
             label: "Rides & Awards",
             onClick: () => { settingsTab.value = "rides"; showSettings.value = true; },
@@ -1808,6 +1817,16 @@ export function Dashboard() {
                 </summary>
                 <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
                   The search bar (magnifying glass icon in the header) filters your activity list by name, date, award type, or segment name. It also searches the FAQ — matching entries appear below your ride results. Press Escape to close the search.
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  What is the Heatmap?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  Every outdoor ride you've synced, drawn as one density map: the brighter the line, the more often you've ridden it. Open it from the avatar menu → Heatmap. Filter by date or year, ride type, bike and average speed, and the map redraws as you drag; pan by dragging, zoom with the scroll wheel or a pinch, and Fit re-centres on what's shown. It renders on your GPU with WebGPU (Canvas2D in browsers without it), entirely on your device. Rides synced before the heatmap existed need one extra step: press 'Load routes' and it fetches their GPS tracks from Strava's activity list.
                 </div>
               </details>
 

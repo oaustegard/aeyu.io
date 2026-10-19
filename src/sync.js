@@ -202,6 +202,9 @@ function toActivitySummary(a) {
     // Group ride detection fields (#58)
     start_latlng: a.start_latlng || null,
     athlete_count: a.athlete_count || 1,
+    // Heatmap fields (#301)
+    summary_polyline: a.map?.summary_polyline || null,
+    gear_id: a.gear_id || null,
     has_efforts: false,
     segment_efforts: [],
   };
@@ -742,6 +745,70 @@ async function runHeartRateMigration() {
   await updateSyncState({ schema_version: 3 });
 }
 
+// --- Heatmap backfill (#301) ---
+
+/**
+ * Patch summary_polyline and gear_id onto activities stored before the
+ * heatmap existed, by re-walking the activity list (200/page) instead of
+ * re-fetching each detail. `undefined` marks never-fetched; `null` means
+ * Strava has no track (indoor, manual). Also resolves gear names.
+ */
+export async function backfillMapData(onProgress) {
+  const all = await getAllActivities();
+  const missing = new Map(
+    all.filter((a) => a.summary_polyline === undefined).map((a) => [a.id, a])
+  );
+  let page = 1;
+  let patched = 0;
+  let complete = true;
+
+  while (missing.size > 0) {
+    if (isRateLimited()) { complete = false; break; }
+    const batch = await stravaFetch(`/athlete/activities?per_page=200&page=${page}`);
+    if (batch.length === 0) break;
+    const updates = [];
+    for (const a of batch) {
+      const existing = missing.get(a.id);
+      if (!existing) continue;
+      missing.delete(a.id);
+      updates.push({
+        ...existing,
+        summary_polyline: a.map?.summary_polyline || null,
+        gear_id: a.gear_id || null,
+      });
+    }
+    if (updates.length > 0) await putActivities(updates);
+    patched += updates.length;
+    if (onProgress) onProgress({ patched, remaining: missing.size });
+    if (batch.length < 200) break;
+    page++;
+  }
+
+  // Walked the whole list: whatever is left was deleted on Strava
+  if (complete && missing.size > 0) {
+    await putActivities([...missing.values()].map((a) => ({ ...a, summary_polyline: null })));
+  }
+
+  await resolveGearNames();
+  return { patched, complete };
+}
+
+async function resolveGearNames() {
+  const state = await getSyncState();
+  const known = new Map((state.gears || []).map((g) => [g.id, g]));
+  const ids = new Set((await getAllActivities()).map((a) => a.gear_id).filter(Boolean));
+  for (const id of ids) {
+    if (known.has(id) || isRateLimited()) continue;
+    try {
+      const g = await stravaFetch(`/gear/${id}`);
+      known.set(id, { id, name: g.name || g.nickname || id, retired: !!g.retired });
+    } catch (e) {
+      console.warn(`Gear fetch failed for ${id}:`, e.message);
+    }
+  }
+  await updateSyncState({ gears: [...known.values()] });
+}
+
 // --- Public API ---
 
 // 13-month priority window — gives users a full year of context quickly
@@ -1204,6 +1271,8 @@ export async function resyncActivity(activityId) {
     average_cadence: full.average_cadence || existing.average_cadence || null,
     start_latlng: full.start_latlng || existing.start_latlng || null,
     athlete_count: full.athlete_count || existing.athlete_count || 1,
+    summary_polyline: full.map?.summary_polyline || existing.summary_polyline || null,
+    gear_id: full.gear_id || existing.gear_id || null,
     has_efforts: true,
     segment_efforts: efforts,
   };

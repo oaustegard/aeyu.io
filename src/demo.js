@@ -27,7 +27,7 @@ export async function checkDemo() {
   // Without this, a logged-in user who previously visited /demo would get
   // demo data on every page load because the sessionStorage flag persists.
   const path = window.location.pathname.replace(/\.html$/, "").replace(/^\//, "") || "";
-  if (path !== "demo" && path !== "activity") {
+  if (path !== "demo" && path !== "activity" && path !== "heatmap") {
     sessionStorage.removeItem("aeyu_demo_active");
     return;
   }
@@ -97,6 +97,7 @@ export async function startDemo() {
           last_sync: new Date().toISOString(),
           power_backfill_complete: true,
           schema_version: 2,
+          gears: data.gears || [],
         },
         "state"
       );
