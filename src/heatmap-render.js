@@ -215,6 +215,8 @@ export async function createWebGPURenderer(canvas, data) {
       p2.end();
       device.queue.submit([enc.finish()]);
     },
+    done: () => device.queue.onSubmittedWorkDone(),
+    adapterInfo: adapter.info || null,
     destroy() {
       segBuf.destroy(); attrBuf.destroy(); uniBuf.destroy();
       if (densityTex) densityTex.destroy();

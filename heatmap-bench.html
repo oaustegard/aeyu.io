@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>aeyu.io — Heatmap benchmark</title>
+  <meta name="robots" content="noindex">
+  <style>
+    body { margin: 0; background: #12110f; color: #eee; font: 14px/1.4 system-ui, sans-serif; }
+    main { max-width: 900px; margin: 0 auto; padding: 16px; }
+    canvas { width: 100%; aspect-ratio: 3 / 2; display: block; background: #000; border-radius: 8px; }
+    button { background: #FC4C02; color: #fff; border: 0; border-radius: 6px; padding: 8px 14px; font: inherit; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    pre { background: #1e1c19; padding: 12px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; font-size: 12px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1 style="font-size: 1.25rem;">Heatmap renderer benchmark</h1>
+  <p>Draws synthetic rides (no Strava data) at three sizes and times GPU upload, a filter sweep and a pan sweep. Each frame is timed until the GPU reports the work done. Copy the JSON at the end into the issue.</p>
+  <p><button id="run">Run benchmark</button> <button id="copy" disabled>Copy results</button></p>
+  <canvas id="c"></canvas>
+  <pre id="out">Not run yet.</pre>
+</main>
+<script type="module">
+import { buildHeatmapData, encodePolyline, fitBounds } from "/src/heatmap.js";
+import { webgpuAvailable, createWebGPURenderer } from "/src/heatmap-render.js";
+
+const out = document.getElementById("out");
+const canvas = document.getElementById("c");
+const SIZES = location.search.includes("quick") ? [[50, 100], [100, 100]] : [[250, 400], [2500, 400], [7500, 400]];
+
+function synthRides(n, pts) {
+  let seed = 1;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const rides = [];
+  for (let i = 0; i < n; i++) {
+    let la = 40.75 + (rnd() - 0.5) * 0.08, ln = -73.98 + (rnd() - 0.5) * 0.1, h = rnd() * 6.283;
+    const track = [];
+    for (let j = 0; j < pts; j++) {
+      h += (rnd() - 0.5) * 0.6;
+      la += Math.sin(h) * 0.0004;
+      ln += Math.cos(h) * 0.0005;
+      track.push([la, ln]);
+    }
+    rides.push({
+      id: i, sport_type: rnd() < 0.8 ? "Ride" : "GravelRide",
+      start_date_local: new Date(Date.UTC(2016, 0, 1) + i * 43200000).toISOString(),
+      average_speed: 5 + rnd() * 6, gear_id: "b" + (i % 4),
+      summary_polyline: encodePolyline(track),
+    });
+  }
+  return rides;
+}
+
+const stats = (xs) => {
+  const s = [...xs].sort((a, b) => a - b);
+  const q = (p) => +s[Math.min(s.length - 1, Math.floor(p * s.length))].toFixed(2);
+  return { median: q(0.5), p95: q(0.95), max: q(1) };
+};
+
+async function frame(r, view, filter) {
+  const t = performance.now();
+  r.render(view, filter, { lineWidth: 1.5 * devicePixelRatio, gain: 0.05 });
+  await r.done();
+  return performance.now() - t;
+}
+
+async function run() {
+  document.getElementById("run").disabled = true;
+  const dpr = devicePixelRatio || 1;
+  canvas.width = Math.round(canvas.clientWidth * dpr);
+  canvas.height = Math.round(canvas.clientHeight * dpr);
+  const result = {
+    userAgent: navigator.userAgent,
+    canvas: [canvas.width, canvas.height], devicePixelRatio: dpr,
+    webgpu: webgpuAvailable(), runs: [],
+  };
+  if (!result.webgpu) {
+    out.textContent = JSON.stringify(result, null, 2) + "\n\nWebGPU is not available in this browser.";
+    return;
+  }
+  for (const [n, pts] of SIZES) {
+    out.textContent = `Running ${n} rides × ${pts} points…`;
+    await new Promise((r) => setTimeout(r, 50));
+    let t = performance.now();
+    const data = buildHeatmapData(synthRides(n, pts));
+    const buildMs = performance.now() - t;
+    t = performance.now();
+    const r = await createWebGPURenderer(canvas, data);
+    if (!r) { result.runs.push({ rides: n, error: "no adapter" }); break; }
+    result.adapter = r.adapterInfo && { vendor: r.adapterInfo.vendor, architecture: r.adapterInfo.architecture, description: r.adapterInfo.description };
+    const all = { dayMin: data.dayRange[0], dayMax: data.dayRange[1], speedMin: 0, speedMax: Infinity, typeMask: 0xffffffff, gearMask: 0xffffffff };
+    const b = fitBounds(data.meta, all);
+    const view = { cx: (b[0] + b[2]) / 2, cy: (b[1] + b[3]) / 2, scale: 0.9 * Math.min(canvas.width / (b[2] - b[0]), canvas.height / (b[3] - b[1])) };
+    const firstMs = await frame(r, view, all);
+    const uploadMs = performance.now() - t - firstMs;
+
+    const span = data.dayRange[1] - data.dayRange[0];
+    const filterMs = [];
+    for (let k = 0; k < 30; k++) {
+      filterMs.push(await frame(r, view, { ...all, dayMin: data.dayRange[0] + Math.round((k / 30) * span * 0.8), gearMask: k % 2 ? 0xffffffff : 0b0101 }));
+    }
+    const panMs = [];
+    for (let k = 0; k < 30; k++) {
+      const z = 1 + k * 0.15;
+      panMs.push(await frame(r, { cx: view.cx + (k - 15) * 2e-6, cy: view.cy, scale: view.scale * z }, all));
+    }
+    await frame(r, view, all);
+    result.runs.push({
+      rides: n, segments: data.segCount, bufferMB: +(data.segments.byteLength / 1e6).toFixed(1),
+      buildMs: Math.round(buildMs), uploadMs: Math.round(uploadMs), firstFrameMs: +firstMs.toFixed(2),
+      filterFrameMs: stats(filterMs), panZoomFrameMs: stats(panMs),
+    });
+    if (n !== SIZES[SIZES.length - 1][0]) r.destroy();
+    out.textContent = JSON.stringify(result, null, 2);
+  }
+  out.textContent = JSON.stringify(result, null, 2);
+  document.getElementById("copy").disabled = false;
+  document.getElementById("run").disabled = false;
+}
+
+document.getElementById("run").onclick = () => run().catch((e) => { out.textContent += "\n\nError: " + e.message; });
+document.getElementById("copy").onclick = () => navigator.clipboard.writeText(out.textContent);
+</script>
+</body>
+</html>

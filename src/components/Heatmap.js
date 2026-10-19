@@ -9,7 +9,7 @@ import { getAllActivities, getSyncState } from "../db.js";
 import { backfillMapData } from "../sync.js";
 import { isDemo } from "../demo.js";
 import { navigate } from "../app.js";
-import { unitSystem, setUnitPreference } from "../units.js";
+import { unitSystem, setUnitPreference, loadUnitPreference } from "../units.js";
 import { buildHeatmapData, fitBounds, matchesFilter, NO_GEAR, MAX_SLOTS } from "../heatmap.js";
 import { webgpuAvailable, createWebGPURenderer, createCanvasRenderer } from "../heatmap-render.js";
 import { StickyHeader } from "./StickyHeader.js";
@@ -58,6 +58,7 @@ export function Heatmap() {
 
   async function load() {
     if (window.dismissLoadingOverlay) window.dismissLoadingOverlay();
+    setUnits(await loadUnitPreference());
     const acts = await getAllActivities();
     const state = await getSyncState();
     setGearNames(Object.fromEntries((state.gears || []).map((g) => [g.id, g.name])));
