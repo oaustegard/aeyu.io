@@ -128,12 +128,12 @@ function codecCandidates(width, height) {
  * regardless of the card's actual height, so it was answering a different
  * question from the one that mattered.
  */
-export async function pickEncoderConfig(width, height) {
+export async function pickEncoderConfig(width, height, { fps = FPS, bitrate = 6_000_000 } = {}) {
   if (typeof VideoEncoder === "undefined") return null;
   for (const codec of codecCandidates(width, height)) {
     for (const hardwareAcceleration of ["no-preference", "prefer-software"]) {
       const config = {
-        codec, width, height, bitrate: 6_000_000, framerate: FPS,
+        codec, width, height, bitrate, framerate: fps,
         avc: { format: "avc" }, hardwareAcceleration,
       };
       try {
@@ -196,23 +196,32 @@ export async function renderShareVideo(drawSlides, { onProgress } = {}) {
   const ctx = frame.getContext("2d");
 
   const total = Math.round(videoDuration(slides.length) * FPS);
+  const out = await encodeVideo(frame, {
+    total, fps: FPS, onProgress,
+    draw: (i) => drawFrame(ctx, slides, layout, i / FPS),
+  });
+  return { ...out, slides: slides.length };
+}
 
+/**
+ * Encode `total` frames drawn into `frame` by `draw(i)` (which may be async).
+ * MP4 via WebCodecs where the browser has it; WebM via MediaRecorder otherwise.
+ */
+export async function encodeVideo(frame, { total, fps, draw, onProgress, bitrate }) {
   // isConfigSupported() is advisory — encoders still fail at runtime — so a
   // failed MP4 attempt degrades to WebM rather than surfacing to the user.
-  const config = await pickEncoderConfig(W, H);
+  const config = await pickEncoderConfig(frame.width, frame.height, { fps, bitrate });
   if (config) {
     try {
-      const out = await encodeMp4(frame, ctx, slides, layout, total, onProgress, config);
-      return { ...out, slides: slides.length };
+      return await encodeMp4(frame, total, fps, draw, onProgress, config);
     } catch (err) {
       console.warn("[aeyu] MP4 encode failed, falling back to WebM:", err);
     }
   }
-  const out = await recordWebm(frame, ctx, slides, layout, total, onProgress);
-  return { ...out, slides: slides.length };
+  return recordWebm(frame, total, fps, draw, onProgress, bitrate);
 }
 
-async function encodeMp4(frame, ctx, slides, layout, total, onProgress, config) {
+async function encodeMp4(frame, total, fps, draw, onProgress, config) {
   // Loaded on demand: 69 KB of muxer that only matters once someone actually
   // asks for a video, and keeping it out of the static graph lets the pure
   // animation functions above be tested without a browser.
@@ -220,7 +229,7 @@ async function encodeMp4(frame, ctx, slides, layout, total, onProgress, config) 
   const { width: W, height: H } = frame;
   const muxer = new Muxer({
     target: new ArrayBufferTarget(),
-    video: { codec: "avc", width: W, height: H, frameRate: FPS },
+    video: { codec: "avc", width: W, height: H, frameRate: fps },
     fastStart: "in-memory", // share sheets and social apps need the moov up front
   });
 
@@ -234,13 +243,13 @@ async function encodeMp4(frame, ctx, slides, layout, total, onProgress, config) 
   try {
     for (let i = 0; i < total; i++) {
       if (encodeError) throw encodeError;
-      drawFrame(ctx, slides, layout, i / FPS);
+      await draw(i);
       const vf = new VideoFrame(frame, {
-        timestamp: Math.round((i / FPS) * 1e6),
-        duration: Math.round(1e6 / FPS),
+        timestamp: Math.round((i / fps) * 1e6),
+        duration: Math.round(1e6 / fps),
       });
       // Keyframe up front, then roughly every second, so scrubbing works.
-      encoder.encode(vf, { keyFrame: i % FPS === 0 });
+      encoder.encode(vf, { keyFrame: i % fps === 0 });
       vf.close();
       // Wait for the queue to drain rather than calling flush() mid-stream —
       // a mid-stream flush resets some encoders and is itself a plausible
@@ -267,7 +276,7 @@ async function encodeMp4(frame, ctx, slides, layout, total, onProgress, config) 
  * Fallback for browsers without VideoEncoder. Produces WebM, which most social
  * targets will not accept — callers should offer this as a download.
  */
-async function recordWebm(frame, ctx, slides, layout, total, onProgress) {
+async function recordWebm(frame, total, fps, draw, onProgress, bitrate = 6_000_000) {
   if (typeof MediaRecorder === "undefined" || !frame.captureStream) {
     throw new Error("This browser cannot record video");
   }
@@ -275,8 +284,8 @@ async function recordWebm(frame, ctx, slides, layout, total, onProgress) {
     .find((m) => MediaRecorder.isTypeSupported(m));
   if (!mime) throw new Error("This browser cannot record video");
 
-  const stream = frame.captureStream(FPS);
-  const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 6_000_000 });
+  const stream = frame.captureStream(fps);
+  const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bitrate });
   const chunks = [];
   recorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
 
@@ -287,10 +296,11 @@ async function recordWebm(frame, ctx, slides, layout, total, onProgress) {
 
   recorder.start();
   for (let i = 0; i < total; i++) {
-    drawFrame(ctx, slides, layout, i / FPS);
+    const t0 = performance.now();
+    await draw(i);
     onProgress?.((i + 1) / total);
     // captureStream samples in real time, so this has to play out at wall clock.
-    await new Promise((r) => setTimeout(r, 1000 / FPS));
+    await new Promise((r) => setTimeout(r, Math.max(0, 1000 / fps - (performance.now() - t0))));
   }
   recorder.stop();
   await done;

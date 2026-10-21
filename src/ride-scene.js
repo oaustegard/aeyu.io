@@ -292,8 +292,10 @@ function transform(m, p) {
 /**
  * Tilted perspective camera framing `b` (scene bounds or a segment's).
  * yaw rotates around the vertical axis; pitch is the tilt from straight down.
+ * zScale stretches height on top of the scene's own exaggeration; `b` is given
+ * in the stretched space, points passed to the camera in the scene's.
  */
-export function makeCamera(b, width, height, { yaw = 0, pitch = 0.9, zoom = 1 } = {}) {
+export function makeCamera(b, width, height, { yaw = 0, pitch = 0.9, zoom = 1, zScale = 1 } = {}) {
   const aspect = width / Math.max(1, height);
   const fov = 0.7;
   const at = [(b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, (b.minZ + b.maxZ) / 2];
@@ -313,6 +315,7 @@ export function makeCamera(b, width, height, { yaw = 0, pitch = 0.9, zoom = 1 } 
   const spread = Math.max(...corners.map((c) => { const p = transform(vp, c); return Math.max(Math.abs(p[0]), Math.abs(p[1])); }));
   if (spread > 0) { dist *= spread / 0.85; vp = build(dist); }
   if (zoom !== 1) { dist /= zoom; vp = build(dist); }
+  if (zScale !== 1) vp = mul(vp, new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, zScale, 0, 0, 0, 0, 1]));
 
   return {
     viewProj: vp,

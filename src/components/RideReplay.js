@@ -11,12 +11,13 @@ import { getStreams, putStreams, getSegment } from "../db.js";
 import { fetchRideStreams } from "../sync.js";
 import { isDemo } from "../demo.js";
 import { AWARD_LABELS, awardScore } from "../award-config.js";
-import { formatSpeed, formatElevation, formatTime, formatDate } from "../units.js";
+import { formatSpeed, formatElevation, formatTime, formatDate, formatDistance, formatDateFull } from "../units.js";
 import {
   buildRideScene, packRibbon, sampleAt, pointAtDistance, makeCamera,
   sliceBounds, buildGhostRace, standings, sideOnYaw, crowdDensity,
 } from "../ride-scene.js";
 import { createRideGPURenderer, createRideCanvasRenderer } from "../ride-render.js";
+import { renderRideVideo } from "../ride-video.js";
 
 const DOT_COLORS = Object.fromEntries(Object.entries(AWARD_LABELS).map(([k, v]) => [k, v.dot]));
 const GOLD = "#F2B544", LAVENDER = "#B9A6E8", GHOST = "rgba(255,255,255,0.45)";
@@ -72,6 +73,8 @@ export function RideReplay({ activity, awards }) {
   const [histories, setHistories] = useState(new Map());
   const [toasts, setToasts] = useState([]);
   const [fullscreen, setFullscreen] = useState(false);
+  // null | { progress } while rendering | { file } ready to share | { error }
+  const [video, setVideo] = useState(null);
 
   // CSS full screen, not the Fullscreen API: iPhone Safari only grants that to video
   useEffect(() => {
@@ -106,6 +109,7 @@ export function RideReplay({ activity, awards }) {
       const s = rec && buildRideScene(rec, activity, bySeg, DOT_COLORS, awardScore);
       if (!s) { setStatus("none"); return; }
       sceneRef.current = s;
+      setVideo(null);
       viewRef.current = { yaw: sideOnYaw(s), pitch: 1.1, zoom: 1 };
       setScene(s);
       setStatus("ready");
@@ -406,6 +410,44 @@ export function RideReplay({ activity, awards }) {
     };
   }, [status]);
 
+  async function makeVideo() {
+    const s = sceneRef.current;
+    if (!s || (video && video.progress != null)) return;
+    pause();
+    setVideo({ progress: 0 });
+    try {
+      const fmt = {
+        time: formatTime, speed: formatSpeed, elevation: formatElevation, distance: formatDistance,
+        date: formatDateFull, awardLabel: (t) => AWARD_LABELS[t]?.label || t,
+      };
+      const { blob, type, extension } = await renderRideVideo(s, activity, fmt, {
+        onProgress: (p) => setVideo({ progress: p }),
+      });
+      const name = `${(activity.name || "ride").replace(/[^a-z0-9]/gi, "-")}-replay.${extension}`;
+      setVideo({ file: new File([blob], name, { type }) });
+    } catch (e) {
+      console.warn("[aeyu] Replay video failed:", e);
+      setVideo({ error: e?.message || "Could not create the video" });
+    }
+  }
+
+  // A separate tap from the render: iOS only opens the share sheet from a
+  // fresh user gesture, and rendering takes longer than the gesture lasts
+  async function shareVideo() {
+    const file = video?.file;
+    if (!file) return;
+    if (file.type === "video/mp4" && navigator.share && navigator.canShare?.({ files: [file] })) {
+      try { await navigator.share({ files: [file] }); return; }
+      catch (e) { if (e?.name === "AbortError") return; }
+    }
+    const url = URL.createObjectURL(file);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = file.name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   if (status === "none") return null;
   if (status !== "ready" || !scene) {
     const msg = status === "loading" ? "Loading ride replay…"
@@ -442,6 +484,19 @@ export function RideReplay({ activity, awards }) {
           ${rc ? html`Ghost race · ${rc.effort.name}` : "Ride replay"}
         </h2>
         <div class="flex items-center gap-3">
+          ${!rc && html`<button data-testid="replay-video"
+            aria-label=${video?.file ? "Share replay video" : "Make a 30 second replay video"}
+            title=${video?.error || (video?.file ? "Share video" : "Make a 30 s video to share")}
+            onClick=${() => (video?.file ? shareVideo() : makeVideo())}
+            disabled=${video?.progress != null}
+            class="flex items-center gap-1 text-xs"
+            style="font-family: var(--font-body); color: ${video?.file ? "#fff" : video?.error ? "#F2B544" : "rgba(255,255,255,0.75)"}; background: ${video?.file ? "var(--strava)" : "none"}; border: none; border-radius: 9999px; padding: 4px ${video?.file ? "10px" : "4px"};">
+            ${video?.progress != null
+              ? html`<span style="font-family: var(--font-mono);">${Math.round(video.progress * 100)}%</span>`
+              : html`<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10l6-3v10l-6-3z"/></svg>`}
+            ${video?.file && html`<span>Share</span>`}
+            ${video?.error && html`<span>Retry</span>`}
+          </button>`}
           <button aria-label=${fullscreen ? "Exit full screen" : "Full screen"} title=${fullscreen ? "Exit full screen" : "Full screen"}
             onClick=${() => setFullscreen(!fullscreen)} style="color: rgba(255,255,255,0.75); background: none; border: none; padding: 4px; display: flex;">
             ${fullscreen

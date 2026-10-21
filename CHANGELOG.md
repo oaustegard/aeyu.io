@@ -4,6 +4,14 @@ All merged pull requests for [aeyu.io](https://aeyu.io), a Strava-powered cyclin
 
 -----
 
+## 2026-10-21
+
+### Features
+
+- **Shareable ride replay video** — a camera button in the replay header renders a 30 s, 1080×1350 MP4 of the ride for the share sheet. The camera path is planned for every frame before rendering and smoothed over ±1.5 s, so stops and switchbacks don't jerk the framing. It opens on the whole route, drops within 3 s into a chase view around the rider covering about 7% of the ride's time behind (minimum 90 s) and half that ahead, then pulls back out between 24 s and 28 s and holds the overview. Zoom is interpolated in log space, so it moves at an even visual rate. In the close-up the tilt lowers, the ribbon widens 1.8×, and relief gets up to 2.5× more exaggeration (the scene's 20%-of-extent rule applied to the window), so climbs and power bands read at phone size. `makeCamera` takes a `zScale` for that. The ride far behind the rider is dimmed and then dropped through the renderer's existing focus uniforms, so the route already ridden doesn't wall off the close-up. The window widens to the whole ride as the camera pulls out, so the dimming never pops on or off. Each frame has the ride name, date and totals, a HUD, award labels as the rider finishes highlighted segments, and the elevation profile with a cursor. Encoding reuses the share card's WebCodecs/mp4-muxer path, now `encodeVideo(frame, {total, fps, draw})`, at 30 fps and 8 Mbps, with the same MediaRecorder/WebM fallback. Sharing is a second tap after rendering, because iOS opens the share sheet only from a fresh gesture.
+
+-----
+
 ## 2026-10-20
 
 ### Features
