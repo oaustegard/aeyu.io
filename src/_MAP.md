@@ -1,5 +1,5 @@
 # src/
-*Files: 31 | Subdirectories: 1*
+*Files: 33 | Subdirectories: 1*
 
 ## Subdirectories
 
@@ -297,4 +297,16 @@
 - **formatDateWeekday** (f) `(isoString)` :110
 - **formatDateFull** (f) `(isoString)` :119
 - **formatPower** (f) `(watts)` :129
+
+### wbal-worker.js
+> Imports: `wbal.js`
+- *No top-level symbols*
+
+### wbal.js
+> Imports: `critical-power.js`
+- **wbalSeries** (f) `(watts, cp, wPrime)` :14
+- **maxDeficit** (f) `(watts, cp, wPrime, decay = recoveryTable(cp, wPrime))` :30
+- **pickFitRides** (f) `(table, packed, durations, include = null, perDuration = 3)` :55
+- **fitWbal** (f) `(rides, cpGuess)` :111
+- **fitWbalAsync** (f) `(rides, cpGuess)` :139
 

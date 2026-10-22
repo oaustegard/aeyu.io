@@ -1,5 +1,5 @@
 # test/
-*Files: 18 | Subdirectories: 1*
+*Files: 19 | Subdirectories: 1*
 
 ## Subdirectories
 
@@ -85,6 +85,10 @@
 
 ### share-video.test.js
 > Imports: `node:test, strict, share-video.js`
+- *No top-level symbols*
+
+### wbal.test.js
+> Imports: `node:test, strict, wbal.js, fatigue-curve.js`
 - *No top-level symbols*
 
 ## Other Files

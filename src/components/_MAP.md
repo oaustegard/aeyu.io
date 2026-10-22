@@ -1,15 +1,15 @@
 # components/
-*Files: 11*
+*Files: 12*
 
 ## Files
 
 ### ActivityDetail.js
 > Imports: `preact, signals, hooks, db.js, awards.js`...
-- **ActivityDetail** (f) `({ id })` :1229
+- **ActivityDetail** (f) `({ id })` :1270
 
 ### Dashboard.js
 > Imports: `preact, signals, hooks, auth.js, sync.js`...
-- **Dashboard** (f) `()` :585
+- **Dashboard** (f) `()` :590
 
 ### Heatmap.js
 > Imports: `preact, hooks, db.js, sync.js, demo.js`...
@@ -25,7 +25,7 @@
 
 ### PowerCurve.js
 > Imports: `preact, hooks, db.js, sync.js, demo.js`...
-- **PowerCurve** (f) `()` :197
+- **PowerCurve** (f) `()` :327
 
 ### RideReplay.js
 > Imports: `preact, hooks, db.js, sync.js, demo.js`...
@@ -59,4 +59,9 @@
 ### TrendChart.js
 > Imports: `preact, units.js`
 - **TrendChart** (f) `({ rides: rawRides, highlightId })` :6
+
+### WbalChart.js
+> Imports: `preact`
+- **fmtClock** (f) `(s)` :7
+- **WbalChart** (f) `({ series, wPrime, at, testid })` :15
 

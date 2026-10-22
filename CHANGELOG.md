@@ -4,6 +4,15 @@ All merged pull requests for [aeyu.io](https://aeyu.io), a Strava-powered cyclin
 
 -----
 
+## 2026-10-22 (later)
+
+### Features
+
+- **W′ balance fit** — the power page has a second CP/W′ estimate under the MMP table. W′ balance follows Skiba's 2015 differential model: each second above CP drains W′ by P − CP, and each second below lets the deficit decay by exp(−(CP − P)/W′). The fit replays the rides holding the top three efforts at each 3–30 min duration and picks the CP and W′ at which the hardest of them drain W′ to about zero. A ride that goes below zero costs 20× more than one that stops short, since a negative balance is a contradiction and a positive one only means the ride wasn't all-out. The search is a 8 W × 2 kJ grid, refined to 2 W × 500 J and then 1 W × 100 J, with a lookup table for the per-second recovery factor. It takes about 0.5 s for 20 rides and runs in a module worker, refitting when the filters change. The card shows both fits, the ride that sets the W′ balance fit with its trace, and how many rides overdraw by more than 5%. The fit over all rides is saved, and each ride's page charts its W′ balance against it, falling back to the MMP fit until the power page has run. On model-consistent rides with repeated efforts, the fit recovers CP within 3 W and W′ within 1.5 kJ, where the MMP fit misreads them. On the demo it gives 323 W / 17.3 kJ against the MMP fit's 271 W / 34.6 kJ, because demo efforts are generated without regard to W′ and back-to-back ones overdraw under any lower CP.
+- **Power chart** — the duration axis is log(t + 10 s), so the first 15 s take about 11% of the width instead of 27%. The chart zooms (wheel or pinch around the pointer, drag to pan, Reset zoom), and ticks fall back to even steps when a deep zoom lands between the named ones. A corner button expands the card to fill the screen, and ✕ or Escape exits. The hover readout sits in the chart's top-right corner instead of following the pointer, so a finger doesn't cover it. The engine timing line is gone.
+
+-----
+
 ## 2026-10-22
 
 ### Features

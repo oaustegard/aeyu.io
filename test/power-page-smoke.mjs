@@ -34,8 +34,53 @@ try {
     }
     results[name] = await page.evaluate(() => ({ engine: window.__power.engine, rides: window.__power.rides, cp: window.__power.cp }));
     results[name].paths = await page.locator('[data-testid=power-chart] path').count();
+    try {
+      await page.waitForFunction(() => window.__power.wbal, null, { timeout: 60000 });
+      results[name].wbal = await page.evaluate(() => window.__power.wbal);
+      results[name].wbalCardCp = Number(await page.locator('[data-testid=wbal-cp]').textContent());
+    } catch (e) {
+      errors.push(`${name}: no W′ balance fit`);
+    }
     await page.waitForTimeout(1500);
     if (shots) await page.screenshot({ path: `${shots}/power-${name}.png`, fullPage: true });
+    const chart = page.locator('[data-testid=power-chart]');
+    if (name === 'gpu') {
+      await page.evaluate(() => document.querySelector('[data-testid=power-chart]').scrollIntoView({ block: 'center' }));
+      const box = await chart.boundingBox();
+      await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
+      for (let i = 0; i < 6; i++) await page.mouse.wheel(0, -300);
+      await page.waitForTimeout(300);
+      results[name].zoomReset = await page.locator('[data-testid=power-reset-zoom]').count();
+      await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.4);
+      await page.waitForTimeout(200);
+      if (shots) await page.screenshot({ path: `${shots}/power-gpu-zoomed.png` });
+      await page.locator('[data-testid=power-reset-zoom]').click();
+      results[name].zoomResetGone = (await page.locator('[data-testid=power-reset-zoom]').count()) === 0;
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      await page.waitForTimeout(200);
+      const href = await page.locator('[data-testid=wbal-ride]').getAttribute('href');
+      await page.locator('[data-testid=wbal-ride]').click();
+      try {
+        await page.waitForSelector('[data-testid=wbal-card] [data-testid=wbal-cp]', { timeout: 30000 });
+        results[name].activity = { href, cp: Number(await page.locator('[data-testid=wbal-card] [data-testid=wbal-cp]').textContent()), chart: await page.locator('[data-testid=wbal-chart]').count() };
+        await page.locator('[data-testid=wbal-card]').scrollIntoViewIfNeeded();
+        await page.waitForTimeout(500);
+        if (shots) await page.screenshot({ path: `${shots}/activity-wbal.png`, fullPage: true });
+      } catch (e) {
+        errors.push(`${name}: no activity W′ balance card (${href})`);
+      }
+    } else {
+      await page.locator('[data-testid=power-fullscreen]').click();
+      await page.waitForTimeout(500);
+      const box = await chart.boundingBox();
+      await page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.5);
+      await page.waitForTimeout(200);
+      results[name].fullTooltip = await page.locator('[data-testid=power-tooltip]').count();
+      if (shots) await page.screenshot({ path: `${shots}/power-cpu-fullscreen.png` });
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(200);
+      results[name].fullExited = (await chart.boundingBox()).height < 400;
+    }
     await ctx.close();
   }
 } finally {
@@ -44,7 +89,9 @@ try {
 }
 console.log(JSON.stringify(results, null, 1));
 const same = JSON.stringify(results.gpu?.cp) === JSON.stringify(results.cpu?.cp);
-const ok = !errors.length && /webgpu/i.test(results.gpu?.engine) && /cpu/i.test(results.cpu?.engine) && same && results.gpu.paths === 4;
+const ok = !errors.length && /webgpu/i.test(results.gpu?.engine) && /cpu/i.test(results.cpu?.engine) && same && results.gpu.paths === 4
+  && results.gpu.wbal && results.cpu.wbal && results.gpu.zoomReset === 1 && results.gpu.zoomResetGone
+  && results.gpu.activity?.cp > 0 && results.cpu.fullTooltip === 1 && results.cpu.fullExited;
 if (errors.length) console.log(errors.join('\n'));
 console.log(ok ? 'PASS' : 'FAIL');
 process.exit(ok ? 0 : 1);
