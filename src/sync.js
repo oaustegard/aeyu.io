@@ -23,8 +23,10 @@ import {
   removeEffortsForActivity,
   putStravaRoutes,
   getStravaRoutes,
+  putRideStreams,
 } from "./db.js";
 import { computePowerCurve } from "./power-curve.js";
+import { encodeRideStreams, RIDE_STREAM_KEYS } from "./ride-streams.js";
 import { computeDurability } from "./durability.js";
 
 function hrThresholds(maxHr) {
@@ -473,18 +475,44 @@ async function fetchActivityDetails() {
 
 // --- Power Curve Fetching ---
 
+// Stop keeping streams once the origin has used this share of its quota
+// (iOS Safari's quota is the tightest); curves and durability still compute
+const STORAGE_CEILING = 0.8;
+let persistRequested = false;
+
+async function streamStorageOk() {
+  try {
+    if (!persistRequested && navigator.storage?.persist) {
+      persistRequested = true;
+      await navigator.storage.persist();
+    }
+    const est = await navigator.storage?.estimate?.();
+    if (est?.quota) return est.usage / est.quota < STORAGE_CEILING;
+  } catch (e) {
+    console.warn("Storage estimate failed:", e);
+  }
+  return true;
+}
+
+/**
+ * One streams request per power ride yields the power curve, durability and
+ * the full per-second streams (#302), newest rides first. Rides processed
+ * before streams were kept are re-requested once; `streams_stored` is true
+ * once stored, false when Strava has no usable power stream.
+ */
 async function fetchPowerCurves() {
   const all = await getAllActivities();
+  let keep = await streamStorageOk();
   const pending = all.filter(
     (a) => a.device_watts && a.has_efforts && a.power_curve !== false &&
-           (!a.power_curve || a.durability === undefined)
-  );
+           (!a.power_curve || a.durability === undefined || (keep && a.streams_stored === undefined))
+  ).sort((a, b) => (b.start_date || "").localeCompare(a.start_date || ""));
   if (pending.length === 0) return;
 
   syncProgress.value = {
     ...syncProgress.value,
     phase: "detail",
-    message: `Fetching power & durability data: 0/${pending.length}`,
+    message: `Fetching ride streams: 0/${pending.length}`,
   };
 
   let completed = 0;
@@ -493,14 +521,15 @@ async function fetchPowerCurves() {
     if (isRateLimited()) {
       syncProgress.value = {
         ...syncProgress.value,
-        message: `Power & durability data paused (rate limit) — ${completed}/${pending.length} done.`,
+        message: `Ride streams paused (rate limit) — ${completed}/${pending.length} done.`,
       };
       break;
     }
+    if (!keep && activity.power_curve && activity.durability !== undefined) continue;
 
     try {
       const data = await stravaFetch(
-        `/activities/${activity.id}/streams?keys=watts,heartrate,time&key_by_type=true`
+        `/activities/${activity.id}/streams?keys=${RIDE_STREAM_KEYS.join(",")}&key_by_type=true`
       );
       const watts = data.watts && data.watts.data ? data.watts.data : null;
       const hr = data.heartrate && data.heartrate.data ? data.heartrate.data : null;
@@ -508,20 +537,41 @@ async function fetchPowerCurves() {
       const durability = (watts && hr)
         ? computeDurability(watts, hr, hrThresholds(activity.max_heartrate))
         : null;
+      let stored = activity.streams_stored;
+      if (keep) {
+        const rec = encodeRideStreams(activity.id, data);
+        if (!rec || !rec.watts) {
+          stored = false;
+        } else {
+          try {
+            await putRideStreams(rec);
+            stored = true;
+          } catch (err) {
+            if (err?.name !== "QuotaExceededError") throw err;
+            keep = false;
+          }
+        }
+      }
       // false = permanent "no usable stream data" (no watts, or no HR for durability)
-      await putActivity({ ...activity, power_curve: curve || false, durability: durability || false });
+      await putActivity({
+        ...activity, power_curve: curve || false, durability: durability || false,
+        ...(stored !== undefined && { streams_stored: stored }),
+      });
     } catch (err) {
       if (err instanceof RateLimitError) {
         syncProgress.value = {
           ...syncProgress.value,
-          message: `Power & durability data paused (rate limit) — ${completed}/${pending.length} done.`,
+          message: `Ride streams paused (rate limit) — ${completed}/${pending.length} done.`,
         };
         break;
       }
       if (err.status === 404 || err.status === 403) {
         // No streams available for this activity — mark permanently with false
         // (null is reserved for retryable/legacy entries)
-        await putActivity({ ...activity, power_curve: false, durability: false });
+        await putActivity({
+          ...activity, power_curve: activity.power_curve || false,
+          durability: activity.durability || false, streams_stored: false,
+        });
       } else {
         // Transient error (network, 500, etc.) — skip but leave for retry
         console.warn(`Power curve fetch failed for activity ${activity.id}:`, err.message);
@@ -531,8 +581,19 @@ async function fetchPowerCurves() {
     completed++;
     syncProgress.value = {
       ...syncProgress.value,
-      message: `Fetching power & durability data: ${completed}/${pending.length}`,
+      message: `Fetching ride streams: ${completed}/${pending.length}`,
     };
+  }
+}
+
+/** The power-curve page's "Download now": the stream backfill on its own. */
+export async function backfillRideStreams() {
+  if (isSyncing.value) return;
+  isSyncing.value = true;
+  try {
+    await fetchPowerCurves();
+  } finally {
+    isSyncing.value = false;
   }
 }
 

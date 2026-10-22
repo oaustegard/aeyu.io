@@ -7,7 +7,7 @@ import { signal } from "@preact/signals";
 import { openDB, switchToDemoDB, switchToRealDB, deleteDemoDB, getAuth, putRoutes } from "./db.js";
 import { authState } from "./auth.js";
 import { detectRoutes } from "./routes.js";
-import { synthesizeStreams } from "./demo-streams.js";
+import { synthesizeStreams, synthesizeRideStreams } from "./demo-streams.js";
 
 export const isDemo = signal(false);
 export const demoError = signal(null);
@@ -28,7 +28,7 @@ export async function checkDemo() {
   // Without this, a logged-in user who previously visited /demo would get
   // demo data on every page load because the sessionStorage flag persists.
   const path = window.location.pathname.replace(/\.html$/, "").replace(/^\//, "") || "";
-  if (path !== "demo" && path !== "activity" && path !== "heatmap") {
+  if (path !== "demo" && path !== "activity" && path !== "heatmap" && path !== "power") {
     sessionStorage.removeItem("aeyu_demo_active");
     return;
   }
@@ -80,9 +80,11 @@ export async function startDemo() {
 
     // Store demo activities, segments, and sync state
     await new Promise((resolve, reject) => {
-      const tx = db.transaction(["activities", "segments", "sync_state", "streams"], "readwrite");
+      const tx = db.transaction(["activities", "segments", "sync_state", "streams", "ride_streams"], "readwrite");
       for (const act of data.activities) {
-        tx.objectStore("activities").put(act);
+        const full = synthesizeRideStreams(act);
+        if (full) tx.objectStore("ride_streams").put(full);
+        tx.objectStore("activities").put(full ? { ...act, streams_stored: true } : act);
         if (act.summary_polyline) tx.objectStore("streams").put(synthesizeStreams(act));
       }
       for (const seg of data.segments) {

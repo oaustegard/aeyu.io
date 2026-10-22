@@ -130,6 +130,11 @@ const FAQ_ENTRIES = [
     answer: "Every outdoor ride you've synced, drawn as one density map: the brighter the line, the more often you've ridden it. Open it from the avatar menu → Heatmap. Filter by date or year, ride type, bike and average speed, and the map redraws as you drag; pan by dragging, zoom with the scroll wheel or a pinch, and Fit re-centres on what's shown. Press play to watch the map build up over time: each ride draws itself along its route and glows briefly before joining the heat. Drag the timeline to scrub, and tap the 20s label to change the playback length. Town names mark the places your rides pass near (towns of 5,000+ people, from GeoNames); the most-ridden appear first and more show up as you zoom in. Turn them off with Place names in the filter panel. The names come from aeyu.io itself in small regional files, so nothing about where you ride is sent anywhere. It renders on your GPU with WebGPU (Canvas2D in browsers without it), entirely on your device. Rides synced before the heatmap existed need one extra step: press 'Load routes' and it fetches their GPS tracks from Strava's activity list.",
   },
   {
+    id: "power-curve",
+    question: "What is the fatigue power curve?",
+    answer: "Your best average power at every duration from 1 second to 5 hours, split by how much work you had already done in the ride. Open it from the avatar menu → Power curve. Each line is a bin: Fresh is your ordinary power curve, and After 1,000 / 2,000 / 3,000 kJ holds the best efforts that started after at least that much work in the ride, so it shows how much power you keep when tired. The CP and W′ table refits Critical Power from each line's 3–30 minute bests and shows how far CP drops against Fresh. Filter by date or year and by indoor or outdoor rides, and toggle bins on or off; the lines and the fit update instantly. Hover or touch the chart to see the best power at that duration and the ride that set it, and click to open that ride. The heavy step runs once per page load on your GPU with WebGPU, and on the CPU in browsers without it, entirely on your device. It needs the full second-by-second power stream of each ride: new rides store it during sync, and older rides' streams download during sync too, one Strava request per ride paced by the rate limit. Press 'Download now' on the page to fetch them right away.",
+  },
+  {
     id: "ride-replay",
     question: "What is the ride replay and ghost race?",
     answer: "Every ride with GPS gets a replay at the top of its page. The route is a tilted 3D ribbon: its width is your power (no power meter means an even line), its height is elevation, and a curtain under it shows the climbs. Press play and the ride draws itself at its own pace, compressed to 15, 30 or 60 seconds, so slow climbs linger and descents rush by. Segments where you earned an award light up in that award's colour as you finish them. Drag to turn the view, scroll to zoom, tap the elevation profile to jump, and use the corner button for full screen. Under the replay, pick a segment to race your history: every stored effort on it runs with you, paced like today's effort and scaled to its own time. Together they form a faint glowing crowd that slides up the road, brighter where many of your past efforts are bunched. Your five fastest efforts, your 25th-percentile and median times, and today get their own dots (gold for your best, lavender for the median, a lavender ring for the 25th percentile, white for today), with a live leaderboard. The GPS data is fetched from Strava once per ride, the first time you open it, and kept on your device. The camera button in the replay's header makes a 30-second video to share: it starts on the whole route, follows you up close with the climbs and power stretched so they read on a phone, then pulls back to the full ride. Rendering takes a few seconds on your device; tap Share when it's ready.",
@@ -663,6 +668,10 @@ export function Dashboard() {
           {
             label: "Heatmap",
             onClick: () => navigate("/heatmap"),
+          },
+          {
+            label: "Power curve",
+            onClick: () => navigate("/power"),
           },
           {
             label: "Rides & Awards",
@@ -1832,6 +1841,16 @@ export function Dashboard() {
                 </summary>
                 <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
                   Every outdoor ride you've synced, drawn as one density map: the brighter the line, the more often you've ridden it. Open it from the avatar menu → Heatmap. Filter by date or year, ride type, bike and average speed, and the map redraws as you drag; pan by dragging, zoom with the scroll wheel or a pinch, and Fit re-centres on what's shown. Press play to watch the map build up over time: each ride draws itself along its route and glows briefly before joining the heat. Drag the timeline to scrub, and tap the 20s label to change the playback length. Town names mark the places your rides pass near (towns of 5,000+ people, from GeoNames); the most-ridden appear first and more show up as you zoom in. Turn them off with Place names in the filter panel. The names come from aeyu.io itself in small regional files, so nothing about where you ride is sent anywhere. It renders on your GPU with WebGPU (Canvas2D in browsers without it), entirely on your device. Rides synced before the heatmap existed need one extra step: press 'Load routes' and it fetches their GPS tracks from Strava's activity list.
+                </div>
+              </details>
+
+              <details class="group py-3">
+                <summary class="flex items-center justify-between cursor-pointer" style="font-family: var(--font-body); font-size: 0.875rem; font-weight: 500; color: var(--text);">
+                  What is the fatigue power curve?
+                  <svg class="w-4 h-4 group-open:rotate-180 transition-transform flex-shrink-0 ml-2" style="color: var(--text-tertiary);" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </summary>
+                <div class="pt-3 pb-1" style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-secondary);">
+                  Your best average power at every duration from 1 second to 5 hours, split by how much work you had already done in the ride. Open it from the avatar menu → Power curve. Each line is a bin: Fresh is your ordinary power curve, and After 1,000 / 2,000 / 3,000 kJ holds the best efforts that started after at least that much work in the ride, so it shows how much power you keep when tired. The CP and W′ table refits Critical Power from each line's 3–30 minute bests and shows how far CP drops against Fresh. Filter by date or year and by indoor or outdoor rides, and toggle bins on or off; the lines and the fit update instantly. Hover or touch the chart to see the best power at that duration and the ride that set it, and click to open that ride. The heavy step runs once per page load on your GPU with WebGPU, and on the CPU in browsers without it, entirely on your device. It needs the full second-by-second power stream of each ride: new rides store it during sync, and older rides' streams download during sync too, one Strava request per ride paced by the rate limit. Press 'Download now' on the page to fetch them right away.
                 </div>
               </details>
 

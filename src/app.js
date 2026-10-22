@@ -14,6 +14,7 @@ import { Landing } from "./components/Landing.js";
 import { Dashboard } from "./components/Dashboard.js";
 import { ActivityDetail } from "./components/ActivityDetail.js";
 import { Heatmap } from "./components/Heatmap.js";
+import { PowerCurve } from "./components/PowerCurve.js";
 
 // --- Router ---
 
@@ -99,13 +100,16 @@ function App() {
   const auth = authState.value;
   const currentRoute = route.value;
 
-  // Demo mode routing — allow /demo, /activity and /heatmap while demo is active
+  // Demo mode routing — allow /demo, /activity, /heatmap and /power while demo is active
   if (isDemo.value) {
     if (currentRoute === "activity") {
       return html`<${ActivityDetail} id=${routeParams.value.id} />`;
     }
     if (currentRoute === "heatmap") {
       return html`<${Heatmap} key="demo" />`;
+    }
+    if (currentRoute === "power") {
+      return html`<${PowerCurve} key="demo" />`;
     }
     if (currentRoute === "demo") {
       return html`<${Dashboard} key="demo" />`;
@@ -152,6 +156,8 @@ function App() {
       return html`<${ActivityDetail} id=${routeParams.value.id} />`;
     case "heatmap":
       return html`<${Heatmap} key="real" />`;
+    case "power":
+      return html`<${PowerCurve} key="real" />`;
     case "sync": // legacy — now handled by dashboard
     case "dashboard":
     default:

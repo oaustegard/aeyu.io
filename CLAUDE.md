@@ -48,6 +48,9 @@ src/
   ride-scene.js     Ride replay math: stream projection, effort time ranges, ghost pacing, camera
   ride-render.js    Ride replay ribbon + curtain renderer (WebGPU, Canvas2D fallback)
   demo-streams.js   Synthetic GPS/power streams for demo rides, built from their polylines
+  ride-streams.js   Full per-second streams (#302): typed-array codec, 1 Hz power with the gap rule
+  fatigue-curve.js  Fatigue-binned power curve: duration grid, per-ride table (CPU reference), reduce, CP/W′ fit
+  fatigue-gpu.js    WebGPU kernel for the same per-ride table, bit-identical to the CPU one
   components/
     Landing.js      Pre-auth landing page with FAQ, demo link
     Dashboard.js    Main screen: activities, awards, sync, settings
@@ -155,6 +158,8 @@ Push to `main` → GitHub Pages auto-deploys. Worker changes need `wrangler depl
 - `summary_polyline` is tri-state: `undefined` = stored before the heatmap and never fetched (the heatmap's "Load routes" backfill fills it), `null` = Strava has no track (indoor/manual), string = the track
 - Headless WebGPU needs `--enable-unsafe-webgpu --enable-features=Vulkan --use-vulkan=swiftshader --use-angle=swiftshader --use-webgpu-adapter=swiftshader`; without `--use-vulkan=swiftshader` the adapter appears but the canvas never presents ("A valid external Instance reference no longer exists")
 - Ride streams live in the `streams` store (DB v4), one record per ride, fetched on first open of its ActivityDetail via `fetchRideStreams`; `latlng: null` marks a ride with no GPS so it isn't re-requested. Demo mode synthesizes them at `startDemo` (`demo-streams.js`). Efforts are placed on the stream clock by `start_date` minus the activity's `start_date`, so demo efforts must have start times inside their ride
+- Full streams live in the `ride_streams` store (DB v5): one record per power ride, typed arrays (`watts` Uint16, `heartrate`/`cadence` Uint8, `velocity` Uint16 cm/s, `altitude` Uint16 dm above `altitude_base`, `time_jumps` [index, time] pairs where the clock isn't +1 s), about 29 KB per ride-hour. They come from the same `/streams` request as `power_curve` and `durability` in `fetchPowerCurves`; `streams_stored` on the activity is `undefined` (not yet), `true`, or `false` (no usable power stream). Storing stops above 80% of the storage quota. Separate from the replay's `streams` store
+- The fatigue curve's GPU and CPU tables must match exactly: `node test/fatigue-gpu-check.mjs` (SwiftShader, correctness only). Timing comes from `power-bench.html` on a real GPU
 - The `has_efforts` flag on activities distinguishes summary-only (from list endpoint) from detail-fetched activities
 - Power awards require `device_watts: true` — estimated power is excluded
 - Calendar gate: Year Best suppressed before March 1 to avoid thin early-season data

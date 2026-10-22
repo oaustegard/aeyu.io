@@ -5,6 +5,7 @@
  */
 
 import { decodePolyline } from "./heatmap.js";
+import { timeJumps } from "./ride-streams.js";
 
 function rng(seed) {
   let s = seed % 2147483647 || 1;
@@ -74,4 +75,62 @@ export function synthesizeStreams(activity) {
     watts,
     grade_smooth: grade.map((g) => +(g * 100).toFixed(1)),
   };
+}
+
+/**
+ * Per-second power, heart rate, cadence, speed and altitude for a demo power
+ * ride (#302), shaped so the fatigue-binned curve has something to show:
+ * hard efforts are spread through the ride and fade as work accumulates.
+ * Rides over two hours stop once for coffee, which exercises the gap rule.
+ */
+export function synthesizeRideStreams(activity) {
+  if (!activity.device_watts || !activity.average_watts) return null;
+  const r = rng(activity.id * 7 + 3);
+  const n = activity.moving_time;
+  const avg = activity.average_watts;
+  const cp = 1.12 * avg;
+  const raw = new Float64Array(n);
+  let drift = 0;
+  for (let i = 0; i < n; i++) {
+    drift = drift * 0.995 + (r() - 0.5) * 6;
+    raw[i] = Math.max(0, 0.82 * avg + drift + (r() - 0.5) * 50 + (r() < 0.06 ? -0.82 * avg : 0));
+  }
+  // One effort per ~10 min, its intensity set by the work done before it
+  const efforts = [];
+  for (let t = 300 + Math.floor(r() * 600); t < n - 30; t += 400 + Math.floor(r() * 500)) {
+    const d = [10, 30, 60, 180, 300, 600, 1200][Math.floor(r() * 7)];
+    efforts.push([t, Math.min(d, n - t)]);
+  }
+  let work = 0, e = 0;
+  for (let i = 0; i < n; i++) {
+    if (e < efforts.length && i === efforts[e][0]) {
+      const [t, d] = efforts[e++];
+      const fade = Math.max(0.6, 1 - 0.07 * (work / 1e6));
+      const target = Math.min(4.5 * cp, cp + (0.22 * cp * 300) / d) * fade * (0.9 + 0.1 * r());
+      for (let j = t; j < t + d && j < n; j++) raw[j] = target * (0.92 + 0.16 * r());
+    }
+    work += raw[i];
+  }
+  const mean = raw.reduce((s, w) => s + w, 0) / n;
+  const k = avg / mean;
+
+  const stopAt = n > 7200 ? Math.floor(n * 0.55) : -1;
+  const time = new Uint32Array(n), watts = new Uint16Array(n), heartrate = new Uint8Array(n);
+  const cadence = new Uint8Array(n), velocity = new Uint16Array(n), altitude = new Uint16Array(n);
+  const maxHr = activity.max_heartrate || 180;
+  let hr = 0.55 * maxHr, t = 0;
+  for (let i = 0; i < n; i++) {
+    if (i === stopAt) t += 900;
+    time[i] = t++;
+    const w = Math.round(raw[i] * k);
+    watts[i] = w;
+    const target = Math.min(maxHr, 0.5 * maxHr + (0.4 * maxHr * w) / cp + 0.04 * maxHr * (i / n));
+    hr += (target - hr) / 30;
+    heartrate[i] = Math.round(hr);
+    cadence[i] = w > 0 ? 80 + Math.round(15 * r()) : 0;
+    const climb = Math.sin(i / 600);
+    velocity[i] = Math.round(100 * Math.max(1.5, Math.cbrt(Math.max(w, 30) / 0.4) - 3 * climb));
+    altitude[i] = Math.round(10 * (60 + 120 * (1 - Math.cos(i / 600))));
+  }
+  return { id: activity.id, n, time_jumps: timeJumps(time), watts, heartrate, cadence, velocity, altitude, altitude_base: 0 };
 }

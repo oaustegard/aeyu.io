@@ -1,5 +1,5 @@
 # components/
-*Files: 10*
+*Files: 11*
 
 ## Files
 
@@ -9,7 +9,7 @@
 
 ### Dashboard.js
 > Imports: `preact, signals, hooks, auth.js, sync.js`...
-- **Dashboard** (f) `()` :580
+- **Dashboard** (f) `()` :585
 
 ### Heatmap.js
 > Imports: `preact, hooks, db.js, sync.js, demo.js`...
@@ -23,9 +23,13 @@
 > Imports: `preact, signals, auth.js, demo.js, app.js`...
 - **Landing** (f) `()` :67
 
+### PowerCurve.js
+> Imports: `preact, hooks, db.js, sync.js, demo.js`...
+- **PowerCurve** (f) `()` :197
+
 ### RideReplay.js
 > Imports: `preact, hooks, db.js, sync.js, demo.js`...
-- **RideReplay** (f) `({ activity, awards })` :50
+- **RideReplay** (f) `({ activity, awards })` :51
 
 ### SegmentSparkline.js
 > Imports: `preact, hooks, units.js`

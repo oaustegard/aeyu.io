@@ -1,8 +1,9 @@
 # aeyu.io/
-*Files: 23 | Subdirectories: 3*
+*Files: 27 | Subdirectories: 4*
 
 ## Subdirectories
 
+- [geo/](./geo/_MAP.md)
 - [src/](./src/_MAP.md)
 - [test/](./test/_MAP.md)
 - [worker/](./worker/_MAP.md)
@@ -11,19 +12,21 @@
 
 ### CHANGELOG.md
 - aeyu.io Changelog `h1` :1
-- 2026-10-20 `h2` :7
-- 2026-10-19 `h2` :27
-- 2026-08-19 `h2` :38
-- 2026-08-02 `h2` :48
-- 2026-05-25 `h2` :62
-- 2026-03-14 `h2` :71
-- 2026-03-13 `h2` :103
-- 2026-03-12 `h2` :115
-- 2026-03-11 `h2` :124
-- 2026-03-10 `h2` :159
-- 2026-03-09 `h2` :209
-- 2026-03-08 `h2` :271
-- 2025-05-24 – 2025-05-25 `h2` :284
+- 2026-10-22 `h2` :7
+- 2026-10-21 `h2` :16
+- 2026-10-20 `h2` :24
+- 2026-10-19 `h2` :44
+- 2026-08-19 `h2` :55
+- 2026-08-02 `h2` :65
+- 2026-05-25 `h2` :79
+- 2026-03-14 `h2` :88
+- 2026-03-13 `h2` :120
+- 2026-03-12 `h2` :132
+- 2026-03-11 `h2` :141
+- 2026-03-10 `h2` :176
+- 2026-03-09 `h2` :226
+- 2026-03-08 `h2` :288
+- 2025-05-24 – 2025-05-25 `h2` :301
 
 ### CLAUDE.md
 - CLAUDE.md — aeyu.io (Participation Awards) `h1` :1
@@ -31,10 +34,10 @@
 - Code Navigation `h2` :9
 - Tech Stack `h2` :22
 - Architecture `h2` :31
-- Key Concepts `h2` :81
-- Development Patterns `h2` :99
-- Common Tasks `h2` :122
-- Gotchas `h2` :143
+- Key Concepts `h2` :84
+- Development Patterns `h2` :102
+- Common Tasks `h2` :125
+- Gotchas `h2` :146
 
 ### README.md
 - aeyu.io — Participation Awards `h1` :5
@@ -140,6 +143,19 @@
 - 7. Future Iterations (post-MVP) `h2` :445
 - 8. Open Questions `h2` :458
 
+### power-bench.html
+> Imports: `fatigue-curve.js, fatigue-gpu.js`
+- **synthHistory** (f) :11
+- **rnd** (f) :13
+- **median** (f) :35
+- **tick** (f) :36
+- **run** (f) :38
+
+### power.html
+> Imports: `app.js`
+- **showLoadError** (f) :49
+- **clearCacheAndReload** (f) :70
+
 ### skill-callback.html
 - *No top-level symbols*
 
@@ -152,4 +168,6 @@
 - cappuccino-dps.json
 - demo-data.json
 - manifest.json
+- package-lock.json
+- package.json
 

@@ -1,5 +1,5 @@
 # test/
-*Files: 15 | Subdirectories: 1*
+*Files: 18 | Subdirectories: 1*
 
 ## Subdirectories
 
@@ -25,6 +25,10 @@
 
 ### durability.test.js
 > Imports: `node:test, strict, durability.js`
+- *No top-level symbols*
+
+### fatigue-curve.test.js
+> Imports: `node:test, strict, fatigue-curve.js, critical-power.js`
 - *No top-level symbols*
 
 ### gear-stats.test.js
@@ -69,6 +73,14 @@
 
 ### ride-scene.test.js
 > Imports: `node:test, strict, ride-scene.js`
+- *No top-level symbols*
+
+### ride-streams.test.js
+> Imports: `node:test, strict, ride-streams.js`
+- *No top-level symbols*
+
+### ride-video.test.js
+> Imports: `node:test, strict, ride-scene.js, ride-video.js`
 - *No top-level symbols*
 
 ### share-video.test.js

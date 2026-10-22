@@ -4,6 +4,15 @@ All merged pull requests for [aeyu.io](https://aeyu.io), a Strava-powered cyclin
 
 -----
 
+## 2026-10-22
+
+### Features
+
+- **Full ride streams kept** (#302) — the `/activities/{id}/streams` request that already produced each power ride's six-point `power_curve` and `durability` now also asks for cadence, speed and altitude, and the whole response is stored instead of being discarded. Records go in a new `ride_streams` store (IndexedDB v5) as typed arrays: power Uint16, heart rate and cadence Uint8, speed Uint16 in cm/s, altitude Uint16 in decimetres above the ride's lowest point. The time stream is stored only where it is not +1 s per sample, as [index, time] pairs. Measured in Chromium, that is 28.9 KB per ride-hour in IndexedDB, against 52.5 KB for the same streams as plain arrays, so 1,500 ride-hours take about 43 MB. Power rides processed before this get one more request each, newest first, through the same rate-limited, resumable loop; `streams_stored` on the activity records the outcome. The app asks for persistent storage before it stores any and stops storing (curves and durability still compute) once the origin has used 80% of its quota, which matters most on iOS.
+- **Fatigue power curve** (#302) — a new page (avatar menu → Power curve) shows the best mean power at 203 durations from 1 s to 5 h (every second to a minute, then about 4% steps), in four bins by the work the ride had already done when the effort started: fresh, after 1,000 kJ, after 2,000 kJ and after 3,000 kJ. Each bin's CP and W′ are refitted with the dashboard's model. The expensive step is one table per ride, (bin × duration) → best window sum in integer joules, computed once per page load: a WebGPU compute pass runs one thread per (ride, duration), walking window starts backward with a running sum so a single pass fills every bin. The CPU fallback is the same algorithm and the reference: `test/fatigue-gpu-check.mjs` checks the GPU table equals it cell for cell. Date, year and indoor/outdoor filters only reduce the table, so the curves and fits follow a drag without recomputing. Power is put on the elapsed clock at 1 Hz before the curve is computed: gaps up to 10 s are smart recording and take the next sample's value, longer gaps are stops at 0 W. `power-bench.html` times both engines on synthetic histories. Demo mode synthesizes per-second streams for every demo power ride, with hard efforts that fade as work accumulates, and gains four long rides (2,500–3,600 kJ) so every bin has data.
+
+-----
+
 ## 2026-10-21
 
 ### Features

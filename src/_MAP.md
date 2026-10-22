@@ -1,5 +1,5 @@
 # src/
-*Files: 27 | Subdirectories: 1*
+*Files: 31 | Subdirectories: 1*
 
 ## Subdirectories
 
@@ -9,9 +9,9 @@
 
 ### app.js
 > Imports: `preact, preact, signals, auth.js, demo.js`...
-- **route** (variable) :27
-- **routeParams** (variable) :28
-- **navigate** (f) `(url)` :49
+- **route** (variable) :28
+- **routeParams** (variable) :29
+- **navigate** (f) `(url)` :50
 
 ### auth.js
 > Imports: `signals, config.js, db.js`
@@ -66,46 +66,50 @@
 - **switchToRealDB** (f) `()` :20
 - **deleteDemoDB** (f) `()` :26
 - **openDB** (f) `()` :35
-- **getAuth** (f) `()` :101
-- **setAuth** (f) `(session)` :111
-- **clearAuth** (f) `()` :121
-- **putActivity** (f) `(activity)` :133
-- **putActivities** (f) `(activities)` :143
-- **getActivity** (f) `(id)` :156
-- **getActivitiesByIds** (f) `(ids)` :166
-- **getActivitiesByYear** (f) `(year)` :178
-- **getActivitiesWithoutEfforts** (f) `()` :192
-- **getActivitiesWithoutPower** (f) `()` :211
-- **getActivitiesWithoutHeartRate** (f) `()` :228
-- **getActivitiesWithoutZones** (f) `()` :241
-- **getAllActivities** (f) `()` :257
-- **putSegment** (f) `(segment)` :269
-- **getSegment** (f) `(id)` :279
-- **getAllSegments** (f) `()` :289
-- **appendEffort** (f) `(segmentId, segmentData, effort)` :299
-- **setSegmentKom** (f) `(segmentId, komSeconds, athleteCount = null)` :346
-- **removeEffortsForActivity** (f) `(activityId)` :372
-- **getResetEvent** (f) `()` :408
-- **setResetEvent** (f) `(event)` :418
-- **clearResetEvent** (f) `()` :430
-- **recordRecoveryMilestone** (f) `(segmentId, threshold)` :444
-- **getUserConfig** (f) `()` :462
-- **setUserConfig** (f) `(config)` :472
-- **getSyncState** (f) `()` :498
-- **updateSyncState** (f) `(updates)` :508
-- **putRoutes** (f) `(routes)` :522
-- **getAllRoutes** (f) `()` :536
-- **putStravaRoutes** (f) `(routes)` :548
-- **getStravaRoutes** (f) `()` :558
-- **exportSettings** (f) `()` :570
-- **importSettings** (f) `(data)` :590
-- **getStreams** (f) `(activityId)` :626
-- **putStreams** (f) `(record)` :635
-- **clearAllData** (f) `()` :645
+- **getAuth** (f) `()` :106
+- **setAuth** (f) `(session)` :116
+- **clearAuth** (f) `()` :126
+- **putActivity** (f) `(activity)` :138
+- **putActivities** (f) `(activities)` :148
+- **getActivity** (f) `(id)` :161
+- **getActivitiesByIds** (f) `(ids)` :171
+- **getActivitiesByYear** (f) `(year)` :183
+- **getActivitiesWithoutEfforts** (f) `()` :197
+- **getActivitiesWithoutPower** (f) `()` :216
+- **getActivitiesWithoutHeartRate** (f) `()` :233
+- **getActivitiesWithoutZones** (f) `()` :246
+- **getAllActivities** (f) `()` :262
+- **putSegment** (f) `(segment)` :274
+- **getSegment** (f) `(id)` :284
+- **getAllSegments** (f) `()` :294
+- **appendEffort** (f) `(segmentId, segmentData, effort)` :304
+- **setSegmentKom** (f) `(segmentId, komSeconds, athleteCount = null)` :351
+- **removeEffortsForActivity** (f) `(activityId)` :377
+- **getResetEvent** (f) `()` :413
+- **setResetEvent** (f) `(event)` :423
+- **clearResetEvent** (f) `()` :435
+- **recordRecoveryMilestone** (f) `(segmentId, threshold)` :449
+- **getUserConfig** (f) `()` :467
+- **setUserConfig** (f) `(config)` :477
+- **getSyncState** (f) `()` :503
+- **updateSyncState** (f) `(updates)` :513
+- **putRoutes** (f) `(routes)` :527
+- **getAllRoutes** (f) `()` :541
+- **putStravaRoutes** (f) `(routes)` :553
+- **getStravaRoutes** (f) `()` :563
+- **exportSettings** (f) `()` :575
+- **importSettings** (f) `(data)` :595
+- **getStreams** (f) `(activityId)` :631
+- **putStreams** (f) `(record)` :640
+- **getRideStreams** (f) `(activityId)` :650
+- **putRideStreams** (f) `(record)` :659
+- **forEachRideStreams** (f) `(fn)` :671
+- **clearAllData** (f) `()` :685
 
 ### demo-streams.js
-> Imports: `heatmap.js`
-- **synthesizeStreams** (f) `(activity)` :14
+> Imports: `heatmap.js, ride-streams.js`
+- **synthesizeStreams** (f) `(activity)` :15
+- **synthesizeRideStreams** (f) `(activity)` :86
 
 ### demo.js
 > Imports: `signals, db.js, auth.js, routes.js, demo-streams.js`
@@ -113,7 +117,7 @@
 - **demoError** (variable) :13
 - **checkDemo** (f) `()` :25
 - **startDemo** (f) `()` :54
-- **exitDemo** (f) `()` :130
+- **exitDemo** (f) `()` :132
 
 ### durability.js
 - **computeDecoupling** (f) `(watts, hr)` :38
@@ -129,6 +133,22 @@
 - **rideToMarkdown** (f) `(ctx)` :796
 - **buildSegmentExport** (f) `(segmentId)` :947
 - **segmentToMarkdown** (f) `(ctx)` :1001
+
+### fatigue-curve.js
+> Imports: `critical-power.js, power-curve.js`
+- **KJ_BINS** (variable) :15
+- **MAX_DURATION** (variable) :16
+- **NONE** (variable) :17
+- **DURATIONS** (variable) :32
+- **packRides** (f) `(rides, kjBins = KJ_BINS)` :40
+- **computeTableCPU** (f) `(packed, durations = DURATIONS, rideFrom = 0, rideTo = packed.count, out = null)` :71
+- **reduceCurves** (f) `(table, packed, include = null, durations = DURATIONS)` :104
+- **fitBin** (f) `(bin, durations = DURATIONS)` :126
+
+### fatigue-gpu.js
+> Imports: `fatigue-curve.js`
+- **webgpuAvailable** (f) `()` :59
+- **createFatigueGPU** (f) `({ groupSamples = Infinity } = {})` :64
 
 ### fitness.js
 > Imports: `db.js`
@@ -202,11 +222,32 @@
 - **packRibbon** (f) `(scene, baseRgb = [0.98, 0.93, 0.86])` :152
 - **hexToRgb** (f) `(hex)` :170
 - **buildGhostRace** (f) `(scene, effort, history)` :182
-- **crowdDensity** (f) `(race, clock, bins = 128)` :224
-- **standings** (f) `(race, clock)` :245
-- **makeCamera** (f) `(b, width, height, { yaw = 0, pitch = 0.9, zoom = 1 } = {})` :295
-- **sideOnYaw** (f) `(scene, tA = -Infinity, tB = Infinity)` :329
-- **sliceBounds** (f) `(scene, tA, tB)` :345
+- **crowdDensity** (f) `(race, clock, bins = 128)` :225
+- **standings** (f) `(race, clock)` :246
+- **makeCamera** (f) `(b, width, height, { yaw = 0, pitch = 0.9, zoom = 1, zScale = 1 } = {})` :298
+- **sideOnYaw** (f) `(scene, tA = -Infinity, tB = Infinity)` :333
+- **sliceBounds** (f) `(scene, tA, tB)` :349
+
+### ride-streams.js
+- **RIDE_STREAM_KEYS** (variable) :6
+- **MAX_HOLD_SECONDS** (variable) :10
+- **timeJumps** (f) `(time)` :25
+- **sampleTimes** (f) `(rec)` :33
+- **encodeRideStreams** (f) `(id, raw)` :47
+- **decodeRideStreams** (f) `(rec)` :71
+- **recordBytes** (f) `(rec)` :83
+- **wattsPerSecond** (f) `(rec, maxHold = MAX_HOLD_SECONDS)` :96
+
+### ride-video.js
+> Imports: `ride-scene.js, ride-render.js, share-video.js`
+- **VIDEO_FPS** (variable) :15
+- **VIDEO_SECONDS** (variable) :16
+- **VIDEO_W** (variable) :17
+- **VIDEO_H** (variable) :18
+- **zoomWeight** (f) `(u)` :30
+- **clockAt** (f) `(scene, u)` :35
+- **planVideo** (f) `(scene, { fps = VIDEO_FPS, seconds = VIDEO_SECONDS } = {})` :59
+- **renderRideVideo** (f) `(scene, activity, fmt, { onProgress } = {})` :147
 
 ### routes.js
 - **detectRoutes** (f) `(activities, stravaRoutes = [])` :102
@@ -217,26 +258,28 @@
 - **videoDuration** (f) `(slideCount)` :48
 - **slideAt** (f) `(t, slideCount)` :57
 - **drawFrame** (f) `(ctx, slides, layout, t)` :71
-- **pickEncoderConfig** (f) `(width, height)` :131
+- **pickEncoderConfig** (f) `(width, height, { fps = FPS, bitrate = 6_000_000 } = {})` :131
 - **renderShareVideo** (f) `(drawSlides, { onProgress } = {})` :159
+- **encodeVideo** (f) `(frame, { total, fps, draw, onProgress, bitrate })` :210
 
 ### sync.js
 > Imports: `signals, config.js, auth.js, db.js, power-curve.js`...
-- **syncProgress** (variable) :37
-- **rateLimitStatus** (variable) :46
-- **isSyncing** (variable) :53
-- **parseXomTime** (f) `(str)` :125
-- **syncRoutes** (f) `()` :662
-- **STREAM_KEYS** (variable) :750
-- **fetchRideStreams** (f) `(activityId)` :756
-- **backfillMapData** (f) `(onProgress)` :774
-- **startBackfill** (f) `(onProgress)` :913
-- **incrementalSync** (f) `()` :1035
-- **updateSyncWindow** (f) `(newEpoch)` :1110
-- **manualSync** (f) `(onProgress)` :1135
-- **startAutoSync** (f) `(onComplete)` :1161
-- **stopAutoSync** (f) `()` :1170
-- **resyncActivity** (f) `(activityId)` :1237
+- **syncProgress** (variable) :39
+- **rateLimitStatus** (variable) :48
+- **isSyncing** (variable) :55
+- **parseXomTime** (f) `(str)` :127
+- **backfillRideStreams** (f) `()` :590
+- **syncRoutes** (f) `()` :723
+- **STREAM_KEYS** (variable) :811
+- **fetchRideStreams** (f) `(activityId)` :817
+- **backfillMapData** (f) `(onProgress)` :835
+- **startBackfill** (f) `(onProgress)` :974
+- **incrementalSync** (f) `()` :1096
+- **updateSyncWindow** (f) `(newEpoch)` :1171
+- **manualSync** (f) `(onProgress)` :1196
+- **startAutoSync** (f) `(onComplete)` :1222
+- **stopAutoSync** (f) `()` :1231
+- **resyncActivity** (f) `(activityId)` :1298
 
 ### touch-tooltip.js
 - **initTouchTooltips** (f) `()` :69

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+    <title>aeyu.io — Participation Awards</title>
+    <meta name="description" content="Giving recognition for efforts where effort was given">
+
+    <!-- Open Graph / Link Preview -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://aeyu.io/power">
+    <meta property="og:title" content="aeyu.io — Participation Awards">
+    <meta property="og:description" content="Connect your Strava. Celebrate every ride. Giving recognition for efforts where effort was given.">
+    <meta property="og:image" content="https://aeyu.io/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="aeyu.io">
+
+    <!-- Twitter / X Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="aeyu.io — Participation Awards">
+    <meta name="twitter:description" content="Connect your Strava. Celebrate every ride. Giving recognition for efforts where effort was given.">
+    <meta name="twitter:image" content="https://aeyu.io/og-image.png">
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#F6F3EE">
+
+    <!-- iOS PWA -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="aeyu.io">
+    <link rel="apple-touch-icon" href="/icons/icon-180.png">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png">
+
+    <!-- Fonts (non-render-blocking: load as print, swap to all on load) -->
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=DM+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet"></noscript>
+
+    <link rel="stylesheet" href="/vendor/tailwind.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "preact": "/vendor/preact.mjs",
+          "preact/hooks": "/vendor/hooks.mjs",
+          "@preact/signals": "/vendor/signals.mjs",
+          "htm/preact": "/vendor/htm-preact.mjs",
+          "mp4-muxer": "/vendor/mp4-muxer.mjs"
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="/app.css">
+</head>
+<body style="background: var(--bg); color: var(--text);">
+    <div id="loading-overlay" style="position:fixed;inset:0;z-index:9999;background:var(--bg,#F6F3EE);display:flex;align-items:center;justify-content:center;transition:opacity 0.3s ease;">
+      <div style="text-align:center;">
+        <div style="font-family:'Instrument Serif',serif;font-size:1.5rem;color:var(--text,#1A1610);margin-bottom:0.5rem;">aeyu.io</div>
+        <div style="width:48px;height:3px;background:var(--border,#E5DFD4);border-radius:2px;margin:0 auto;overflow:hidden;">
+          <div style="width:40%;height:100%;background:var(--strava,#FC4C02);border-radius:2px;animation:loading-slide 1.2s ease-in-out infinite;"></div>
+        </div>
+      </div>
+    </div>
+    <style>@keyframes loading-slide{0%{transform:translateX(-100%)}50%{transform:translateX(150%)}100%{transform:translateX(-100%)}}</style>
+    <div id="app"></div>
+    <script type="module" src="./src/app.js"></script>
+    <script>
+      // Register service worker
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js").catch(function() {});
+      }
+
+      // Global error handlers — catch unhandled errors and show them to the user
+      // instead of silently failing with "Loading..." stuck on screen.
+      window.__appModuleLoaded = false;
+      window.__appRendered = false;
+
+      window.dismissLoadingOverlay = function() {
+        var overlay = document.getElementById("loading-overlay");
+        if (!overlay) return;
+        overlay.style.opacity = "0";
+        setTimeout(function() { overlay.remove(); }, 300);
+      };
+
+      window.onerror = function(msg, url, line, col, error) {
+        console.error("Global error:", msg, url, line, col, error);
+        showLoadError("JS error: " + msg);
+      };
+
+      window.addEventListener("unhandledrejection", function(event) {
+        console.error("Unhandled rejection:", event.reason);
+        showLoadError("Async error: " + (event.reason && event.reason.message || event.reason));
+      });
+
+      // Detect stuck loading using flags set by app.js instead of fragile DOM text matching.
+      // Checks at 8s and 15s to catch both fast and slow failure scenarios.
+      setTimeout(function() {
+        if (!window.__appRendered) {
+          var detail = !window.__appModuleLoaded
+            ? "Module failed to load (missing vendor file or import error)"
+            : "App loaded but failed to render";
+          showLoadError(detail);
+        }
+      }, 8000);
+
+      setTimeout(function() {
+        if (!window.__appRendered) {
+          var detail = !window.__appModuleLoaded
+            ? "Module failed to load — check browser console for details"
+            : "App module loaded but rendering failed";
+          showLoadError(detail);
+        }
+      }, 15000);
+
+      function showLoadError(detail) {
+        // Don't overwrite if app has successfully rendered
+        if (window.__appRendered) return;
+        var overlay = document.getElementById("loading-overlay");
+        if (overlay) overlay.remove();
+        var app = document.getElementById("app");
+        if (!app) return;
+        app.innerHTML =
+          '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;padding:1rem;text-align:center;">' +
+          '<p style="color: var(--text-secondary, #5C5548); font-family: var(--font-body, sans-serif);">' +
+          'Failed to load the app.</p>' +
+          '<p style="color: var(--text-tertiary, #8C8374); font-family: var(--font-mono, monospace); font-size: 0.75rem; max-width: 400px; word-break: break-word;">' +
+          (detail || "Unknown error") + '</p>' +
+          '<button onclick="clearCacheAndReload()" style="background: var(--strava, #FC4C02); color: white; ' +
+          'padding: 0.5rem 1.5rem; border-radius: 0.5rem; border: none; cursor: pointer; ' +
+          'font-family: var(--font-body, sans-serif);">Clear Cache & Reload</button>' +
+          '<button onclick="window.location.reload()" style="background: none; border: none; cursor: pointer; ' +
+          'font-family: var(--font-body, sans-serif); color: var(--text-tertiary, #8C8374); font-size: 0.875rem;">' +
+          'Simple Reload</button></div>';
+      }
+
+      function clearCacheAndReload() {
+        if ("caches" in window) {
+          caches.keys().then(function(names) {
+            return Promise.all(names.map(function(n) { return caches.delete(n); }));
+          }).then(function() {
+            if (navigator.serviceWorker) {
+              navigator.serviceWorker.getRegistrations().then(function(regs) {
+                regs.forEach(function(r) { r.unregister(); });
+                window.location.reload();
+              });
+            } else {
+              window.location.reload();
+            }
+          });
+        } else {
+          window.location.reload();
+        }
+      }
+    </script>
+</body>
+</html>

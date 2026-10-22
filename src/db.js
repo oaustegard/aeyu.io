@@ -6,7 +6,7 @@
 
 const DB_NAME = "participation-awards";
 const DEMO_DB_NAME = "participation-awards-demo";
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 
 let dbPromise = null;
 let activeDBName = DB_NAME;
@@ -69,6 +69,11 @@ export function openDB() {
       // Per-ride GPS/power streams for the ride replay, fetched on demand
       if (!db.objectStoreNames.contains("streams")) {
         db.createObjectStore("streams", { keyPath: "id" });
+      }
+
+      // Full per-second streams for every power ride (#302), typed arrays
+      if (!db.objectStoreNames.contains("ride_streams")) {
+        db.createObjectStore("ride_streams", { keyPath: "id" });
       }
 
       // Migration from v1 → v2: add power indexes to existing activities store
@@ -642,10 +647,45 @@ export async function putStreams(record) {
   });
 }
 
+export async function getRideStreams(activityId) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction("ride_streams", "readonly").objectStore("ride_streams").get(activityId);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function putRideStreams(record) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("ride_streams", "readwrite");
+    tx.objectStore("ride_streams").put(record);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+}
+
+/** Visit every stored ride stream record without holding them all at once. */
+export async function forEachRideStreams(fn) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction("ride_streams", "readonly").objectStore("ride_streams").openCursor();
+    req.onsuccess = () => {
+      const cur = req.result;
+      if (!cur) return resolve();
+      fn(cur.value);
+      cur.continue();
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
 export async function clearAllData() {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const storeNames = ["auth", "activities", "segments", "sync_state", "routes", "streams"];
+    const storeNames = ["auth", "activities", "segments", "sync_state", "routes", "streams", "ride_streams"];
     const tx = db.transaction(storeNames, "readwrite");
     for (const name of storeNames) {
       tx.objectStore(name).clear();
