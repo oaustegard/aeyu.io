@@ -11,11 +11,15 @@ import { StickyHeader } from "./StickyHeader.js";
 
 const BIN_COLORS = ["#2B2620", "#B85A28", "#D98B3A", "#E3B04E"];
 const BIN_LABELS = KJ_BINS.map((kj) => (kj === 0 ? "Fresh" : `After ${kj.toLocaleString("en-US")} kJ`));
-const TICKS = [[1, "1s"], [5, "5s"], [15, "15s"], [60, "1m"], [300, "5m"], [1200, "20m"], [3600, "1h"], [7200, "2h"], [18000, "5h"]];
+const TICKS = [[1, "1s"], [15, "15s"], [60, "1m"], [300, "5m"], [1200, "20m"], [3600, "1h"], [7200, "2h"], [18000, "5h"]];
 const W = 640, H = 320, ML = 52, MR = 12, MT = 10, MB = 26;
 const CW = W - ML - MR, CH = H - MT - MB;
 const MAX_T = DURATIONS[DURATIONS.length - 1];
-const xOf = (t) => ML + (Math.log(t) / Math.log(MAX_T)) * CW;
+// log(t + 10 s): still log-like, but the first seconds don't take a quarter of the width
+const X_SHIFT = 10;
+const X_SPAN = Math.log((MAX_T + X_SHIFT) / (1 + X_SHIFT));
+const xOf = (t) => ML + (Math.log((t + X_SHIFT) / (1 + X_SHIFT)) / X_SPAN) * CW;
+const tOf = (x) => Math.max(1, (1 + X_SHIFT) * Math.exp(((x - ML) / CW) * X_SPAN) - X_SHIFT);
 
 function fmtDuration(s) {
   if (s < 60) return `${s}s`;
@@ -137,7 +141,7 @@ function Chart({ curves, visible, meta }) {
     const r = svgRef.current.getBoundingClientRect();
     const vx = ((e.clientX - r.left) / r.width) * W, vy = ((e.clientY - r.top) / r.height) * H;
     if (vx < ML || vx > W - MR) return null;
-    const di = nearestDuration(Math.exp(((vx - ML) / CW) * Math.log(MAX_T)));
+    const di = nearestDuration(tOf(vx));
     let best = null, bd = Infinity;
     for (const k of shown) {
       const w = curves[k].watts[di];
@@ -324,9 +328,6 @@ export function PowerCurve() {
               </div>
             </div>
             <${Chart} curves=${result.curves} visible=${visible} meta=${data.meta} />
-            <p class="mt-1" data-testid="power-engine" style="font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-tertiary);">
-              ${data.engine} · ${Math.round(data.ms)} ms
-            </p>
           </div>
 
           <div class=${card} style=${cardStyle}>
