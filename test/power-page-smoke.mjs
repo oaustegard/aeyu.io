@@ -61,13 +61,27 @@ try {
       const href = await page.locator('[data-testid=wbal-ride]').getAttribute('href');
       await page.locator('[data-testid=wbal-ride]').click();
       try {
+        // The ride that sets the fit is indoor (no replay), so it gets the card
         await page.waitForSelector('[data-testid=wbal-card] [data-testid=wbal-cp]', { timeout: 30000 });
-        results[name].activity = { href, cp: Number(await page.locator('[data-testid=wbal-card] [data-testid=wbal-cp]').textContent()), chart: await page.locator('[data-testid=wbal-chart]').count() };
-        await page.locator('[data-testid=wbal-card]').scrollIntoViewIfNeeded();
-        await page.waitForTimeout(500);
+        await page.locator('[data-testid=wbal-card] [data-testid=help-wbal]').click();
+        const cardHelp = await page.locator('[data-testid=help-wbal-text]').first().textContent();
+        results[name].card = { href, cp: Number(await page.locator('[data-testid=wbal-cp]').textContent()), help: /W′ is the amount of work/.test(cardHelp) };
+        // An outdoor ride gets W′ balance as a strip under the replay's elevation profile
+        await page.goto(`http://localhost:${port}/activity.html?id=20000902`);
+        await page.waitForSelector('[data-testid=replay-wbal] path', { timeout: 60000 });
+        results[name].cardOnReplayRide = await page.locator('[data-testid=wbal-card]').count();
+        const strip = page.locator('[data-testid=replay-wbal]');
+        await strip.scrollIntoViewIfNeeded();
+        const box = await strip.boundingBox();
+        await page.mouse.click(box.x + box.width * 0.4, box.y + box.height * 0.7);
+        await page.waitForTimeout(300);
+        await page.locator('[data-testid=replay-wbal] [data-testid=help-wbal]').click();
+        const helpText = await page.locator('[data-testid=help-wbal-text]').first().textContent();
+        results[name].activity = { readout: await strip.textContent(), help: /W′ is the amount of work/.test(helpText) };
+        await page.waitForTimeout(300);
         if (shots) await page.screenshot({ path: `${shots}/activity-wbal.png`, fullPage: true });
       } catch (e) {
-        errors.push(`${name}: no activity W′ balance card (${href})`);
+        errors.push(`${name}: no W′ balance strip in the replay (${href}): ${e.message}`);
       }
     } else {
       await page.locator('[data-testid=power-fullscreen]').click();
@@ -91,7 +105,7 @@ console.log(JSON.stringify(results, null, 1));
 const same = JSON.stringify(results.gpu?.cp) === JSON.stringify(results.cpu?.cp);
 const ok = !errors.length && /webgpu/i.test(results.gpu?.engine) && /cpu/i.test(results.cpu?.engine) && same && results.gpu.paths === 4
   && results.gpu.wbal && results.cpu.wbal && results.gpu.zoomReset === 1 && results.gpu.zoomResetGone
-  && results.gpu.activity?.cp > 0 && results.cpu.fullTooltip === 1 && results.cpu.fullExited;
+  && results.gpu.activity?.help && results.gpu.card?.help && results.gpu.cardOnReplayRide === 0 && /\d \/ \d/.test(results.gpu.activity.readout) && results.cpu.fullTooltip === 1 && results.cpu.fullExited;
 if (errors.length) console.log(errors.join('\n'));
 console.log(ok ? 'PASS' : 'FAIL');
 process.exit(ok ? 0 : 1);

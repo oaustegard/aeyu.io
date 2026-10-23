@@ -1,19 +1,24 @@
 # components/
-*Files: 12*
+*Files: 13*
 
 ## Files
 
 ### ActivityDetail.js
 > Imports: `preact, signals, hooks, db.js, awards.js`...
-- **ActivityDetail** (f) `({ id })` :1270
+- **ActivityDetail** (f) `({ id })` :1259
 
 ### Dashboard.js
 > Imports: `preact, signals, hooks, auth.js, sync.js`...
+- **FAQ_ENTRIES** (variable) :67
 - **Dashboard** (f) `()` :590
 
 ### Heatmap.js
 > Imports: `preact, hooks, db.js, sync.js, demo.js`...
 - **Heatmap** (f) `()` :41
+
+### HelpButton.js
+> Imports: `preact, hooks, Dashboard.js`
+- **HelpButton** (f) `({ faqId, dark = false, align = "right", below = false })` :6
 
 ### InstallBanner.js
 > Imports: `preact, install.js`
@@ -25,11 +30,11 @@
 
 ### PowerCurve.js
 > Imports: `preact, hooks, db.js, sync.js, demo.js`...
-- **PowerCurve** (f) `()` :327
+- **PowerCurve** (f) `()` :328
 
 ### RideReplay.js
 > Imports: `preact, hooks, db.js, sync.js, demo.js`...
-- **RideReplay** (f) `({ activity, awards })` :51
+- **RideReplay** (f) `({ activity, awards, onStatus })` :53
 
 ### SegmentSparkline.js
 > Imports: `preact, hooks, units.js`
@@ -61,7 +66,8 @@
 - **TrendChart** (f) `({ rides: rawRides, highlightId })` :6
 
 ### WbalChart.js
-> Imports: `preact`
-- **fmtClock** (f) `(s)` :7
-- **WbalChart** (f) `({ series, wPrime, at, testid })` :15
+> Imports: `preact, db.js, ride-streams.js, wbal.js, critical-power.js`...
+- **fmtClock** (f) `(s)` :12
+- **WbalChart** (f) `({ series, wPrime, at, testid })` :20
+- **loadRideWbal** (f) `(activityId)` :56
 

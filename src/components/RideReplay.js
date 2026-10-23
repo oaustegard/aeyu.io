@@ -18,6 +18,8 @@ import {
 } from "../ride-scene.js";
 import { createRideGPURenderer, createRideCanvasRenderer } from "../ride-render.js";
 import { renderRideVideo } from "../ride-video.js";
+import { loadRideWbal } from "./WbalChart.js";
+import { HelpButton } from "./HelpButton.js";
 
 const DOT_COLORS = Object.fromEntries(Object.entries(AWARD_LABELS).map(([k, v]) => [k, v.dot]));
 const GOLD = "#F2B544", LAVENDER = "#B9A6E8", GHOST = "rgba(255,255,255,0.45)";
@@ -48,7 +50,16 @@ function ghostLabel(g) {
   return g.date ? formatDate(g.date) : "Earlier";
 }
 
-export function RideReplay({ activity, awards }) {
+export function RideReplay({ activity, awards, onStatus }) {
+  const [wbal, setWbal] = useState(null);
+  useEffect(() => {
+    let stale = false;
+    setWbal(null);
+    loadRideWbal(activity.id)
+      .then((w) => { if (!stale) setWbal(w); })
+      .catch((e) => console.warn("W′ balance failed:", e));
+    return () => { stale = true; };
+  }, [activity.id]);
   const wrapRef = useRef(null);
   const gridRef = useRef(null);
   const mainRef = useRef(null);
@@ -63,6 +74,7 @@ export function RideReplay({ activity, awards }) {
   const firedRef = useRef(new Set());
 
   const [status, setStatus] = useState("loading");
+  useEffect(() => { if (onStatus) onStatus(status); }, [status]);
   const [scene, setScene] = useState(null);
   const [engine, setEngine] = useState(null);
   const [force2d, setForce2d] = useState(false);
@@ -470,6 +482,18 @@ export function RideReplay({ activity, awards }) {
   let cursorD = null;
   if (sample) cursorD = sample.d;
   else if (rc && clock != null) cursorD = rc.dA + rc.progress(rc.ghosts.find((g) => g.isThis), clock);
+  // W′ balance on the elevation profile's distance axis, so the two line up
+  let wbalPath = null, wbalNow = null, wbalLow = null;
+  if (wbal) {
+    const { series, t0, wPrime } = wbal;
+    const lo = Math.min(0, wbal.min);
+    const wy = (v) => 6 + ((wPrime - v) / (wPrime - lo)) * 88;
+    const at = (t) => series[Math.min(series.length - 1, Math.max(0, Math.round(t - t0)))];
+    wbalPath = "";
+    for (let k = 0; k < scene.n; k += stepK) wbalPath += `${k ? " L" : "M"}${px(scene.d[k]).toFixed(1)},${wy(at(scene.t[k])).toFixed(1)}`;
+    wbalLow = { x: px(sampleAt(scene, wbal.at + t0).d), y: wy(wbal.min), zero: wy(0) };
+    if (sample) wbalNow = at(sample.t);
+  }
   const order = rc && clock != null ? standings(rc, clock) : null;
   const raceable = scene.efforts.filter((e) => histories.has(e.effort_id));
   const progressFrac = rc ? (clock ?? 0) / rc.longest : clock == null ? 1 : (sampleAt(scene, clock).d / scene.distance);
@@ -552,6 +576,23 @@ export function RideReplay({ activity, awards }) {
         })}
         ${cursorD != null && html`<line x1=${px(cursorD)} x2=${px(cursorD)} y1="0" y2="100" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke" />`}
       </svg>
+
+      ${wbalPath && html`
+        <div data-testid="replay-wbal" style="border-top: 1px solid rgba(255,255,255,0.08);">
+          <div class="flex items-center gap-2 text-xs px-3" style="height: 26px; justify-content: space-between; font-family: var(--font-mono); color: rgba(255,255,255,0.6);">
+            <span title=${`${wbal.label}: CP ${wbal.cp} W, W′ ${(wbal.wPrime / 1000).toFixed(1)} kJ`}>
+              <span style="color: #7FB8E0;">W′ balance</span> ${wbalNow != null ? `${(wbalNow / 1000).toFixed(1)} / ` : ""}${(wbal.wPrime / 1000).toFixed(1)} kJ
+            </span>
+            <${HelpButton} faqId="wbal" dark=${true} />
+          </div>
+          <svg viewBox="0 0 1000 100" preserveAspectRatio="none" style="width: 100%; height: 48px; display: block; cursor: pointer; touch-action: none;"
+            onPointerDown=${(e) => { const r = e.currentTarget.getBoundingClientRect(); scrubTo(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))); }}>
+            <line x1="0" x2="1000" y1=${wbalLow.zero} y2=${wbalLow.zero} stroke="rgba(255,255,255,0.25)" stroke-width="1" stroke-dasharray="4 4" vector-effect="non-scaling-stroke" />
+            <path d=${wbalPath} fill="none" stroke="#7FB8E0" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+            <line x1=${wbalLow.x} x2=${wbalLow.x} y1=${wbalLow.y - 6} y2=${wbalLow.y + 6} stroke="#7FB8E0" stroke-width="3" vector-effect="non-scaling-stroke" />
+            ${cursorD != null && html`<line x1=${px(cursorD)} x2=${px(cursorD)} y1="0" y2="100" stroke="#fff" stroke-width="2" vector-effect="non-scaling-stroke" />`}
+          </svg>
+        </div>`}
 
       <div class="flex items-center gap-3 px-3 py-2">
         <button aria-label=${playing ? "Pause replay" : "Play replay"} onClick=${() => (playing ? pause() : play())}

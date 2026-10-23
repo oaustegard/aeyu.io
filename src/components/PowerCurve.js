@@ -9,6 +9,7 @@ import { KJ_BINS, DURATIONS, packRides, computeTableCPU, reduceCurves, fitBin } 
 import { webgpuAvailable, createFatigueGPU } from "../fatigue-gpu.js";
 import { wbalSeries, pickFitRides, fitWbalAsync } from "../wbal.js";
 import { StickyHeader } from "./StickyHeader.js";
+import { HelpButton } from "./HelpButton.js";
 import { WbalChart, fmtClock } from "./WbalChart.js";
 
 const BIN_COLORS = ["#2B2620", "#B85A28", "#D98B3A", "#E3B04E"];
@@ -545,7 +546,10 @@ export function PowerCurve() {
           </div>
 
           <div class=${card} style=${cardStyle} data-testid="wbal-card">
-            <h2 style="font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem;">W′ balance fit</h2>
+            <div class="flex items-center justify-between" style="margin-bottom: 0.5rem;">
+              <h2 style="font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">W′ balance fit</h2>
+              <${HelpButton} faqId="wbal" below=${true} />
+            </div>
             <p style=${muted}>Replays whole rides second by second and picks the CP and W′ at which your hardest rides drain W′ to about zero without going below.</p>
             ${wPending && html`<p class="mt-2" data-testid="wbal-pending" style=${muted}>Fitting…</p>`}
             ${!wPending && !wfit && html`<p class="mt-2" style=${muted}>Not enough rides in this filter to fit.</p>`}

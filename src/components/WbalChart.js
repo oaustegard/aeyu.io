@@ -1,4 +1,9 @@
 import { html } from "htm/preact";
+import { getRideStreams, getSyncState } from "../db.js";
+import { wattsPerSecond } from "../ride-streams.js";
+import { wbalSeries, maxDeficit } from "../wbal.js";
+import { estimateCriticalPower } from "../critical-power.js";
+import { getAllTimeBestCurve } from "../power-curve.js";
 
 const W = 640, H = 180, ML = 40, MR = 12, MT = 10, MB = 22;
 const CW = W - ML - MR, CH = H - MT - MB;
@@ -41,4 +46,25 @@ export function WbalChart({ series, wPrime, at, testid }) {
       <path d=${d} fill="none" stroke="#B85A28" stroke-width="1.5" stroke-linejoin="round" />
       <circle cx=${xOf(at)} cy=${yOf(series[at])} r="4" fill="#B85A28" stroke="var(--surface)" stroke-width="1.5" />
     </svg>`;
+}
+
+/**
+ * W′ balance through one ride against the saved W′ balance fit, or the MMP
+ * fit until the power page has saved one. series[i] is the balance i seconds
+ * after t0, the ride's first stream timestamp. null without streams or a CP.
+ */
+export async function loadRideWbal(activityId) {
+  const rec = await getRideStreams(activityId);
+  const watts = rec?.watts ? wattsPerSecond(rec) : null;
+  if (!watts || !watts.length) return null;
+  const saved = (await getSyncState()).wbal_fit;
+  let cp = saved?.cp, wPrime = saved?.wPrime, label = "W′ balance fit";
+  if (!(cp > 0 && wPrime > 0)) {
+    const est = estimateCriticalPower(await getAllTimeBestCurve());
+    if (!est) return null;
+    ({ cp, wPrime } = est);
+    label = "best-effort fit";
+  }
+  const { max, at } = maxDeficit(watts, cp, wPrime);
+  return { series: wbalSeries(watts, cp, wPrime), t0: rec.time_jumps[1], cp, wPrime, label, min: wPrime - max, at };
 }

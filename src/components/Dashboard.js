@@ -64,7 +64,7 @@ import { TrendChart } from "./TrendChart.js";
 import { installContext } from "../install.js";
 
 // FAQ entries — searchable data structure. Award items derived from AWARD_GROUPS.
-const FAQ_ENTRIES = [
+export const FAQ_ENTRIES = [
   {
     id: "awards",
     question: "What do the awards mean?",

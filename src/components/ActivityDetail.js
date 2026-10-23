@@ -7,7 +7,7 @@
 import { html } from "htm/preact";
 import { signal } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { getActivity, getSegment, getAllActivities, getActivitiesByIds, getResetEvent, getUserConfig, getAllRoutes, getStravaRoutes, getRideStreams, getSyncState } from "../db.js";
+import { getActivity, getSegment, getAllActivities, getActivitiesByIds, getResetEvent, getUserConfig, getAllRoutes, getStravaRoutes } from "../db.js";
 import { computeAwards, computeRideLevelAwards } from "../awards.js";
 import { detectRoutes, findRouteForActivity } from "../routes.js";
 import { resyncActivity } from "../sync.js";
@@ -33,10 +33,8 @@ import { RideReplay } from "./RideReplay.js";
 import { TrendChart } from "./TrendChart.js";
 import { buildRideExport, rideToMarkdown, buildSegmentExport, segmentToMarkdown, convertContextUnits } from "../export-llm.js";
 import { estimateFTP, getAllTimeBestCurve } from "../power-curve.js";
-import { estimateCriticalPower } from "../critical-power.js";
-import { wattsPerSecond } from "../ride-streams.js";
-import { wbalSeries, maxDeficit } from "../wbal.js";
-import { WbalChart, fmtClock } from "./WbalChart.js";
+import { WbalChart, fmtClock, loadRideWbal } from "./WbalChart.js";
+import { HelpButton } from "./HelpButton.js";
 import { installContext } from "../install.js";
 
 const activity = signal(null);
@@ -1235,28 +1233,19 @@ function WbalCard({ activityId }) {
   useEffect(() => {
     let stale = false;
     setState(null);
-    (async () => {
-      const rec = await getRideStreams(activityId);
-      const watts = rec?.watts ? wattsPerSecond(rec) : null;
-      if (!watts || !watts.length) return;
-      const saved = (await getSyncState()).wbal_fit;
-      let cp = saved?.cp, wPrime = saved?.wPrime, label = "W′ balance fit";
-      if (!(cp > 0 && wPrime > 0)) {
-        const est = estimateCriticalPower(await getAllTimeBestCurve());
-        if (!est) return;
-        ({ cp, wPrime } = est);
-        label = "best-effort fit";
-      }
-      const { max, at } = maxDeficit(watts, cp, wPrime);
-      if (!stale) setState({ series: wbalSeries(watts, cp, wPrime), cp, wPrime, label, min: wPrime - max, at });
-    })().catch((e) => console.warn("W′ balance failed:", e));
+    loadRideWbal(activityId)
+      .then((w) => { if (!stale) setState(w); })
+      .catch((e) => console.warn("W′ balance failed:", e));
     return () => { stale = true; };
   }, [activityId]);
   if (!state) return null;
   const { series, cp, wPrime, label, min, at } = state;
   return html`
     <div class="rounded-xl p-4 mb-6" data-testid="wbal-card" style="background: var(--surface); border: 1px solid var(--border);">
-      <h2 style="font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem;">W′ balance</h2>
+      <div class="flex items-center justify-between" style="margin-bottom: 0.25rem;">
+        <h2 style="font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">W′ balance</h2>
+        <${HelpButton} faqId="wbal" below=${true} />
+      </div>
       <p style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">
         ${label}: CP <span data-testid="wbal-cp">${cp}</span> W, W′ ${(wPrime / 1000).toFixed(1)} kJ
       </p>
@@ -1269,6 +1258,8 @@ function WbalCard({ activityId }) {
 
 export function ActivityDetail({ id }) {
   const canvasRef = useRef(null);
+  // W′ balance rides along the replay; rides with no replay get it as a card
+  const [replayStatus, setReplayStatus] = useState(null);
 
   useEffect(() => {
     if (id) loadActivity(id);
@@ -1505,8 +1496,8 @@ export function ActivityDetail({ id }) {
       </div>
 
       <main class="max-w-3xl mx-auto px-6 py-6">
-        <${RideReplay} key=${act.id} activity=${act} awards=${awards.value} />
-        <${WbalCard} key=${"wbal" + act.id} activityId=${act.id} />
+        <${RideReplay} key=${act.id} activity=${act} awards=${awards.value} onStatus=${setReplayStatus} />
+        ${replayStatus && replayStatus !== "loading" && replayStatus !== "ready" && html`<${WbalCard} key=${"wbal" + act.id} activityId=${act.id} />`}
 
         <!-- Awards summary — compact pill row + ride-level awards + share (#88) -->
         ${awards.value.length > 0 && html`
