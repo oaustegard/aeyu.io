@@ -331,7 +331,7 @@ export async function renderRideVideo(scene, activity, fmt, { onProgress } = {})
     drawHeader();
     drawGrid(cam);
     r.render(cam, {
-      playhead: f.clock, widthBase: 3 * f.widthScale, widthGain: 10 * f.widthScale,
+      playhead: f.clock, widthBase: 2 * f.widthScale, widthGain: 16 * f.widthScale,
       focusA: f.clock - f.focus.behind, focusB: f.clock + f.focus.ahead, context: f.focus.context,
     });
     // drawImage must follow the GPU submit in the same task, before the
