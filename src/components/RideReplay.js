@@ -278,8 +278,8 @@ export function RideReplay({ activity, awards, onStatus }) {
     const clock = clockRef.current;
     drawGrid(cam);
     r.render(cam, rc
-      ? { playhead: 1e12, widthBase: 1.5 * dpr, widthGain: 12 * dpr, focusA: rc.effort.tA, focusB: rc.effort.tB, context: Math.max(15, 0.25 * rc.effort.elapsed) }
-      : { playhead: clock == null ? 1e12 : clock, widthBase: 1 * dpr, widthGain: 10 * dpr });
+      ? { playhead: 1e12, widthBase: 2.5 * dpr, widthGain: 7 * dpr, focusA: rc.effort.tA, focusB: rc.effort.tB, context: Math.max(15, 0.25 * rc.effort.elapsed) }
+      : { playhead: clock == null ? 1e12 : clock, widthBase: 1.5 * dpr, widthGain: 5 * dpr });
 
     const o = overlayRef.current, ctx = o.getContext("2d");
     ctx.clearRect(0, 0, o.width, o.height);

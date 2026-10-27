@@ -145,7 +145,7 @@ export function pointAtDistance(scene, dist) {
 
 /**
  * Instance data for the ribbon: per segment p0 xyz, p1 xyz, t0, t1, w0, w1
- * (power as 0..1 across the ride's 5th–95th percentile) and rgb. Award-earning efforts
+ * (power as 0..1 of twice the ride average) and rgb. Award-earning efforts
  * take their award colour; everything else is the neutral ribbon colour.
  */
 export const RIBBON_FLOATS = 13;
@@ -153,15 +153,7 @@ export function packRibbon(scene, baseRgb = [0.98, 0.93, 0.86]) {
   const { n, x, y, z, t, w, avgW, hasPower } = scene;
   const out = new Float32Array((n - 1) * RIBBON_FLOATS);
   const rgbs = scene.efforts.filter((e) => e.color).map((e) => ({ e, rgb: hexToRgb(e.color) }));
-  // Stretch width over the ride's own 5th–95th percentile power: a ride
-  // spent mostly near its average otherwise reads as a constant-width line
-  let lo = 0, hi = 0;
-  if (hasPower && avgW > 0) {
-    const sorted = Float32Array.from(w.subarray(0, n)).sort();
-    lo = sorted[Math.floor(0.05 * (n - 1))];
-    hi = sorted[Math.ceil(0.95 * (n - 1))];
-  }
-  const wn = (k) => (hi - lo > 1 ? Math.min(1, Math.max(0, (w[k] - lo) / (hi - lo))) : 0.35);
+  const wn = (k) => (hasPower && avgW > 0 ? Math.min(1, w[k] / (2 * avgW)) : 0.35);
   for (let k = 0; k < n - 1; k++) {
     const o = k * RIBBON_FLOATS;
     out[o] = x[k]; out[o + 1] = y[k]; out[o + 2] = z[k];
