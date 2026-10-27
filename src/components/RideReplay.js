@@ -278,8 +278,8 @@ export function RideReplay({ activity, awards, onStatus }) {
     const clock = clockRef.current;
     drawGrid(cam);
     r.render(cam, rc
-      ? { playhead: 1e12, widthBase: 2.5 * dpr, widthGain: 7 * dpr, focusA: rc.effort.tA, focusB: rc.effort.tB, context: Math.max(15, 0.25 * rc.effort.elapsed) }
-      : { playhead: clock == null ? 1e12 : clock, widthBase: 1.5 * dpr, widthGain: 5 * dpr });
+      ? { playhead: 1e12, width: 5 * dpr, focusA: rc.effort.tA, focusB: rc.effort.tB, context: Math.max(15, 0.25 * rc.effort.elapsed) }
+      : { playhead: clock == null ? 1e12 : clock, width: 3.5 * dpr });
 
     const o = overlayRef.current, ctx = o.getContext("2d");
     ctx.clearRect(0, 0, o.width, o.height);
@@ -545,7 +545,7 @@ export function RideReplay({ activity, awards, onStatus }) {
 
         ${!rc && clock == null && html`
           <div class="absolute left-3 top-3 text-xs" style="${muted} pointer-events: none; max-width: 60%;">
-            Ribbon width is power${scene.hasPower ? "" : " (no power data on this ride)"}; height is elevation. Press play to ride it at its own pace.
+            Ribbon colour is power${scene.hasPower ? ", blue below your average to red above it" : " (no power data on this ride)"}; height is elevation. Press play to ride it at its own pace.
           </div>`}
 
         <div class="absolute right-3 top-3 flex flex-col gap-2 items-end" style="pointer-events: none;">

@@ -1,6 +1,6 @@
 /**
- * Ride replay renderers. The ribbon (width = power) and the translucent
- * curtain under it (height = altitude) are uploaded once; the playhead,
+ * Ride replay renderers. The ribbon (colour = power) and the translucent
+ * curtain under it (height = altitude, tinted on award efforts) are uploaded once; the playhead,
  * camera and focus window are uniforms, so playback re-sends ~100 bytes a
  * frame. The rider and ghost dots are drawn on a 2D overlay by the caller.
  */
@@ -14,8 +14,8 @@ struct U {
   viewProj: mat4x4f,
   viewport: vec2f,
   playhead: f32,
-  widthBase: f32,
-  widthGain: f32,
+  width: f32,
+  pad: f32,
   focusA: f32,
   focusB: f32,
   context: f32,
@@ -24,7 +24,8 @@ struct U {
 
 struct Seg {
   @location(0) p0: vec3f, @location(1) p1: vec3f,
-  @location(2) t: vec2f, @location(3) w: vec2f, @location(4) rgb: vec3f,
+  @location(2) t: vec2f, @location(3) rgb0: vec3f, @location(4) rgb1: vec3f,
+  @location(5) curtain: vec4f,
 };
 struct VOut {
   @builtin(position) pos: vec4f,
@@ -74,15 +75,14 @@ fn vsRibbon(@builtin(vertex_index) vi: u32, s: Seg) -> VOut {
   let n = vec2f(-d.y, d.x);
   let c = CORNERS[vi];
   let end = c.x > 0.5;
-  let wpx = u.widthBase + u.widthGain * select(s.w.x, s.w.y, end);
-  let hw = wpx * 0.5 + 0.5;
+  let hw = u.width * 0.5 + 0.5;
   // Overlap ends slightly so joints between segments have no gaps
   let p = select(s0 - d * hw * 0.3, s1 + d * hw * 0.3, end) + n * c.y * hw;
   let clip = select(c0, c1, end);
   var o: VOut;
   o.pos = vec4f(p / half * clip.w, clip.z, clip.w);
   // Dim by darkening, not transparency: overlapping joints would stripe
-  o.rgb = s.rgb * fade;
+  o.rgb = select(s.rgb0, s.rgb1, end) * fade;
   o.side = c.y * hw;
   o.hw = hw;
   o.alpha = 1.0;
@@ -106,15 +106,15 @@ fn vsCurtain(@builtin(vertex_index) vi: u32, s: Seg) -> VOut {
   let p = vec3f(base.xy, select(0.0, base.z, top));
   var o: VOut;
   o.pos = u.viewProj * vec4f(p, 1.0);
-  o.rgb = s.rgb;
+  o.rgb = s.curtain.rgb;
   o.side = select(0.0, 1.0, top);
-  o.alpha = fade;
+  o.alpha = fade * select(0.22, 0.5, s.curtain.a > 0.5);
   return o;
 }
 
 @fragment
 fn fsCurtain(i: VOut) -> @location(0) vec4f {
-  let a = 0.22 * i.side * i.alpha;
+  let a = i.side * i.alpha;
   return vec4f(i.rgb * a, a);
 }
 `;
@@ -151,8 +151,9 @@ export async function createRideGPURenderer(canvas, ribbon) {
         { shaderLocation: 0, offset: 0, format: "float32x3" },
         { shaderLocation: 1, offset: 12, format: "float32x3" },
         { shaderLocation: 2, offset: 24, format: "float32x2" },
-        { shaderLocation: 3, offset: 32, format: "float32x2" },
-        { shaderLocation: 4, offset: 40, format: "float32x3" },
+        { shaderLocation: 3, offset: 32, format: "float32x3" },
+        { shaderLocation: 4, offset: 44, format: "float32x3" },
+        { shaderLocation: 5, offset: 56, format: "float32x4" },
       ],
     }],
   });
@@ -173,7 +174,7 @@ export async function createRideGPURenderer(canvas, ribbon) {
       uni.set(camera.viewProj, 0);
       uni[16] = canvas.width; uni[17] = canvas.height;
       uni[18] = opts.playhead;
-      uni[19] = opts.widthBase; uni[20] = opts.widthGain;
+      uni[19] = opts.width;
       uni[21] = opts.focusA ?? -1e9; uni[22] = opts.focusB ?? 1e9; uni[23] = opts.context ?? 1e9;
       device.queue.writeBuffer(uniBuf, 0, uni);
       const enc = device.createCommandEncoder();
@@ -200,7 +201,7 @@ export function createRideCanvasRenderer(canvas, ribbon) {
   return {
     kind: "canvas2d",
     render(camera, opts) {
-      const { playhead, widthBase, widthGain } = opts;
+      const { playhead, width } = opts;
       const fA = opts.focusA ?? -1e9, fB = opts.focusB ?? 1e9, ctxS = opts.context ?? 1e9;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.lineCap = "round";
@@ -220,11 +221,11 @@ export function createRideCanvasRenderer(canvas, ribbon) {
         const b = camera.project(x1, y1, z1);
         const ga = camera.project(ribbon[o], ribbon[o + 1], 0);
         const gb = camera.project(x1, y1, 0);
-        const rgb = [ribbon[o + 10], ribbon[o + 11], ribbon[o + 12]].map((c) => Math.round(c * 255)).join(",");
-        pts.push({ a, b, ga, gb, rgb, alpha, w: widthBase + widthGain * ribbon[o + 8] });
+        const css = (i) => [ribbon[i], ribbon[i + 1], ribbon[i + 2]].map((c) => Math.round(c * 255)).join(",");
+        pts.push({ a, b, ga, gb, rgb: css(o + 8), curtain: css(o + 14), award: ribbon[o + 17] > 0.5, alpha });
       }
       for (const p of pts) {
-        ctx.fillStyle = `rgba(${p.rgb},${0.07 * p.alpha})`;
+        ctx.fillStyle = `rgba(${p.curtain},${(p.award ? 0.18 : 0.07) * p.alpha})`;
         ctx.beginPath();
         ctx.moveTo(p.a[0], p.a[1]); ctx.lineTo(p.b[0], p.b[1]);
         ctx.lineTo(p.gb[0], p.gb[1]); ctx.lineTo(p.ga[0], p.ga[1]);
@@ -232,7 +233,7 @@ export function createRideCanvasRenderer(canvas, ribbon) {
       }
       for (const p of pts) {
         ctx.strokeStyle = p.alpha === 1 ? `rgb(${p.rgb})` : `rgb(${p.rgb.split(",").map((c) => Math.round(c * p.alpha)).join(",")})`;
-        ctx.lineWidth = p.w;
+        ctx.lineWidth = width;
         ctx.beginPath();
         ctx.moveTo(p.a[0], p.a[1]); ctx.lineTo(p.b[0], p.b[1]);
         ctx.stroke();

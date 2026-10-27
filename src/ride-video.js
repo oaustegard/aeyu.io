@@ -322,7 +322,7 @@ export async function renderRideVideo(scene, activity, fmt, { onProgress } = {})
     ctx.textAlign = "right";
     ctx.fillText("aeyu.io", W - 48, H - 24);
     ctx.textAlign = "left";
-    ctx.fillText("Ribbon width is power · height is elevation", 48, H - 24);
+    ctx.fillText("Ribbon colour is power · height is elevation", 48, H - 24);
   }
 
   async function draw(i) {
@@ -331,7 +331,7 @@ export async function renderRideVideo(scene, activity, fmt, { onProgress } = {})
     drawHeader();
     drawGrid(cam);
     r.render(cam, {
-      playhead: f.clock, widthBase: 3 * f.widthScale, widthGain: 10 * f.widthScale,
+      playhead: f.clock, width: 7 * f.widthScale,
       focusA: f.clock - f.focus.behind, focusB: f.clock + f.focus.ahead, context: f.focus.context,
     });
     // drawImage must follow the GPU submit in the same task, before the

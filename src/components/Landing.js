@@ -297,9 +297,9 @@ export function Landing() {
           <${FaqItem} q="Can I replay a ride?">
             <p>
               Yes. Each ride replays as a 3D ribbon that draws itself at the
-              pace you rode it: wider where you pushed more power, higher where
-              the road climbs, with your award segments lighting up as you
-              finish them. On any segment you can race every past effort of
+              pace you rode it: redder where you pushed more power, bluer where
+              you eased off, higher where the road climbs, with your award
+              segments lighting up as you finish them. On any segment you can race every past effort of
               your own as ghosts and watch where today's ride passes them, or
               save a 30-second video of the ride to share.
             </p>

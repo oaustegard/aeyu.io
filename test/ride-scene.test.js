@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildRideScene, sampleAt, pointAtDistance, packRibbon, RIBBON_FLOATS, buildGhostRace, standings, makeCamera, sideOnYaw, crowdDensity } from '../src/ride-scene.js';
+import { buildRideScene, sampleAt, pointAtDistance, packRibbon, powerRgb, RIBBON_FLOATS, buildGhostRace, standings, makeCamera, sideOnYaw, crowdDensity } from '../src/ride-scene.js';
 
 // 101 points due east, 10 m apart, 2 s apart, climbing 1 m per point
 const streams = (overrides = {}) => ({
@@ -35,22 +35,34 @@ test('places efforts on the stream clock from their start time', () => {
 test('award colour marks only the effort stretch of the ribbon', () => {
   const s = buildRideScene(streams(), activity, new Map([[70, [{ type: 'year_best' }]]]), { year_best: '#ff0000' });
   const r = packRibbon(s);
-  const rgbAt = (k) => [...r.slice(k * RIBBON_FLOATS + 10, k * RIBBON_FLOATS + 13)];
-  assert.deepEqual(rgbAt(35), [1, 0, 0]);
-  assert.notDeepEqual(rgbAt(10), [1, 0, 0]);
+  const curtainAt = (k) => [...r.slice(k * RIBBON_FLOATS + 14, k * RIBBON_FLOATS + 17)];
+  assert.deepEqual(curtainAt(35), [1, 0, 0]);
+  assert.equal(r[35 * RIBBON_FLOATS + 17], 1);
+  assert.notDeepEqual(curtainAt(10), [1, 0, 0]);
+  assert.equal(r[10 * RIBBON_FLOATS + 17], 0);
 });
 
-test('ribbon width follows smoothed power', () => {
+test('ribbon colour follows smoothed power', () => {
   const s = buildRideScene(streams(), activity);
   const r = packRibbon(s);
-  assert.ok(r[90 * RIBBON_FLOATS + 8] > r[10 * RIBBON_FLOATS + 8]);
+  const rgbAt = (k) => [...r.slice(k * RIBBON_FLOATS + 8, k * RIBBON_FLOATS + 11)];
+  const hot = rgbAt(90), cool = rgbAt(10);
+  assert.ok(hot[0] - hot[2] > cool[0] - cool[2]);
 });
 
-test('constant width without a power meter', () => {
-  const s = buildRideScene(streams({ watts: null }), activity);
+test('power ramp is cool below the ride average, cream at it, hot above', () => {
+  const [lo, mid, hi] = [powerRgb(0), powerRgb(0.5), powerRgb(1)];
+  assert.ok(lo[2] > lo[0]);
+  assert.deepEqual(mid.map((c) => +c.toFixed(2)), [0.98, 0.93, 0.86]);
+  assert.ok(hi[0] > hi[2]);
+});
+
+test('neutral line with award colours without a power meter', () => {
+  const s = buildRideScene(streams({ watts: null }), activity, new Map([[70, [{ type: 'year_best' }]]]), { year_best: '#ff0000' });
   assert.equal(s.hasPower, false);
   const r = packRibbon(s);
-  assert.equal(r[8], r[50 * RIBBON_FLOATS + 8]);
+  assert.deepEqual([...r.slice(8, 11)], [...r.slice(90 * RIBBON_FLOATS + 8, 90 * RIBBON_FLOATS + 11)]);
+  assert.deepEqual([...r.slice(35 * RIBBON_FLOATS + 8, 35 * RIBBON_FLOATS + 11)], [1, 0, 0]);
 });
 
 test('no GPS means no scene', () => {

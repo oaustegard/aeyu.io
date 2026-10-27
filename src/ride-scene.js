@@ -1,6 +1,6 @@
 /**
  * Ride replay scene: turns Strava streams into a tilted 3D ribbon whose
- * motion is the ride's own pace, width is power and height is altitude.
+ * motion is the ride's own pace, colour is power and height is altitude.
  * Pure functions — no DOM or GPU — so they run under node:test.
  */
 
@@ -144,27 +144,49 @@ export function pointAtDistance(scene, dist) {
 }
 
 /**
- * Instance data for the ribbon: per segment p0 xyz, p1 xyz, t0, t1, w0, w1
- * (power as 0..1 of twice the ride average) and rgb. Award-earning efforts
- * take their award colour; everything else is the neutral ribbon colour.
+ * Instance data for the ribbon: per segment p0 xyz, p1 xyz, t0, t1, line
+ * rgb at each end, curtain rgb and an award flag. With power the line is
+ * coloured by it (powerRgb) and award-earning efforts move their colour to
+ * the curtain; without power the line keeps the award colours.
  */
-export const RIBBON_FLOATS = 13;
+export const RIBBON_FLOATS = 18;
 export function packRibbon(scene, baseRgb = [0.98, 0.93, 0.86]) {
   const { n, x, y, z, t, w, avgW, hasPower } = scene;
   const out = new Float32Array((n - 1) * RIBBON_FLOATS);
   const rgbs = scene.efforts.filter((e) => e.color).map((e) => ({ e, rgb: hexToRgb(e.color) }));
-  const wn = (k) => (hasPower && avgW > 0 ? Math.min(1, w[k] / (2 * avgW)) : 0.35);
+  const byPower = hasPower && avgW > 0;
+  const wn = (k) => Math.min(1, w[k] / (2 * avgW));
   for (let k = 0; k < n - 1; k++) {
     const o = k * RIBBON_FLOATS;
     out[o] = x[k]; out[o + 1] = y[k]; out[o + 2] = z[k];
     out[o + 3] = x[k + 1]; out[o + 4] = y[k + 1]; out[o + 5] = z[k + 1];
     out[o + 6] = t[k]; out[o + 7] = t[k + 1];
-    out[o + 8] = wn(k); out[o + 9] = wn(k + 1);
     const hit = rgbs.find(({ e }) => t[k] >= e.tA && t[k] < e.tB);
-    const rgb = hit ? hit.rgb : baseRgb;
-    out[o + 10] = rgb[0]; out[o + 11] = rgb[1]; out[o + 12] = rgb[2];
+    const mark = hit ? hit.rgb : baseRgb;
+    out.set(byPower ? powerRgb(wn(k)) : mark, o + 8);
+    out.set(byPower ? powerRgb(wn(k + 1)) : mark, o + 11);
+    out.set(mark, o + 14);
+    out[o + 17] = hit ? 1 : 0;
   }
   return out;
+}
+
+// Diverging about the ride average (0.5): cool below it, the neutral ribbon
+// cream at it, hot above it
+const POWER_STOPS = [
+  [0, [0.25, 0.45, 0.85]],
+  [0.5, [0.98, 0.93, 0.86]],
+  [0.75, [1.0, 0.6, 0.15]],
+  [1, [0.95, 0.15, 0.2]],
+];
+
+/** Line colour for power as 0..1 of twice the ride average. */
+export function powerRgb(f) {
+  let i = 1;
+  while (i < POWER_STOPS.length - 1 && f > POWER_STOPS[i][0]) i++;
+  const [fa, a] = POWER_STOPS[i - 1], [fb, b] = POWER_STOPS[i];
+  const m = Math.min(1, Math.max(0, (f - fa) / (fb - fa)));
+  return a.map((c, j) => c + (b[j] - c) * m);
 }
 
 export function hexToRgb(hex) {
