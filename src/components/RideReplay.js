@@ -198,7 +198,7 @@ export function RideReplay({ activity, awards, onStatus }) {
     const step = [100, 250, 500, 1000, 2000, 5000, 10000].find((v) => span / v <= 16) || 20000;
     const x0 = Math.floor((b.minX - span * 0.1) / step) * step, x1 = Math.ceil((b.maxX + span * 0.1) / step) * step;
     const y0 = Math.floor((b.minY - span * 0.1) / step) * step, y1 = Math.ceil((b.maxY + span * 0.1) / step) * step;
-    ctx.strokeStyle = "rgba(255,255,255,0.06)";
+    ctx.strokeStyle = "rgba(255,226,196,0.07)";
     ctx.lineWidth = devicePixelRatio || 1;
     ctx.beginPath();
     for (let x = x0; x <= x1; x += step) {
@@ -465,7 +465,7 @@ export function RideReplay({ activity, awards, onStatus }) {
     const msg = status === "loading" ? "Loading ride replay…"
       : status === "ratelimit" ? "Strava's rate limit is reached — the replay will load in about 15 minutes."
       : "Couldn't load this ride's GPS data from Strava.";
-    return html`<div class="rounded-xl p-4 mb-6 text-xs" style="background: #12110f; ${muted}">${msg}</div>`;
+    return html`<div class="rounded-xl p-4 mb-6 text-xs" style="background: var(--night); ${muted}">${msg}</div>`;
   }
 
   const clock = clockRef.current;
@@ -499,10 +499,10 @@ export function RideReplay({ activity, awards, onStatus }) {
   const progressFrac = rc ? (clock ?? 0) / rc.longest : clock == null ? 1 : (sampleAt(scene, clock).d / scene.distance);
 
   return html`
-    <section class=${fullscreen ? "flex flex-col" : "rounded-xl mb-6 overflow-hidden"}
+    <section class=${fullscreen ? "flex flex-col replay-night" : "rounded-xl mb-6 overflow-hidden replay-night"}
       style=${fullscreen
-        ? "position: fixed; inset: 0; z-index: 70; background: #12110f; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);"
-        : "background: #12110f; border: 1px solid var(--border);"}>
+        ? "position: fixed; inset: 0; z-index: 70; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);"
+        : "border: 1px solid var(--border); box-shadow: 0 6px 24px rgba(36,25,18,0.18);"}>
       <div class="flex items-center justify-between gap-3 px-4 py-2">
         <h2 style="font-family: var(--font-body); font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.75); text-transform: uppercase; letter-spacing: 0.05em;">
           ${rc ? html`Ghost race · ${rc.effort.name}` : "Ride replay"}
@@ -536,7 +536,7 @@ export function RideReplay({ activity, awards, onStatus }) {
         <canvas ref=${overlayRef} class="absolute inset-0" style="width: 100%; height: 100%; touch-action: pan-y; cursor: grab;" />
 
         ${sample && html`
-          <div data-testid="replay-hud" class="absolute left-3 top-3 text-xs rounded-lg px-2 py-1" style="font-family: var(--font-mono); background: rgba(18,17,15,0.7); color: rgba(255,255,255,0.85); pointer-events: none; line-height: 1.5;">
+          <div data-testid="replay-hud" class="absolute left-3 top-3 text-xs rounded-lg px-2 py-1" style="font-family: var(--font-mono); background: var(--night-glass); color: rgba(255,255,255,0.85); pointer-events: none; line-height: 1.5;">
             <div>${formatTime(sample.t)}</div>
             <div>${formatSpeed(sample.v)}</div>
             ${scene.hasPower && html`<div>${Math.round(sample.w)} W</div>`}
@@ -549,7 +549,7 @@ export function RideReplay({ activity, awards, onStatus }) {
           </div>`}
 
         <div class="absolute right-3 top-3 flex flex-col gap-2 items-end" style="pointer-events: none;">
-          ${toasts.map((t) => html`<div class="rounded-lg px-3 py-2 text-xs" style="background: rgba(18,17,15,0.85); border: 1px solid ${t.color || "rgba(255,255,255,0.2)"}; color: #fff; font-family: var(--font-body);">
+          ${toasts.map((t) => html`<div class="rounded-lg px-3 py-2 text-xs" style="background: var(--night-glass); border: 1px solid ${t.color || "rgba(255,255,255,0.2)"}; color: #fff; font-family: var(--font-body);">
             <div style="color: ${t.color || "#fff"}; font-weight: 600;">${t.labels.join(" · ")}</div>
             <div style="color: rgba(255,255,255,0.7);">${t.name}</div>
           </div>`)}
@@ -569,7 +569,13 @@ export function RideReplay({ activity, awards, onStatus }) {
 
       <svg viewBox="0 0 1000 100" preserveAspectRatio="none" style="width: 100%; height: 56px; display: block; cursor: pointer; touch-action: none;"
         onPointerDown=${(e) => { const r = e.currentTarget.getBoundingClientRect(); scrubTo(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))); }}>
-        <path d=${path} fill="rgba(252,76,2,0.18)" stroke="rgba(252,76,2,0.7)" stroke-width="1.5" vector-effect="non-scaling-stroke" />
+        <defs>
+          <linearGradient id="replay-elev" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#FC4C02" stop-opacity="0.42" />
+            <stop offset="100%" stop-color="#FC4C02" stop-opacity="0.04" />
+          </linearGradient>
+        </defs>
+        <path d=${path} fill="url(#replay-elev)" stroke="rgba(252,120,40,0.85)" stroke-width="1.5" vector-effect="non-scaling-stroke" />
         ${scene.efforts.filter((e) => e.color || (rc && e.effort_id === rc.effort.effort_id)).map((e) => {
           const a = px(sampleAt(scene, e.tA).d), b = px(sampleAt(scene, e.tB).d);
           return html`<rect x=${a} y="0" width=${Math.max(2, b - a)} height="100" fill=${e.color || "#ffffff"} opacity="0.22" />`;

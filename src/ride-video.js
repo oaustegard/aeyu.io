@@ -193,7 +193,11 @@ export async function renderRideVideo(scene, activity, fmt, { onProgress } = {})
   ].filter(Boolean).join(" · ");
 
   function drawHeader() {
-    ctx.fillStyle = "#12110f";
+    const bg = ctx.createRadialGradient(W / 2, H * 0.3, 0, W / 2, H * 0.3, Math.max(W, H) * 0.85);
+    bg.addColorStop(0, "#3B2A1E");
+    bg.addColorStop(0.55, "#241912");
+    bg.addColorStop(1, "#170F0B");
+    ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = "#FC4C02";
     ctx.fillRect(0, 0, W, 8);
@@ -252,7 +256,7 @@ export async function renderRideVideo(scene, activity, fmt, { onProgress } = {})
     ctx.globalAlpha = alpha;
     ctx.font = `34px ${fonts.mono}`;
     const wBox = Math.max(...lines.map((l) => ctx.measureText(l).width)) + 40;
-    ctx.fillStyle = "rgba(18,17,15,0.7)";
+    ctx.fillStyle = "rgba(36,25,18,0.7)";
     roundRect(ctx, 32, SY + 24, wBox, lines.length * 46 + 24, 16); ctx.fill();
     ctx.fillStyle = "rgba(255,255,255,0.9)";
     lines.forEach((l, k) => ctx.fillText(l, 52, SY + 24 + 46 + k * 46));
@@ -275,7 +279,7 @@ export async function renderRideVideo(scene, activity, fmt, { onProgress } = {})
       const l2 = fitText(ctx, e.name, 520);
       const wBox = Math.max(w1, ctx.measureText(l2).width) + 40;
       const x = W - 32 - wBox;
-      ctx.fillStyle = "rgba(18,17,15,0.85)";
+      ctx.fillStyle = "rgba(36,25,18,0.85)";
       roundRect(ctx, x, y, wBox, 96, 16); ctx.fill();
       ctx.strokeStyle = e.color; ctx.lineWidth = 3; ctx.stroke();
       ctx.fillStyle = e.color;

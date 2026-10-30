@@ -3,6 +3,7 @@ import { useState, useRef, useCallback } from "preact/hooks";
 import { formatTime } from "../units.js";
 
 const MAX_EFFORTS = 20;
+let sparkSeq = 0;
 
 function linearRegression(values) {
   const n = values.length;
@@ -57,6 +58,8 @@ function formatDateShort(iso) {
 
 export function SegmentSparkline({ segment, currentEffortId, stravaSegmentId, onExportLLM, exportLlmStatus }) {
   const svgRef = useRef(null);
+  const gradId = useRef(null);
+  if (gradId.current == null) gradId.current = `spark-${++sparkSeq}`;
   const [activeIdx, setActiveIdx] = useState(null);
   const [showHelp, setShowHelp] = useState(false);
 
@@ -95,7 +98,11 @@ export function SegmentSparkline({ segment, currentEffortId, stravaSegmentId, on
   const trendY0 = padY + ((intercept - minT) / range) * plotH;
   const trendY1 = padY + (((intercept + slope * (times.length - 1)) - minT) / range) * plotH;
   const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
-  const trendColor = improving ? "#22c55e" : regressing ? "#ef4444" : "#9ca3af";
+  const trendColor = improving ? "#3D7A4A" : regressing ? "#B8352A" : "#8C8374";
+  const areaColor = improving || regressing ? trendColor : "#B85A28";
+  const areaPath = `${linePath} L${points[points.length - 1].x},${h} L${points[0].x},${h} Z`;
+  const bestIdx = times.indexOf(minT);
+  const gid = gradId.current;
 
   // Find nearest point by x-position relative to SVG
   const findNearest = useCallback((clientX) => {
@@ -157,15 +164,22 @@ export function SegmentSparkline({ segment, currentEffortId, stravaSegmentId, on
         width="100%"
         viewBox="0 0 ${w} ${h}"
         preserveAspectRatio="xMidYMid meet"
-        style="display: block; background: var(--bg, #faf9f7); border: 1px solid var(--border); border-radius: 6px; touch-action: none; cursor: crosshair;"
+        style="display: block; background: linear-gradient(180deg, var(--surface) 0%, var(--surface-hover) 100%); border: 1px solid var(--border-light); border-radius: 8px; touch-action: none; cursor: crosshair;"
         onTouchStart=${onTouchStart}
         onTouchMove=${onTouchMove}
         onTouchEnd=${onTouchEnd}
         onMouseMove=${onMouseMove}
         onMouseLeave=${onMouseLeave}
       >
-        <!-- effort line -->
-        <path d=${linePath} fill="none" stroke="var(--text-tertiary, #a8a29e)" stroke-width="1.5" stroke-linejoin="round" />
+        <defs>
+          <linearGradient id=${gid} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color=${areaColor} stop-opacity="0.26" />
+            <stop offset="100%" stop-color=${areaColor} stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <line x1=${padX} y1=${padY} x2=${padX + plotW} y2=${padY} stroke="#B8862E" stroke-width="0.6" stroke-dasharray="1,3" opacity="0.6" />
+        <path class="chart-fade" d=${areaPath} fill=${`url(#${gid})`} />
+        <path class="chart-draw" pathLength="1" d=${linePath} fill="none" stroke="var(--text-secondary)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
         <!-- trend line -->
         <line
           x1=${padX} y1=${trendY0}
@@ -173,7 +187,8 @@ export function SegmentSparkline({ segment, currentEffortId, stravaSegmentId, on
           stroke=${trendColor}
           stroke-width="2"
           stroke-dasharray="6,3"
-          opacity="0.8"
+          opacity="0.9"
+          class="chart-fade"
         />
         <!-- vertical crosshair at active point -->
         ${active && html`
@@ -187,13 +202,19 @@ export function SegmentSparkline({ segment, currentEffortId, stravaSegmentId, on
           />
         `}
         <!-- dots -->
+        ${points.filter((p) => p.isCurrent).map((p) => html`
+          <circle class="chart-halo" cx=${p.x} cy=${p.y} r="4" fill="var(--strava, #fc4c02)" />
+        `)}
+        ${points[bestIdx] && html`
+          <circle cx=${points[bestIdx].x} cy=${points[bestIdx].y} r="6.5" fill="none" stroke="#B8862E" stroke-width="1.5" />
+        `}
         ${points.map((p) => html`
           <circle
             cx=${p.x} cy=${p.y}
             r=${p.idx === activeIdx ? 5 : p.isCurrent ? 4 : 2.5}
-            fill=${p.isCurrent ? "var(--strava, #fc4c02)" : p.idx === activeIdx ? "var(--text, #3E3A36)" : "var(--text-tertiary, #a8a29e)"}
-            stroke=${p.isCurrent || p.idx === activeIdx ? "#fff" : "none"}
-            stroke-width=${p.isCurrent || p.idx === activeIdx ? 1.5 : 0}
+            fill=${p.isCurrent ? "var(--strava, #fc4c02)" : p.idx === activeIdx ? "var(--text, #3E3A36)" : p.idx === bestIdx ? "#B8862E" : "var(--text-tertiary, #a8a29e)"}
+            stroke="#fff"
+            stroke-width=${p.isCurrent || p.idx === activeIdx ? 1.5 : 1}
           />
         `)}
         <!-- tooltip -->
@@ -227,7 +248,7 @@ export function SegmentSparkline({ segment, currentEffortId, stravaSegmentId, on
       </svg>
       <div class="flex items-center gap-3 mt-1 px-1" style="font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text-tertiary);">
         <span>${recent.length} effort${recent.length !== 1 ? "s" : ""}</span>
-        <span>Best: ${formatTime(minT)}</span>
+        <span><span style="color: #B8862E;">○</span> Best: ${formatTime(minT)}</span>
         ${rateStr && html`
           <span style="color: ${trendColor}; font-weight: 500;">Trend: ${rateStr}</span>
         `}
@@ -281,7 +302,7 @@ export function SegmentSparkline({ segment, currentEffortId, stravaSegmentId, on
                 style="position: absolute; top: 4px; right: 6px; background: none; border: none; cursor: pointer; color: var(--text-tertiary); font-size: 14px; line-height: 1; padding: 2px;"
                 aria-label="Close"
               >\u00D7</button>
-              Your recent effort history (up to 20). Current effort in orange. Dashed trend line: green = getting faster, red = slowing down. Tap/hover to see individual effort times.
+              Your recent effort history (up to 20). Current effort in orange, best ringed in gold. Dashed trend line: green = getting faster, red = slowing down. Tap/hover to see individual effort times.
             </div>
           `}
         </span>

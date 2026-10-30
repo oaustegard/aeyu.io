@@ -2,6 +2,7 @@ import { html } from "htm/preact";
 import { unitSystem } from "../units.js";
 
 const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let trendSeq = 0;
 
 export function TrendChart({ rides: rawRides, highlightId }) {
   const rides = rawRides.filter((r) => r.average_speed);
@@ -37,6 +38,8 @@ export function TrendChart({ rides: rawRides, highlightId }) {
   const yPow = showPow ? (p) => MT + cH - ((p - padPow.min) / pPowRange) * cH : null;
 
   const spdPath = speeds.map((s, i) => `${i === 0 ? 'M' : 'L'}${xPos(i).toFixed(1)},${ySpd(s).toFixed(1)}`).join(' ');
+  const spdArea = `${spdPath} L${xPos(rides.length - 1).toFixed(1)},${MT + cH} L${ML},${MT + cH} Z`;
+  const gid = `trend-${++trendSeq}`;
   let powPathD = null;
   if (showPow) {
     const pts = powers.map((p, i) => p > 0 ? `${xPos(i).toFixed(1)},${yPow(p).toFixed(1)}` : null).filter(Boolean);
@@ -55,6 +58,12 @@ export function TrendChart({ rides: rawRides, highlightId }) {
 
   return html`
     <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; margin-top: 0.25rem; overflow: visible;">
+      <defs>
+        <linearGradient id=${gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color=${spdColor} stop-opacity="0.25" />
+          <stop offset="100%" stop-color=${spdColor} stop-opacity="0" />
+        </linearGradient>
+      </defs>
       ${spdTicks.map((v) => html`
         <text x="${ML - 3}" y="${ySpd(v) + 1}" text-anchor="end" style="font-size: 6px; fill: ${spdColor}; font-family: var(--font-mono);">${v}</text>
         <line x1="${ML}" y1="${ySpd(v)}" x2="${W - MR}" y2="${ySpd(v)}" stroke="var(--border)" stroke-width="0.5" stroke-dasharray="2,2" />
@@ -62,7 +71,8 @@ export function TrendChart({ rides: rawRides, highlightId }) {
       ${showPow && powTicks.map((v) => html`
         <text x="${W - MR + 3}" y="${yPow(v) + 1}" text-anchor="start" style="font-size: 6px; fill: ${powColor}; font-family: var(--font-mono);">${v}</text>
       `)}
-      <path d="${spdPath}" fill="none" stroke="${spdColor}" stroke-width="1.5" stroke-linejoin="round" />
+      <path class="chart-fade" d="${spdArea}" fill=${`url(#${gid})`} />
+      <path class="chart-draw" pathLength="1" d="${spdPath}" fill="none" stroke="${spdColor}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" />
       ${speeds.map((s, i) => html`
         <circle cx="${xPos(i)}" cy="${ySpd(s)}" r="${dotRadius(i)}" fill="${spdColor}"
           stroke="${dotStroke(i)}" stroke-width="1"
@@ -71,7 +81,7 @@ export function TrendChart({ rides: rawRides, highlightId }) {
         </circle>
       `)}
       ${powPathD && html`
-        <path d="${powPathD}" fill="none" stroke="${powColor}" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="4,2" />
+        <path class="chart-fade" d="${powPathD}" fill="none" stroke="${powColor}" stroke-width="1.5" stroke-linejoin="round" stroke-dasharray="4,2" />
         ${rides.map((r, i) => r.average_watts ? html`
           <circle cx="${xPos(i)}" cy="${yPow(powers[i])}" r="${dotRadius(i)}" fill="${powColor}"
             stroke="${dotStroke(i)}" stroke-width="1"

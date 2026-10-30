@@ -31,6 +31,7 @@ import { StickyHeader } from "./StickyHeader.js";
 import { SegmentSparkline } from "./SegmentSparkline.js";
 import { RideReplay } from "./RideReplay.js";
 import { TrendChart } from "./TrendChart.js";
+import { ZoneBarChart, SustainedBlocksChart, DecouplingMeter, decouplingColor, HR_ZONE_COLORS, POWER_ZONE_COLORS } from "./ZoneBars.js";
 import { buildRideExport, rideToMarkdown, buildSegmentExport, segmentToMarkdown, convertContextUnits } from "../export-llm.js";
 import { estimateFTP, getAllTimeBestCurve } from "../power-curve.js";
 import { WbalChart, fmtClock, loadRideWbal } from "./WbalChart.js";
@@ -1166,9 +1167,7 @@ function SegmentSortBar({ efforts, effortAwards }) {
 
 // ── Zone Charts (#265) ────────────────────────────────────────────
 
-const HR_ZONE_COLORS = ["#3B82F6", "#22C55E", "#EAB308", "#F97316", "#EF4444"];
 const HR_ZONE_NAMES = ["Z1 Recovery", "Z2 Endurance", "Z3 Tempo", "Z4 Threshold", "Z5 VO2max"];
-const POWER_ZONE_COLORS = ["#94A3B8", "#3B82F6", "#22C55E", "#EAB308", "#F97316", "#EF4444", "#DC2626"];
 const POWER_ZONE_NAMES = ["Z1 Active Recovery", "Z2 Endurance", "Z3 Tempo", "Z4 Threshold", "Z5 VO2max", "Z6 Anaerobic", "Z7 Neuromuscular"];
 const POWER_ZONE_BOUNDARIES = [0.55, 0.75, 0.90, 1.05, 1.20, 1.50];
 
@@ -1185,45 +1184,6 @@ function mapPowerBucketsToZones(buckets, ftp) {
     zones[zi] += b.time;
   }
   return zones;
-}
-
-function formatZoneTime(seconds) {
-  if (seconds < 60) return `${seconds}s`;
-  const m = Math.floor(seconds / 60);
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
-  const rm = m % 60;
-  return rm > 0 ? `${h}h ${rm}m` : `${h}h`;
-}
-
-function ZoneBarChart({ title, zones, colors, labels, totalTime }) {
-  if (!zones || zones.length === 0) return null;
-  const total = totalTime || zones.reduce((s, t) => s + t, 0);
-  if (total === 0) return null;
-  const maxTime = Math.max(...zones);
-
-  return html`
-    <div>
-      <h3 class="text-xs font-semibold mb-2" style="color: var(--text-secondary); font-family: var(--font-body); text-transform: uppercase; letter-spacing: 0.05em;">${title}</h3>
-      <div class="space-y-1">
-        ${zones.map((time, i) => {
-          if (time === 0 && zones.length > 7) return null;
-          const pct = maxTime > 0 ? (time / maxTime) * 100 : 0;
-          const timePct = total > 0 ? Math.round((time / total) * 100) : 0;
-          return html`
-            <div class="flex items-center gap-2" style="font-family: var(--font-mono); font-size: 11px;">
-              <span class="flex-shrink-0" style="width: 3rem; color: var(--text-tertiary); text-align: right; font-size: 10px;">${labels[i] ? labels[i].split(" ")[0] : `Z${i + 1}`}</span>
-              <div class="flex-1 relative" style="height: 18px; background: var(--bg); border-radius: 4px; overflow: hidden;">
-                <div style="width: ${Math.max(pct, 1)}%; height: 100%; background: ${colors[i] || "#888"}; border-radius: 4px; transition: width 0.3s ease;"></div>
-              </div>
-              <span class="flex-shrink-0" style="width: 3.5rem; color: var(--text-secondary); text-align: right;">${formatZoneTime(time)}</span>
-              <span class="flex-shrink-0" style="width: 2rem; color: var(--text-tertiary); text-align: right; font-size: 10px;">${timePct}%</span>
-            </div>
-          `;
-        })}
-      </div>
-    </div>
-  `;
 }
 
 // ── Component ─────────────────────────────────────────────────────
@@ -1686,8 +1646,9 @@ export function ActivityDetail({ id }) {
               <div class="mb-3">
                 <div class="flex items-baseline justify-between">
                   <span class="text-xs" style="color: var(--text-secondary); font-family: var(--font-body);" title="How much your power-to-heart-rate ratio drifts from the first half of the ride to the second. Under 5% means you held output against a steady heart-rate cost — a durable aerobic engine.">Aerobic decoupling</span>
-                  <span class="text-sm font-semibold" style="font-family: var(--font-mono); color: ${act.durability.decoupling.decouplingPct <= 5 ? 'var(--text)' : '#F97316'};">${act.durability.decoupling.decouplingPct}%</span>
+                  <span class="text-sm font-semibold" style="font-family: var(--font-mono); color: ${decouplingColor(act.durability.decoupling.decouplingPct)};">${act.durability.decoupling.decouplingPct}%</span>
                 </div>
+                <${DecouplingMeter} pct=${act.durability.decoupling.decouplingPct} />
                 ${act.durability.decoupling.matched && html`
                   <p class="text-xs mt-1" style="color: var(--text-tertiary); font-family: var(--font-body);">
                     Same power (${act.durability.decoupling.matched.band[0]}–${act.durability.decoupling.matched.band[1]}W) cost ${act.durability.decoupling.matched.hrFirst} bpm early vs ${act.durability.decoupling.matched.hrSecond} bpm late.
@@ -1697,13 +1658,8 @@ export function ActivityDetail({ id }) {
             `}
             ${act.durability.blocks && html`
               <div>
-                <p class="text-xs mb-1" style="color: var(--text-secondary); font-family: var(--font-body);" title="The longest unbroken stretch held at or above each heart-rate floor — how long you can actually sit in the zone, not just total time accumulated.">Longest sustained block</p>
-                ${act.durability.blocks.byThreshold.slice().reverse().map(b => html`
-                  <div class="flex items-baseline justify-between py-0.5" style="font-family: var(--font-mono); font-size: 0.7rem;">
-                    <span style="color: var(--text-tertiary);">≥ ${b.threshold} bpm</span>
-                    <span style="color: var(--text);">${formatZoneTime(b.longestSec)} <span style="color: var(--text-tertiary);">/ ${formatZoneTime(b.totalSec)} total</span></span>
-                  </div>
-                `)}
+                <p class="text-xs mb-2" style="color: var(--text-secondary); font-family: var(--font-body);" title="The longest unbroken stretch held at or above each heart-rate floor — how long you can actually sit in the zone, not just total time accumulated.">Longest sustained block</p>
+                <${SustainedBlocksChart} byThreshold=${act.durability.blocks.byThreshold} />
               </div>
             `}
           </div>

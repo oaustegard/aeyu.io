@@ -8,6 +8,7 @@ import { getAllTimeBestCurve } from "../power-curve.js";
 const W = 640, H = 180, ML = 40, MR = 12, MT = 10, MB = 22;
 const CW = W - ML - MR, CH = H - MT - MB;
 const MAX_POINTS = 600;
+let wbalSeq = 0;
 
 export function fmtClock(s) {
   const t = Math.round(s);
@@ -31,6 +32,8 @@ export function WbalChart({ series, wPrime, at, testid }) {
     for (let j = i + 1; j < Math.min(n, i + stride); j++) if (series[j] < m) m = series[j];
     d += `${i ? "L" : "M"}${xOf(i).toFixed(1)},${yOf(m).toFixed(1)}`;
   }
+  const gid = `wbal-${++wbalSeq}`;
+  const area = `${d}L${xOf(n - 1).toFixed(1)},${yOf(yMin).toFixed(1)}L${ML},${yOf(yMin).toFixed(1)}Z`;
   const tickStep = [300, 600, 900, 1800, 3600, 7200, 10800].find((v) => n / v <= 6) || 21600;
   const xTicks = [];
   for (let t = 0; t < n; t += tickStep) xTicks.push(t);
@@ -43,7 +46,14 @@ export function WbalChart({ series, wPrime, at, testid }) {
       <text x=${ML - 5} y=${yOf(0) + 3} text-anchor="end" style=${txt}>0</text>
       <text x="4" y=${H - 6} style=${txt}>kJ</text>
       ${xTicks.map((t) => html`<text x=${xOf(Math.min(t, n - 1))} y=${H - 6} text-anchor="middle" style=${txt}>${fmtHM(t)}</text>`)}
-      <path d=${d} fill="none" stroke="#B85A28" stroke-width="1.5" stroke-linejoin="round" />
+      <defs>
+        <linearGradient id=${gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#B85A28" stop-opacity="0.22" />
+          <stop offset="100%" stop-color="#B85A28" stop-opacity="0.02" />
+        </linearGradient>
+      </defs>
+      <path d=${area} fill=${`url(#${gid})`} />
+      <path class="chart-draw" pathLength="1" d=${d} fill="none" stroke="#B85A28" stroke-width="1.5" stroke-linejoin="round" />
       <circle cx=${xOf(at)} cy=${yOf(series[at])} r="4" fill="#B85A28" stroke="var(--surface)" stroke-width="1.5" />
     </svg>`;
 }
