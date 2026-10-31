@@ -33,7 +33,7 @@ try {
       continue;
     }
     results[name] = await page.evaluate(() => ({ engine: window.__power.engine, rides: window.__power.rides, cp: window.__power.cp }));
-    results[name].paths = await page.locator('[data-testid=power-chart] path').count();
+    results[name].paths = await page.locator('[data-testid=power-chart] path[fill=none]').count();
     try {
       await page.waitForFunction(() => window.__power.wbal, null, { timeout: 60000 });
       results[name].wbal = await page.evaluate(() => window.__power.wbal);

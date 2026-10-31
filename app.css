@@ -127,6 +127,16 @@ body {
   to { transform: translateX(100%); }
 }
 
+.ef-bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: ef-grow 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+@keyframes ef-grow {
+  from { transform: scaleY(0); }
+}
+
 .decouple-meter {
   position: relative;
   height: 8px;
@@ -181,7 +191,7 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .zbar-fill, .zbar-wave, .decouple-marker, .chart-draw, .chart-fade, .chart-halo { animation: none; }
+  .zbar-fill, .zbar-wave, .ef-bar, .decouple-marker, .chart-draw, .chart-fade, .chart-halo { animation: none; }
   .chart-draw { stroke-dashoffset: 0; }
   .zbar-wave { display: none; }
 }

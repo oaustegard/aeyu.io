@@ -61,6 +61,7 @@ import { StickyHeader, headerCompact } from "./StickyHeader.js";
 import { buildLLMContext, contextToMarkdown, convertContextUnits } from "../export-llm.js";
 import { detectRoutes } from "../routes.js";
 import { TrendChart } from "./TrendChart.js";
+import { ZoneBar, POWER_ZONE_COLORS } from "./ZoneBars.js";
 import { installContext } from "../install.js";
 
 // FAQ entries — searchable data structure. Award items derived from AWARD_GROUPS.
@@ -1035,7 +1036,7 @@ export function Dashboard() {
 
               <!-- Climb Form (was Performance Capacity) -->
               ${fitnessData.value.performanceCapacity.hasData && html`
-                <div class="rounded-lg p-4" style="background: var(--bg); border: 1px solid var(--border);">
+                <div class="rounded-lg p-4" style="background: linear-gradient(180deg, var(--surface) 0%, var(--surface-hover) 100%); border: 1px solid var(--border-light); box-shadow: 0 1px 2px rgba(26,22,16,0.04);">
                   <div class="flex items-center gap-2 mb-2">
                     <span style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary); display: inline-flex; align-items: center;">Climb Form
                       <${ChartHelp} id="climb-form">
@@ -1071,17 +1072,20 @@ export function Dashboard() {
                     const pathD = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${xPos(i).toFixed(1)},${yPos(p.score).toFixed(1)}`).join(' ');
                     const lastPt = pts[pts.length - 1];
                     const gradientD = pathD + ` L${xPos(pts.length - 1).toFixed(1)},${H - MB} L${ML},${H - MB} Z`;
+                    const trend = fitnessData.value.performanceCapacity.trend;
+                    const climbColor = trend > 2 ? '#3D7A4A' : trend < -2 ? '#A05060' : '#B85A28';
                     return html`
                       <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; margin-top: 0.5rem; overflow: visible;">
                         <defs>
                           <linearGradient id="climbGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stop-color="#4882A8" stop-opacity="0.15" />
-                            <stop offset="100%" stop-color="#4882A8" stop-opacity="0.02" />
+                            <stop offset="0%" stop-color=${climbColor} stop-opacity="0.3" />
+                            <stop offset="100%" stop-color=${climbColor} stop-opacity="0" />
                           </linearGradient>
                         </defs>
-                        <path d="${gradientD}" fill="url(#climbGrad)" />
-                        <path d="${pathD}" fill="none" stroke="#4882A8" stroke-width="1.5" stroke-linejoin="round" />
-                        <circle cx="${xPos(pts.length - 1)}" cy="${yPos(lastPt.score)}" r="3" fill="#4882A8" />
+                        <path class="chart-fade" d="${gradientD}" fill="url(#climbGrad)" />
+                        <path class="chart-draw" pathLength="1" d="${pathD}" fill="none" stroke=${climbColor} stroke-width="1.75" stroke-linejoin="round" stroke-linecap="round" />
+                        <circle class="chart-halo" cx="${xPos(pts.length - 1)}" cy="${yPos(lastPt.score)}" r="3" fill=${climbColor} />
+                        <circle cx="${xPos(pts.length - 1)}" cy="${yPos(lastPt.score)}" r="3.5" fill=${climbColor} stroke="#fff" stroke-width="1.5" />
                       </svg>
                     `;
                   })()}
@@ -1095,9 +1099,7 @@ export function Dashboard() {
                         ${fitnessData.value.performanceCapacity.segments.slice(0, 8).map((seg) => html`
                           <div style="display: flex; align-items: center; gap: 6px;" title="${seg.segmentName}: ${Math.round(seg.score)}/100 from ${seg.effortCount} efforts (${seg.recentCount} recent)">
                             <span class="truncate" style="font-size: 0.625rem; color: var(--text-secondary); width: 40%; min-width: 0; flex-shrink: 0;">${seg.segmentName}</span>
-                            <div style="flex: 1; height: 10px; background: var(--border); border-radius: 3px; overflow: hidden;">
-                              <div style="height: 100%; width: ${Math.round(seg.score)}%; background: ${seg.score >= 70 ? '#3D7A4A' : seg.score >= 40 ? '#4882A8' : '#A05060'}; border-radius: 3px;"></div>
-                            </div>
+                            <${ZoneBar} pct=${Math.round(seg.score)} color=${seg.score >= 70 ? '#5B9A68' : seg.score >= 40 ? '#6E9BC0' : '#C04A30'} sec=${0} i=${0} height=${10} />
                             <span style="font-family: var(--font-mono); font-size: 0.625rem; color: var(--text-tertiary); min-width: 1.5rem; text-align: right;">${Math.round(seg.score)}</span>
                           </div>
                         `)}
@@ -1109,7 +1111,7 @@ export function Dashboard() {
 
               <!-- Aerobic Efficiency -->
               ${fitnessData.value.aerobicEfficiency.hasData && html`
-                <div class="rounded-lg p-4" style="background: var(--bg); border: 1px solid var(--border);">
+                <div class="rounded-lg p-4" style="background: linear-gradient(180deg, var(--surface) 0%, var(--surface-hover) 100%); border: 1px solid var(--border-light); box-shadow: 0 1px 2px rgba(26,22,16,0.04);">
                   <div class="flex items-center gap-2 mb-2">
                     <span style="font-family: var(--font-body); font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary); display: inline-flex; align-items: center;">Aerobic Efficiency
                       <${ChartHelp} id="aerobic-eff">
@@ -1152,6 +1154,16 @@ export function Dashboard() {
                     const labelStep = Math.max(1, Math.ceil(months.length / 6));
                     return html`
                       <svg viewBox="0 0 ${W} ${H}" style="width: 100%; height: auto; margin-top: 0.75rem; overflow: visible;">
+                        <defs>
+                          <linearGradient id="efBar" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#6E9BC0" />
+                            <stop offset="100%" stop-color="#4882A8" stop-opacity="0.55" />
+                          </linearGradient>
+                          <linearGradient id="efBarLast" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="#D98B3A" />
+                            <stop offset="100%" stop-color="#B85A28" />
+                          </linearGradient>
+                        </defs>
                         <!-- Y-axis ticks -->
                         ${yTicks.map((v) => html`
                           <text x="${ML - 3}" y="${y(v) + 1}" text-anchor="end" style="font-size: 7px; fill: var(--text-tertiary); font-family: var(--font-mono);">${v}</text>
@@ -1166,7 +1178,7 @@ export function Dashboard() {
                           const isLast = i === months.length - 1;
                           return html`
                             <g>
-                              <rect x="${xPos - barW / 2}" y="${barY}" width="${barW}" height="${barH}" rx="2" fill="${isLast ? '#4882A8' : '#4882A8'}" opacity="${isLast ? '0.9' : '0.45'}">
+                              <rect class="ef-bar" style="--i: ${i};" x="${xPos - barW / 2}" y="${barY}" width="${barW}" height="${barH}" rx="2.5" fill=${isLast ? 'url(#efBarLast)' : 'url(#efBar)'} opacity=${isLast ? 1 : 0.45 + 0.45 * (m.ef - minEf) / (maxEf - minEf || 1)}>
                                 <title>${monthNames[monthIdx]} ${m.month.split('-')[0]}: EF ${m.ef} (${m.count} ride${m.count !== 1 ? 's' : ''})</title>
                               </rect>
                               ${i % labelStep === 0 ? html`
@@ -1287,14 +1299,20 @@ export function Dashboard() {
                 }
                 rows.sort((a, b) => b.watts - a.watts);
                 const maxWatts = rows.length > 0 ? rows[0].watts : 0;
-                return rows.map((row) => {
+                const ftp = powerCurveData.value.ftp || powerCurveData.value.cp?.cp;
+                // Colour each best by the power zone it sits in, so the curve reads as intensity
+                const zoneColor = (w) => {
+                  if (!ftp) return "#4882A8";
+                  const r = w / ftp;
+                  const zi = [0.55, 0.75, 0.90, 1.05, 1.20, 1.50].filter((b) => r >= b).length;
+                  return POWER_ZONE_COLORS[zi];
+                };
+                return rows.map((row, i) => {
                   const pct = maxWatts > 0 ? Math.round((row.watts / maxWatts) * 100) : 0;
                   return html`
                     <div style="display: flex; align-items: center; gap: 6px;" title="${row.title}">
                       <span style="font-size: 0.6875rem; color: var(--text-secondary); width: 52px; flex-shrink: 0; text-align: right;">${row.label}</span>
-                      <div style="flex: 1; height: 14px; background: var(--border); border-radius: 3px; overflow: hidden;">
-                        <div style="height: 100%; width: ${pct}%; background: #4882A8; border-radius: 3px; transition: width 0.3s;"></div>
-                      </div>
+                      <${ZoneBar} pct=${pct} color=${zoneColor(row.watts)} sec=${0} i=${i} height=${14} />
                       <span style="font-family: var(--font-mono); font-size: 0.6875rem; color: var(--text); min-width: 2.5rem; text-align: right;">${row.watts}W</span>
                     </div>
                   `;

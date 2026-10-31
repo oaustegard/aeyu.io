@@ -201,14 +201,23 @@ function Chart({ curves, visible, meta, full }) {
 
   const paths = shown.map((k) => {
     const c = curves[k];
-    let d = "", pen = false;
+    const base = yOf(0).toFixed(1);
+    let d = "", area = "", pen = false, lastX = 0;
     for (let i = 0; i < DURATIONS.length; i++) {
       const w = c.watts[i];
-      if (w <= 0) { pen = false; continue; }
-      d += `${pen ? "L" : "M"}${xOf(DURATIONS[i]).toFixed(1)},${yOf(w).toFixed(1)}`;
+      if (w <= 0) {
+        if (pen) area += `L${lastX},${base}Z`;
+        pen = false;
+        continue;
+      }
+      const x = xOf(DURATIONS[i]).toFixed(1), y = yOf(w).toFixed(1);
+      d += `${pen ? "L" : "M"}${x},${y}`;
+      area += pen ? `L${x},${y}` : `M${x},${base}L${x},${y}`;
       pen = true;
+      lastX = x;
     }
-    return [k, d];
+    if (pen) area += `L${lastX},${base}Z`;
+    return [k, d, area];
   });
 
   function locate(e) {
@@ -294,7 +303,13 @@ function Chart({ curves, visible, meta, full }) {
       <svg data-testid="power-chart" viewBox="0 0 ${W} ${H}"
         style="${full ? "position: absolute; inset: 0; height: 100%;" : "height: auto;"} width: 100%; display: block; cursor: ${zoomed ? "grab" : hover?.k != null ? "pointer" : "default"};"
         onPointerMove=${onMove} onPointerDown=${onDown} onPointerUp=${onUp} onPointerCancel=${onUp} onPointerLeave=${onLeave} onClick=${onClick}>
-        <defs><clipPath id=${clipId}><rect x=${ML} y=${MT} width=${CW} height=${CH} /></clipPath></defs>
+        <defs>
+          <clipPath id=${clipId}><rect x=${ML} y=${MT} width=${CW} height=${CH} /></clipPath>
+          ${BIN_COLORS.map((c, k) => html`<linearGradient id=${`${clipId}-fill-${k}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color=${k ? c : "#B85A28"} stop-opacity=${k ? 0.14 : 0.1} />
+            <stop offset="100%" stop-color=${k ? c : "#B85A28"} stop-opacity="0" />
+          </linearGradient>`)}
+        </defs>
         ${yTicks.map((v) => html`
           <line x1=${ML} y1=${yOf(v)} x2=${W - MR} y2=${yOf(v)} stroke="var(--border)" stroke-width="0.5" stroke-dasharray=${v ? "3,3" : ""} />
           <text x=${ML - 5} y=${yOf(v) + fs / 3} text-anchor="end" style="font-size: ${fs}px; fill: var(--text-tertiary); font-family: var(--font-mono);">${v}</text>`)}
@@ -303,7 +318,8 @@ function Chart({ curves, visible, meta, full }) {
           <text x=${x} y=${H - 8} text-anchor="middle" style="font-size: ${fs}px; fill: var(--text-tertiary); font-family: var(--font-mono);">${label}</text>`)}
         <text x="4" y=${H - 8} style="font-size: ${fs}px; fill: var(--text-tertiary); font-family: var(--font-mono);">W</text>
         <g clip-path="url(#${clipId})">
-          ${paths.map(([k, d]) => html`<path d=${d} fill="none" stroke=${BIN_COLORS[k]} stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />`)}
+          ${paths.map(([k, , area]) => html`<path class="chart-fade" d=${area} fill=${`url(#${clipId}-fill-${k})`} />`)}
+          ${paths.map(([k, d]) => html`<path class="chart-draw" pathLength="1" d=${d} fill="none" stroke=${BIN_COLORS[k]} stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />`)}
         </g>
         ${hover && html`
           <line x1=${hx} y1=${MT} x2=${hx} y2=${MT + CH} stroke="var(--text-tertiary)" stroke-width="0.75" />

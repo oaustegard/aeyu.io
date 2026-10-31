@@ -16,9 +16,9 @@ export function formatZoneTime(seconds) {
   return rm > 0 ? `${h}h ${rm}m` : `${h}h`;
 }
 
-function Bar({ pct, color, sec, i, ghostPct }) {
+export function ZoneBar({ pct, color, sec, i, ghostPct, height }) {
   return html`
-    <div class="zbar-track flex-1">
+    <div class="zbar-track flex-1" style=${height ? `height: ${height}px;` : ""}>
       ${ghostPct != null && html`<div class="zbar-fill zbar-fill--ghost" style="width: ${ghostPct}%; --c: ${color}; --i: ${i};"></div>`}
       <div class="zbar-fill" style="width: ${Math.max(pct, 1)}%; --c: ${color}; --i: ${i};">
         ${sec > 0 && html`<span class="zbar-wave" style="--d: ${waveSeconds(sec)}s; --i: ${i};"></span>`}
@@ -47,7 +47,7 @@ export function ZoneBarChart({ title, zones, colors, labels, totalTime }) {
           return html`
             <div class="flex items-center gap-2" style=${rowStyle}>
               <span class="flex-shrink-0" style=${labelStyle}>${labels[i] ? labels[i].split(" ")[0] : `Z${i + 1}`}</span>
-              <${Bar} pct=${pct} color=${colors[i] || "#8C8374"} sec=${time} i=${i} />
+              <${ZoneBar} pct=${pct} color=${colors[i] || "#8C8374"} sec=${time} i=${i} />
               <span class="flex-shrink-0" style="width: 3.5rem; color: var(--text-secondary); text-align: right;">${formatZoneTime(time)}</span>
               <span class="flex-shrink-0" style="width: 2rem; color: var(--text-tertiary); text-align: right; font-size: 10px;">${timePct}%</span>
             </div>
@@ -74,7 +74,7 @@ export function SustainedBlocksChart({ byThreshold }) {
       ${rows.map((b, i) => html`
         <div class="flex items-center gap-2" style=${rowStyle}>
           <span class="flex-shrink-0" style=${labelStyle}>≥${b.threshold}</span>
-          <${Bar} pct=${(b.longestSec / max) * 100} ghostPct=${(b.totalSec / max) * 100}
+          <${ZoneBar} pct=${(b.longestSec / max) * 100} ghostPct=${(b.totalSec / max) * 100}
             color=${HR_ZONE_COLORS[Math.min(i + offset, HR_ZONE_COLORS.length - 1)]} sec=${b.longestSec} i=${i} />
           <span class="flex-shrink-0" style="width: 5.5rem; color: var(--text); text-align: right;">
             ${formatZoneTime(b.longestSec)}<span style="color: var(--text-tertiary);"> / ${formatZoneTime(b.totalSec)}</span>
