@@ -388,6 +388,16 @@ export function RideReplay({ activity, awards, onStatus }) {
     setTick((x) => x + 1);
   }
 
+  // Profile and W′ strips: press to jump, keep dragging to scrub (mouse or touch)
+  const scrubAt = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    scrubTo(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)));
+  };
+  const scrubHandlers = {
+    onPointerDown: (e) => { e.currentTarget.setPointerCapture(e.pointerId); scrubAt(e); },
+    onPointerMove: (e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) scrubAt(e); },
+  };
+
   useEffect(() => {
     const c = overlayRef.current;
     if (!c) return;
@@ -568,7 +578,7 @@ export function RideReplay({ activity, awards, onStatus }) {
         </ol>`}
 
       <svg viewBox="0 0 1000 100" preserveAspectRatio="none" style="width: 100%; height: 56px; display: block; cursor: pointer; touch-action: none;"
-        onPointerDown=${(e) => { const r = e.currentTarget.getBoundingClientRect(); scrubTo(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))); }}>
+        ...${scrubHandlers}>
         <defs>
           <linearGradient id="replay-elev" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color="#FC4C02" stop-opacity="0.42" />
@@ -592,7 +602,7 @@ export function RideReplay({ activity, awards, onStatus }) {
             <${HelpButton} faqId="wbal" dark=${true} />
           </div>
           <svg viewBox="0 0 1000 100" preserveAspectRatio="none" style="width: 100%; height: 48px; display: block; cursor: pointer; touch-action: none;"
-            onPointerDown=${(e) => { const r = e.currentTarget.getBoundingClientRect(); scrubTo(Math.min(1, Math.max(0, (e.clientX - r.left) / r.width))); }}>
+            ...${scrubHandlers}>
             <line x1="0" x2="1000" y1=${wbalLow.zero} y2=${wbalLow.zero} stroke="rgba(255,255,255,0.25)" stroke-width="1" stroke-dasharray="4 4" vector-effect="non-scaling-stroke" />
             <path d=${wbalPath} fill="none" stroke="#7FB8E0" stroke-width="1.5" vector-effect="non-scaling-stroke" />
             <line x1=${wbalLow.x} x2=${wbalLow.x} y1=${wbalLow.y - 6} y2=${wbalLow.y + 6} stroke="#7FB8E0" stroke-width="3" vector-effect="non-scaling-stroke" />
