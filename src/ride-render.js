@@ -59,8 +59,12 @@ fn focusFade(s: Seg) -> f32 {
   return 0.3 * clamp(1.0 - gap / u.context, 0.0, 1.0);
 }
 
-@vertex
-fn vsRibbon(@builtin(vertex_index) vi: u32, s: Seg) -> VOut {
+// Dark rim drawn in its own pass under the whole ribbon, so it separates the
+// line from the curtain glow without striping the joints between segments
+const CASING_RGB = vec3f(0.09, 0.06, 0.043);
+fn casingWidth() -> f32 { return max(1.5, u.width * 0.3); }
+
+fn ribbonVert(vi: u32, s: Seg, extra: f32) -> VOut {
   let fade = focusFade(s);
   if (u.playhead < s.t.x || fade <= 0.0) { return hidden(); }
   let q1 = mix(s.p0, s.p1, drawn(s));
@@ -75,7 +79,7 @@ fn vsRibbon(@builtin(vertex_index) vi: u32, s: Seg) -> VOut {
   let n = vec2f(-d.y, d.x);
   let c = CORNERS[vi];
   let end = c.x > 0.5;
-  let hw = u.width * 0.5 + 0.5;
+  let hw = u.width * 0.5 + 0.5 + extra;
   // Overlap ends slightly so joints between segments have no gaps
   let p = select(s0 - d * hw * 0.3, s1 + d * hw * 0.3, end) + n * c.y * hw;
   let clip = select(c0, c1, end);
@@ -86,6 +90,19 @@ fn vsRibbon(@builtin(vertex_index) vi: u32, s: Seg) -> VOut {
   o.side = c.y * hw;
   o.hw = hw;
   o.alpha = 1.0;
+  return o;
+}
+
+@vertex
+fn vsRibbon(@builtin(vertex_index) vi: u32, s: Seg) -> VOut {
+  return ribbonVert(vi, s, 0.0);
+}
+
+@vertex
+fn vsCasing(@builtin(vertex_index) vi: u32, s: Seg) -> VOut {
+  var o = ribbonVert(vi, s, casingWidth());
+  o.alpha = 0.9 * min(1.0, focusFade(s) / 0.3);
+  o.rgb = CASING_RGB;
   return o;
 }
 
@@ -164,6 +181,7 @@ export async function createRideGPURenderer(canvas, ribbon) {
     primitive: { topology: "triangle-list" },
   });
   const curtain = pipeline("vsCurtain", "fsCurtain");
+  const casing = pipeline("vsCasing", "fsRibbon");
   const ribbonPipe = pipeline("vsRibbon", "fsRibbon");
 
   const uni = new Float32Array(24);
@@ -184,6 +202,8 @@ export async function createRideGPURenderer(canvas, ribbon) {
       pass.setBindGroup(0, bind);
       pass.setVertexBuffer(0, segBuf);
       pass.setPipeline(curtain);
+      pass.draw(6, count);
+      pass.setPipeline(casing);
       pass.draw(6, count);
       pass.setPipeline(ribbonPipe);
       pass.draw(6, count);
@@ -230,6 +250,13 @@ export function createRideCanvasRenderer(canvas, ribbon) {
         ctx.moveTo(p.a[0], p.a[1]); ctx.lineTo(p.b[0], p.b[1]);
         ctx.lineTo(p.gb[0], p.gb[1]); ctx.lineTo(p.ga[0], p.ga[1]);
         ctx.fill();
+      }
+      ctx.lineWidth = width + 2 * Math.max(1.5, width * 0.3);
+      for (const p of pts) {
+        ctx.strokeStyle = `rgba(23,15,11,${0.9 * Math.min(1, p.alpha / 0.3)})`;
+        ctx.beginPath();
+        ctx.moveTo(p.a[0], p.a[1]); ctx.lineTo(p.b[0], p.b[1]);
+        ctx.stroke();
       }
       for (const p of pts) {
         ctx.strokeStyle = p.alpha === 1 ? `rgb(${p.rgb})` : `rgb(${p.rgb.split(",").map((c) => Math.round(c * p.alpha)).join(",")})`;
