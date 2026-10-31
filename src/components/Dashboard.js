@@ -1142,7 +1142,8 @@ export function Dashboard() {
                     const minEf = Math.min(...efs);
                     const maxEf = Math.max(...efs);
                     const efRange = maxEf - minEf || 0.1;
-                    const padded = { min: Math.max(0, minEf - efRange * 0.15), max: maxEf + efRange * 0.1 };
+                    // Zoomed axis (EF moves a few %), padded below so the lowest month is a bar rather than a sliver
+                    const padded = { min: Math.max(0, minEf - efRange * 0.6), max: maxEf + efRange * 0.1 };
                     const pRange = padded.max - padded.min;
                     const W = 280, H = 80, ML = 32, MR = 4, MT = 4, MB = 18;
                     const cW = W - ML - MR, cH = H - MT - MB;
@@ -1252,22 +1253,24 @@ export function Dashboard() {
         <!-- Power Curve -->
         ${!loading.value && powerCurveData.value && html`
           <div class="mb-6 rounded-xl p-5" style="background: var(--surface); border: 1px solid var(--border);">
-            <div class="flex items-center justify-between mb-3">
-              <h2 class="inline-flex items-center" style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin: 0;">Power Curve
+            <div class="flex items-center justify-between mb-3" style="flex-wrap: wrap; column-gap: 1rem; row-gap: 0.25rem;">
+              <h2 class="inline-flex items-center" style="font-family: var(--font-display); font-size: 1.125rem; color: var(--text); margin: 0; white-space: nowrap;">Power Curve
                 <${ChartHelp} id="power-curve">
                   Your all-time best average power at each standard duration from your power meter data.<br/><br/>
                   <strong>FTP</strong> (Functional Threshold Power) is estimated as 95% of your best 20-minute power. Durations: 5s sprint, 30s, 1 min, 5 min VO\u2082max, 20 min FTP, 60 min sustained.<br/><br/>
                   <strong>CP</strong> (Critical Power) and <strong>W\u2032</strong> are fitted from your 3\u201330 min bests via W = CP\u00b7t + W\u2032. CP is the boundary between sustainable and unsustainable effort; W\u2032 is the finite work reservoir you can spend above CP (in kJ). More physiologically grounded than FTP \u2014 see the FAQ.
                 <//>
               </h2>
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-3" style="flex-wrap: wrap; white-space: nowrap;">
                 ${powerCurveData.value.cp && html`
                   <div class="flex items-center gap-1.5" title="Critical Power: boundary between sustainable and unsustainable effort, fitted from 3\u201330 min bests">
                     <span style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">CP</span>
                     <span style="font-family: var(--font-display); font-size: 1.25rem; color: var(--text);">${powerCurveData.value.cp.cp}</span>
                     <span style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">W</span>
-                    <span style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary); margin-left: 0.25rem;">\u00b7 W\u2032</span>
-                    <span style="font-family: var(--font-display); font-size: 1rem; color: var(--text);">${(powerCurveData.value.cp.wPrime / 1000).toFixed(1)}</span>
+                  </div>
+                  <div class="flex items-center gap-1.5" title="W\u2032: the finite work you can do above CP, fitted from 3\u201330 min bests">
+                    <span style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">W\u2032</span>
+                    <span style="font-family: var(--font-display); font-size: 1.25rem; color: var(--text);">${(powerCurveData.value.cp.wPrime / 1000).toFixed(1)}</span>
                     <span style="font-family: var(--font-body); font-size: 0.75rem; color: var(--text-tertiary);">kJ</span>
                   </div>
                 `}
