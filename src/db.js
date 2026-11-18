@@ -34,7 +34,7 @@ export function deleteDemoDB() {
 
 export function openDB() {
   if (dbPromise) return dbPromise;
-  dbPromise = new Promise((resolve, reject) => {
+  const thisPromise = dbPromise = new Promise((resolve, reject) => {
     const request = indexedDB.open(activeDBName, DB_VERSION);
 
     request.onupgradeneeded = (event) => {
@@ -89,7 +89,17 @@ export function openDB() {
       }
     };
 
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const db = request.result;
+      // Close when a delete or upgrade elsewhere needs the database (exitDemo deletes the demo
+      // DB). A connection left open blocks that delete, and every later open of the same name
+      // queues behind it, so re-entering the demo hung on "Loading demo…".
+      db.onversionchange = () => {
+        db.close();
+        if (dbPromise === thisPromise) dbPromise = null;
+      };
+      resolve(db);
+    };
     request.onerror = () => reject(request.error);
     request.onblocked = () => {
       // Another tab has the DB open at an older version — upgrade is blocked.

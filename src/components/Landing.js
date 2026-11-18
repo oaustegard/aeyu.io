@@ -4,26 +4,18 @@
  */
 
 import { html } from "htm/preact";
-import { signal } from "@preact/signals";
 import { startOAuth } from "../auth.js";
-import { startDemo } from "../demo.js";
 import { navigate } from "../app.js";
 import { authState } from "../auth.js";
 import { renderIconSVG } from "../icons.js";
 import { installContext } from "../install.js";
 import { InstallBanner } from "./InstallBanner.js";
 
-const demoLoading = signal(false);
-
-async function handleDemo() {
-  demoLoading.value = true;
-  try {
-    await startDemo();
-    navigate("/demo");
-  } catch (err) {
-    console.error("Demo load failed:", err);
-    demoLoading.value = false;
-  }
+// The /demo route starts the demo. Starting it here first set isDemo while the route was
+// still "/", which App treats as leaving the demo: it deleted the demo DB under the open
+// connection and the second start waited on that delete forever ("Loading demo…").
+function handleDemo() {
+  navigate("/demo");
 }
 
 // Award colors from style guide for FAQ pills
@@ -101,11 +93,10 @@ export function Landing() {
                   <div class="mt-4">
                     <button
                       onClick=${handleDemo}
-                      disabled=${demoLoading.value}
                       class="transition-colors"
                       style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-tertiary);"
                     >
-                      ${demoLoading.value ? "Loading demo..." : "or try the demo →"}
+                      or try the demo →
                     </button>
                   </div>
                 `;
@@ -130,11 +121,10 @@ export function Landing() {
                 <div class="mt-4">
                   <button
                     onClick=${handleDemo}
-                    disabled=${demoLoading.value}
                     class="transition-colors"
                     style="font-family: var(--font-body); font-size: 0.875rem; color: var(--text-tertiary);"
                   >
-                    ${demoLoading.value ? "Loading demo..." : "or try the demo →"}
+                    or try the demo →
                   </button>
                 </div>
               `;

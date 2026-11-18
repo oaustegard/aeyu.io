@@ -130,6 +130,10 @@ export async function startDemo() {
 
 /** Exit demo — switch back to real DB, restore real auth if present, delete demo DB */
 export async function exitDemo() {
+  // Drop the demo session along with the flag: a render in between would otherwise see a
+  // signed-in, non-demo user and mount the real Dashboard, whose auto-sync calls Strava
+  // with the demo token.
+  authState.value = null;
   isDemo.value = false;
   sessionStorage.removeItem("aeyu_demo_active");
   switchToRealDB();

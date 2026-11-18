@@ -51,7 +51,7 @@ import {
   formatSpeed,
   formatPower,
 } from "../units.js";
-import { isDemo, exitDemo, startDemo } from "../demo.js";
+import { isDemo, exitDemo } from "../demo.js";
 import { renderIconSVG } from "../icons.js";
 import { AWARD_LABELS, AWARD_GROUPS } from "../award-config.js";
 import { computeFitnessSummary } from "../fitness.js";
@@ -663,8 +663,11 @@ export function Dashboard() {
           ...(isDemo.value ? [{
             label: "Exit Demo",
             onClick: async () => {
+              // Leave /demo before exiting: exiting while the route is still /demo makes App
+              // restart the demo underneath the exit.
+              navigate("/");
               await exitDemo();
-              navigate(authState.value ? "/dashboard" : "/");
+              if (authState.value) navigate("/dashboard");
             },
           }] : [{
             label: syncing ? "Syncing…" : "Sync now",
@@ -689,7 +692,7 @@ export function Dashboard() {
           },
           ...(!isDemo.value ? [{
             label: "Try Demo",
-            onClick: async () => { await startDemo(); navigate("/demo"); },
+            onClick: () => navigate("/demo"),
           }] : []),
         ]}
       />
@@ -1967,7 +1970,7 @@ export function Dashboard() {
                   <p>You can enter Demo Mode at any time, even while logged in. When you exit, you'll be returned to your own dashboard with all your data intact.</p>
                   ${!isDemo.value && html`
                     <button
-                      onClick=${async () => { showFaq.value = false; await startDemo(); navigate("/demo"); }}
+                      onClick=${() => { showFaq.value = false; navigate("/demo"); }}
                       class="text-xs transition-colors"
                       style="color: var(--accent); font-family: var(--font-body);"
                     >Try the demo →</button>

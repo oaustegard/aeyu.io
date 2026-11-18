@@ -4,6 +4,12 @@ All merged pull requests for [aeyu.io](https://aeyu.io), a Strava-powered cyclin
 
 -----
 
+## 2026-11-18
+
+### Fixes
+
+- **Demo stuck on "Loading demo…"** — "or try the demo →" on the landing page never reached the dashboard. The button started the demo before switching to `/demo`. The app then saw a demo session on the landing route, treated it as leaving the demo, and deleted the demo database while it was still open, and the restart waited on that delete forever. Exiting the demo had the mirror problem. It cleared the demo flag while still on `/demo`, the app restarted the demo underneath it, and the exit could land on a non-demo dashboard whose auto-sync called Strava with the demo token. Both demo buttons now go to `/demo` and let that route start the demo. Exit Demo leaves `/demo` before exiting, and database connections close when a delete needs them, so re-entering the demo after an exit works. The landing button also no longer stays disabled on "Loading demo..." after an exit. `.claude/skills/verify` drives this flow before every commit.
+
 ## 2026-10-30
 
 ### Features
