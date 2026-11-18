@@ -52,6 +52,9 @@ container's copy when it is missing (`node_modules/` is gitignored).
 ## Stress test (2026-11-18)
 
 - 20 sequential full runs: 20/20 passed in 192 s.
+- Against the deployed site (`--base https://aeyu.io`): 3/3 passed in about 3.5 s.
+  The first deployed run found a second race: the Connect with Strava image
+  was still loading when the landing check read it. The check now waits for it.
 - 4 runners at once, 5 flow-only runs each: 20/20 passed.
 - One flake was found and fixed by its cause: the replay canvases mount after
   the streams load, so the check waits for them (up to 10 s) instead of

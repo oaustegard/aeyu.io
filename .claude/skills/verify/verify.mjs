@@ -71,9 +71,11 @@ try {
   await page.goto(base + '/');
   await until(/or try the demo/, 10000);
   const landing = await text();
-  const connect = page.getByAltText('Connect with Strava').first();
-  const connectOk = await connect.isVisible().catch(() => false)
-    && await connect.evaluate((img) => img.complete && img.naturalWidth > 0).catch(() => false);
+  // the button is an image; over a real network it can still be loading when the text is up
+  const connectOk = await page.waitForFunction(() => {
+    const img = document.querySelector('img[alt="Connect with Strava"]');
+    return !!img && img.complete && img.naturalWidth > 0 && img.getBoundingClientRect().width > 0;
+  }, null, { timeout: 10000 }).then(() => true, () => false);
   check('landing: renders the pitch, the Connect with Strava button and the demo link',
     /Participation Awards/.test(landing) && connectOk && /or try the demo/.test(landing));
   await shot('1-landing');
